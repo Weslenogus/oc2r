@@ -76,6 +76,49 @@ public final class Config {
     public static GUISpec.CaptureInputMode captureInputMode = GUISpec.CaptureInputMode.PER_BLOCK;
     public static boolean captureInputDefaultState = false;
 
+    // ===== ENHANCED INTERNET CARD DEVICE SETTINGS =====
+    // File transfer settings for large uploads/downloads
+    public static int internetCardMaxRequestSize = 50 * Constants.MEGABYTE;
+    public static int internetCardMaxResponseSize = 100 * Constants.MEGABYTE;
+    public static int internetCardConnectionTimeout = 60000; // 60 seconds
+    public static int internetCardReadTimeout = 300000; // 5 minutes
+    public static int internetCardBufferSize = 64 * 1024; // 64KB
+    public static int internetCardMaxConcurrentOperations = 10;
+
+    // Rate limiting and security
+    public static int internetCardMaxRequestsPerMinute = 60;
+    public static boolean internetCardHttpsOnly = false;
+    public static boolean internetCardEnableResumeDownloads = true;
+    public static boolean internetCardEnableChunkedUploads = true;
+
+    // Memory management for VM integration
+    public static int internetCardVmMemoryAllocation = 2 * Constants.MEGABYTE;
+    public static int internetCardProgressUpdateInterval = 1 * Constants.MEGABYTE;
+
+    // Enhanced domain filtering (extends existing deniedHosts/allowedHosts)
+    public static boolean internetCardUseWhitelist = false;
+    public static List<String> internetCardAllowedDomains = Arrays.asList(
+        "api.github.com",
+        "pastebin.com",
+        "httpbin.org",
+        "*.github.com",
+        "*.githubusercontent.com"
+    );
+    public static List<String> internetCardBlockedDomains = Arrays.asList(
+        "localhost",
+        "127.0.0.1",
+        "0.0.0.0",
+        "10.*",
+        "192.168.*",
+        "172.16.*",
+        "169.254.*"
+    );
+
+    // Energy consumption for internet card operations
+    public static int internetCardEnergyPerTick = 2;
+    public static int internetCardEnergyPerRequest = 50;
+    public static int internetCardEnergyPerMegabyte = 100;
+
     public static boolean computersUseEnergy() {
         return computerEnergyPerTick > 0 && computerEnergyStorage > 0;
     }
@@ -95,7 +138,95 @@ public final class Config {
     public static boolean monitorsUseEnergy() {
         return computerEnergyPerTick > 0 && computerEnergyStorage > 0;
     }
+
     public static boolean gatewayUseEnergy() {
         return gatewayEnergyPerPacket > 0 && gatewayEnergyStorage > 0;
+    }
+
+    // ===== INTERNET CARD UTILITY METHODS =====
+
+    /**
+     * Check if a domain is allowed based on whitelist/blacklist configuration
+     */
+    public static boolean isInternetCardDomainAllowed(String domain) {
+        if (!internetCardEnabled) {
+            return false;
+        }
+
+        String normalizedDomain = domain.toLowerCase();
+
+        if (internetCardUseWhitelist) {
+            return internetCardAllowedDomains.stream().anyMatch(allowed ->
+                matchesDomainPattern(normalizedDomain, allowed.toLowerCase()));
+        } else {
+            // Check both the original deniedHosts and new blocked domains
+            boolean blockedByOriginal = deniedHosts.stream().anyMatch(blocked ->
+                matchesCidrOrDomainPattern(normalizedDomain, blocked));
+            boolean blockedByNew = internetCardBlockedDomains.stream().anyMatch(blocked ->
+                matchesDomainPattern(normalizedDomain, blocked.toLowerCase()));
+            return !blockedByOriginal && !blockedByNew;
+        }
+    }
+
+    /**
+     * Validate request size against configured limits
+     */
+    public static void validateInternetCardRequestSize(int size) {
+        if (size > internetCardMaxRequestSize) {
+            throw new IllegalArgumentException(
+                String.format("Request size %d exceeds maximum allowed size %d",
+                    size, internetCardMaxRequestSize));
+        }
+    }
+
+    /**
+     * Validate response size against configured limits
+     */
+    public static void validateInternetCardResponseSize(long size) {
+        if (size > internetCardMaxResponseSize) {
+            throw new IllegalArgumentException(
+                String.format("Response size %d exceeds maximum allowed size %d",
+                    size, internetCardMaxResponseSize));
+        }
+    }
+
+    /**
+     * Format byte sizes for display
+     */
+    public static String formatByteSize(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
+        if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
+        return String.format("%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0));
+    }
+
+    private static boolean matchesDomainPattern(String domain, String pattern) {
+        if (pattern.equals(domain)) {
+            return true;
+        }
+
+        if (pattern.startsWith("*.")) {
+            String suffix = pattern.substring(2);
+            return domain.endsWith("." + suffix) || domain.equals(suffix);
+        }
+
+        if (pattern.endsWith(".*")) {
+            String prefix = pattern.substring(0, pattern.length() - 2);
+            return domain.startsWith(prefix + ".");
+        }
+
+        return false;
+    }
+
+    private static boolean matchesCidrOrDomainPattern(String domain, String pattern) {
+        // Handle CIDR patterns (like existing deniedHosts)
+        if (pattern.contains("/")) {
+            // This is a CIDR pattern - for domain checking, we skip IP-based blocking
+            // The actual IP resolution and CIDR checking would happen at network level
+            return false;
+        }
+
+        // Handle domain patterns
+        return matchesDomainPattern(domain, pattern);
     }
 }
