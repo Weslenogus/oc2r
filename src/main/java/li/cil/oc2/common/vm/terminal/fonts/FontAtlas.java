@@ -21,6 +21,7 @@ public class FontAtlas {
     private int atlasHeight;
     public NativeImage atlasImage;  // The current texture
     private final DynamicTexture dynamicTexture;
+    private boolean textureIsDirty = true;
     private final List<Glyph> glyphs;
 
     private int currentX = 0;  // X coordinate to place next glyph
@@ -88,7 +89,7 @@ public class FontAtlas {
 
         // Update the position for the next glyph
         currentX += glyph.image.getWidth() + PADDING;
-        updateTexture();
+        textureIsDirty = true;
     }
 
     private void resizeAtlas() {
@@ -113,14 +114,13 @@ public class FontAtlas {
         this.atlasImage = newAtlasImage;
 
         this.dynamicTexture.setPixels(atlasImage);
-        updateTexture();
+        textureIsDirty = true;
     }
 
     public ResourceLocation getTextureId() {
+        if (textureIsDirty) {
+            dynamicTexture.upload();
+        }
         return this.resources;
-    }
-
-    public void updateTexture() {
-        dynamicTexture.upload();
     }
 }
