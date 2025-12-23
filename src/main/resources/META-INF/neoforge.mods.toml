@@ -1,5 +1,5 @@
 modLoader = "javafml"
-loaderVersion = "[47,)"
+loaderVersion = "[4,)"
 issueTrackerURL = "https://github.com/North-Western-Development/oc2r/issues"
 license = "MIT"
 
@@ -14,32 +14,29 @@ Modern computers for the modern player.
 This mod uses the Terminus Font under the Open Font License. The full license can be found in the JAR of this mod.
 '''
 
+[[mixins]]
+config="mixins.oc2r.json"
+
 [[dependencies.oc2r]]
-modId = "forge"
-mandatory = true
-versionRange = "[47.4.0,)"
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
 ordering = "NONE"
 side = "BOTH"
 [[dependencies.oc2r]]
 modId = "minecraft"
-mandatory = true
-versionRange = "1.20.1"
-ordering = "NONE"
-side = "BOTH"
-[[dependencies.oc2r]]
-modId = "sedna"
-mandatory = true
-versionRange = "[1.0.42,)"
+type = "required"
+versionRange = "1.21.1"
 ordering = "NONE"
 side = "BOTH"
 [[dependencies.oc2r]]
 modId = "markdown_manual"
-mandatory = true
+type = "required"
 versionRange = "[1.2.1,)"
 side = "CLIENT"
 [[dependencies.oc2r]]
 modId = "projectred_transmission"
-mandatory = false
-versionRange = "[4.19.0,)"
+type = "optional"
+versionRange = "[4.22.0,)"
 side = "BOTH"
 ordering = "AFTER"
