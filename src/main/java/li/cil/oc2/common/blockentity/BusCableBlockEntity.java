@@ -104,7 +104,7 @@ public final class BusCableBlockEntity extends ModBlockEntity {
         setChanged();
 
         if (!level.isClientSide()) {
-            final BusInterfaceNameMessage message = new BusInterfaceNameMessage.ToClient(this, side, interfaceNames[side.get3DDataValue()]);
+            final BusInterfaceNameMessage message = BusInterfaceNameMessage.ToClient(this, side, interfaceNames[side.get3DDataValue()]);
             Network.sendToClientsTrackingBlockEntity(message, this);
             busElement.updateDevicesForNeighbor(side);
         }

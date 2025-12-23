@@ -9,49 +9,38 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.network.NetworkEvent;
 
-public final class NetworkInterfaceCardConfigurationMessage extends AbstractMessage {
-    private InteractionHand hand;
-    private Direction side;
-    private boolean value;
+import io.netty.buffer.ByteBuf;
+import li.cil.oc2.api.API;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.codec.NeoForgeStreamCodecs;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-    ///////////////////////////////////////////////////////////////////
+public record NetworkInterfaceCardConfigurationMessage(InteractionHand hand, Direction side, boolean value) implements AbstractMessage {
+    public static final StreamCodec<FriendlyByteBuf, NetworkInterfaceCardConfigurationMessage> STREAM_CODEC = StreamCodec.composite(
+        NeoForgeStreamCodecs.enumCodec(InteractionHand.class),
+        NetworkInterfaceCardConfigurationMessage::hand,
+        Direction.STREAM_CODEC,
+        NetworkInterfaceCardConfigurationMessage::side,
+        ByteBufCodecs.BOOL,
+        NetworkInterfaceCardConfigurationMessage::value,
+        NetworkInterfaceCardConfigurationMessage::new
+    );
 
-    public NetworkInterfaceCardConfigurationMessage(final InteractionHand hand, final Direction side, final boolean value) {
-        this.hand = hand;
-        this.side = side;
-        this.value = value;
-    }
-
-    public NetworkInterfaceCardConfigurationMessage(final FriendlyByteBuf buffer) {
-        super(buffer);
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-    @Override
-    public void fromBytes(final FriendlyByteBuf buffer) {
-        hand = buffer.readEnum(InteractionHand.class);
-        side = buffer.readEnum(Direction.class);
-        value = buffer.readBoolean();
-    }
+    public static final CustomPacketPayload.Type<NetworkInterfaceCardConfigurationMessage> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "network_interface_card_configuration_message"));
 
     @Override
-    public void toBytes(final FriendlyByteBuf buffer) {
-        buffer.writeEnum(hand);
-        buffer.writeEnum(side);
-        buffer.writeBoolean(value);
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 
     ///////////////////////////////////////////////////////////////////
 
-    @Override
-    protected void handleMessage(final NetworkEvent.Context context) {
-        final ServerPlayer player = context.getSender();
-        if (player == null) {
-            return;
-        }
+    public void handleMessage(IPayloadContext context) {
+        final ServerPlayer player = (ServerPlayer) context.player();
 
         final ItemStack itemStack = player.getItemInHand(hand);
         if (!itemStack.is(Items.NETWORK_INTERFACE_CARD.get())) {

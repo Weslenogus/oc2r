@@ -8,55 +8,61 @@ import li.cil.oc2.common.network.MessageUtils;
 import li.cil.oc2.common.serialization.NBTSerialization;
 import li.cil.oc2.common.vm.VMRunState;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtIo;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
-import net.minecraftforge.network.NetworkEvent;
 
-public final class RobotInitializationMessage extends AbstractMessage {
-    private int entityId;
-    private CommonDeviceBusController.BusState busState;
-    private VMRunState runState;
-    private Component bootError;
-    private CompoundTag terminal;
+import io.netty.buffer.ByteBuf;
+import li.cil.oc2.api.API;
+import net.minecraft.network.chat.ComponentSerialization;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.codec.NeoForgeStreamCodecs;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+
+import javax.annotation.Nullable;
+import java.util.logging.Logger;
+
+public record RobotInitializationMessage(int entityId, CommonDeviceBusController.BusState busState, VMRunState runState, @Nullable Component bootError, CompoundTag terminal) implements AbstractMessage {
+    public static final StreamCodec<RegistryFriendlyByteBuf, RobotInitializationMessage> STREAM_CODEC = StreamCodec.composite(
+        ByteBufCodecs.INT,
+        RobotInitializationMessage::entityId,
+        NeoForgeStreamCodecs.enumCodec(CommonDeviceBusController.BusState.class),
+        RobotInitializationMessage::busState,
+        NeoForgeStreamCodecs.enumCodec(VMRunState.class),
+        RobotInitializationMessage::runState,
+        ComponentSerialization.STREAM_CODEC,
+        RobotInitializationMessage::bootError,
+        ByteBufCodecs.COMPOUND_TAG,
+        RobotInitializationMessage::terminal,
+        RobotInitializationMessage::new
+    );
+
+    public static final CustomPacketPayload.Type<RobotInitializationMessage> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "robot_initialization_message"));
+
+    @Override
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
+    }
 
     ///////////////////////////////////////////////////////////////////
 
     public RobotInitializationMessage(final Robot robot) {
-        this.entityId = robot.getId();
-        this.busState = robot.getVirtualMachine().getBusState();
-        this.runState = robot.getVirtualMachine().getRunState();
-        this.bootError = robot.getVirtualMachine().getBootError();
-        this.terminal = NBTSerialization.serialize(robot.getTerminal());
-    }
-
-    public RobotInitializationMessage(final FriendlyByteBuf buffer) {
-        super(buffer);
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-    @Override
-    public void fromBytes(final FriendlyByteBuf buffer) {
-        entityId = buffer.readVarInt();
-        busState = buffer.readEnum(CommonDeviceBusController.BusState.class);
-        runState = buffer.readEnum(VMRunState.class);
-        bootError = buffer.readComponent();
-        terminal = buffer.readNbt();
-    }
-
-    @Override
-    public void toBytes(final FriendlyByteBuf buffer) {
-        buffer.writeVarInt(entityId);
-        buffer.writeEnum(busState);
-        buffer.writeEnum(runState);
-        buffer.writeComponent(bootError);
-        buffer.writeNbt(terminal);
+        this (
+            robot.getId(),
+            robot.getVirtualMachine().getBusState(),
+            robot.getVirtualMachine().getRunState(),
+            robot.getVirtualMachine().getBootError(),
+            NBTSerialization.serialize(robot.getTerminal())
+        );
     }
 
     ///////////////////////////////////////////////////////////////////
 
-    @Override
-    protected void handleMessage(final NetworkEvent.Context context) {
+    public void handleMessage(IPayloadContext context) {
         MessageUtils.withClientEntity(entityId, Robot.class,
             robot -> {
                 robot.getVirtualMachine().setBusStateClient(busState);

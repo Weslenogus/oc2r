@@ -40,8 +40,6 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -75,7 +73,6 @@ import net.neoforged.api.distmarker.OnlyIn;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.network.NetworkHooks;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.level.ChunkEvent;
 import net.neoforged.neoforge.event.level.LevelEvent;
@@ -366,11 +363,6 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
     }
 
     @Override
-    public Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return NetworkHooks.getEntitySpawningPacket(this);
-    }
-
-    @Override
     public void setRemoved(final RemovalReason reason) {
         super.setRemoved(reason);
 
@@ -431,11 +423,10 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
     ///////////////////////////////////////////////////////////////////
 
     @Override
-    protected void defineSynchedData() {
-        final SynchedEntityData dataManager = getEntityData();
-        dataManager.define(TARGET_POSITION, BlockPos.ZERO);
-        dataManager.define(TARGET_DIRECTION, Direction.NORTH);
-        dataManager.define(SELECTED_SLOT, (byte) 0);
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        builder.define(TARGET_POSITION, BlockPos.ZERO);
+        builder.define(TARGET_DIRECTION, Direction.NORTH);
+        builder.define(SELECTED_SLOT, (byte) 0);
     }
 
     @Override

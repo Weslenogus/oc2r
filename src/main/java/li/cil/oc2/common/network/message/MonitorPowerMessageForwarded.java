@@ -6,41 +6,38 @@ import li.cil.oc2.common.blockentity.MonitorBlockEntity;
 import li.cil.oc2.common.network.MessageUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
 
-public final class MonitorPowerMessageForwarded extends AbstractMessage {
-    private BlockPos pos;
-    private boolean power;
+import io.netty.buffer.ByteBuf;
+import li.cil.oc2.api.API;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+
+public record MonitorPowerMessageForwarded(BlockPos pos, boolean power) implements CustomPacketPayload {
+    public static final StreamCodec<ByteBuf, MonitorPowerMessageForwarded> STREAM_CODEC = StreamCodec.composite(
+        BlockPos.STREAM_CODEC,
+        MonitorPowerMessageForwarded::pos,
+        ByteBufCodecs.BOOL,
+        MonitorPowerMessageForwarded::power,
+        MonitorPowerMessageForwarded::new
+    );
+
+    public static final CustomPacketPayload.Type<MonitorPowerMessageForwarded> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "monitor_power_message_forwarded"));
+
+    @Override
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
+    }
 
     ///////////////////////////////////////////////////////////////////
 
     public MonitorPowerMessageForwarded(final MonitorBlockEntity monitor, final boolean power) {
-        this.pos = monitor.getBlockPos();
-        this.power = power;
+        this(monitor.getBlockPos(), power);
     }
 
-    public MonitorPowerMessageForwarded(final FriendlyByteBuf buffer) {
-        super(buffer);
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-    @Override
-    public void fromBytes(final FriendlyByteBuf buffer) {
-        pos = buffer.readBlockPos();
-        power = buffer.readBoolean();
-    }
-
-    @Override
-    public void toBytes(final FriendlyByteBuf buffer) {
-        buffer.writeBlockPos(pos);
-        buffer.writeBoolean(power);
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-    @Override
-    protected void handleMessage(final NetworkEvent.Context context) {
+    public void handleMessage(IPayloadContext context) {
         MessageUtils.withClientBlockEntityAt(pos, MonitorBlockEntity.class,
             (monitor) -> {
                 if (power) {

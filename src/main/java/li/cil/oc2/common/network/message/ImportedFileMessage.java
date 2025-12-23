@@ -2,53 +2,43 @@
 
 package li.cil.oc2.common.network.message;
 
+import io.netty.buffer.ByteBuf;
+import li.cil.oc2.api.API;
 import li.cil.oc2.common.bus.device.rpc.item.FileImportExportCardItemDevice;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import java.util.function.Supplier;
 
-public final class ImportedFileMessage extends AbstractMessage {
+public record ImportedFileMessage(int id, String name, byte[] data) implements AbstractMessage {
     private static final int MAX_NAME_LENGTH = 256;
 
     ///////////////////////////////////////////////////////////////////
 
-    private int id;
-    private String name;
-    private byte[] data;
+    public static final StreamCodec<ByteBuf, ImportedFileMessage> STREAM_CODEC = StreamCodec.composite(
+        ByteBufCodecs.INT,
+        ImportedFileMessage::id,
+        ByteBufCodecs.STRING_UTF8,
+        ImportedFileMessage::name,
+        ByteBufCodecs.BYTE_ARRAY,
+        ImportedFileMessage::data,
+        ImportedFileMessage::new
+    );
 
-    ///////////////////////////////////////////////////////////////////
-
-    public ImportedFileMessage(final int id, final String name, final byte[] data) {
-        this.id = id;
-        this.name = name;
-        this.data = data;
-    }
-
-    public ImportedFileMessage(final FriendlyByteBuf buffer) {
-        super(buffer);
-    }
-
-    ///////////////////////////////////////////////////////////////////
+    public static final CustomPacketPayload.Type<ImportedFileMessage> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "imported_file_message"));
 
     @Override
-    public void fromBytes(final FriendlyByteBuf buffer) {
-        id = buffer.readVarInt();
-        name = buffer.readUtf(MAX_NAME_LENGTH);
-        data = buffer.readByteArray();
-    }
-
-    @Override
-    public void toBytes(final FriendlyByteBuf buffer) {
-        buffer.writeVarInt(id);
-        buffer.writeUtf(name, MAX_NAME_LENGTH);
-        buffer.writeByteArray(data);
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 
     ///////////////////////////////////////////////////////////////////
 
-    @Override
-    protected void handleMessage(final Supplier<NetworkEvent.Context> context) {
+    public void handleMessage(IPayloadContext context) {
         FileImportExportCardItemDevice.setImportedFile(id, name, data);
     }
 }

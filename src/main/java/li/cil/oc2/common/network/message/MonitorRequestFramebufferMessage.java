@@ -7,37 +7,38 @@ import li.cil.oc2.common.network.MessageUtils;
 import li.cil.oc2.common.network.MonitorLoadBalancer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
 
-public final class MonitorRequestFramebufferMessage extends AbstractMessage {
-    private BlockPos pos;
+import io.netty.buffer.ByteBuf;
+import li.cil.oc2.api.API;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+
+public record MonitorRequestFramebufferMessage(BlockPos pos) implements AbstractMessage {
+    public static final StreamCodec<ByteBuf, MonitorRequestFramebufferMessage> STREAM_CODEC = StreamCodec.composite(
+        BlockPos.STREAM_CODEC,
+        MonitorRequestFramebufferMessage::pos,
+        MonitorRequestFramebufferMessage::new
+    );
+
+    public static final CustomPacketPayload.Type<MonitorRequestFramebufferMessage> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "monitor_request_framebuffer_message"));
+
+    @Override
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
+    }
 
     ///////////////////////////////////////////////////////////////////
 
     public MonitorRequestFramebufferMessage(final MonitorBlockEntity projector) {
-        this.pos = projector.getBlockPos();
-    }
-
-    public MonitorRequestFramebufferMessage(final FriendlyByteBuf buffer) {
-        super(buffer);
+        this(projector.getBlockPos());
     }
 
     ///////////////////////////////////////////////////////////////////
 
-    @Override
-    public void fromBytes(final FriendlyByteBuf buffer) {
-        pos = buffer.readBlockPos();
-    }
-
-    @Override
-    public void toBytes(final FriendlyByteBuf buffer) {
-        buffer.writeBlockPos(pos);
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-    @Override
-    protected void handleMessage(final NetworkEvent.Context context) {
+    public void handleMessage(IPayloadContext context) {
         MessageUtils.withNearbyServerBlockEntity(context, pos, MonitorBlockEntity.class,
             (player, monitor) -> MonitorLoadBalancer.updateWatcher(monitor, player));
     }

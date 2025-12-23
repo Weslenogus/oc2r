@@ -2,51 +2,44 @@
 
 package li.cil.oc2.common.network.message;
 
+import io.netty.buffer.ByteBuf;
+import li.cil.oc2.api.API;
 import li.cil.oc2.client.gui.FileChooserScreen;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.nio.file.Files;
 
-public final class ExportedFileMessage extends AbstractMessage {
+public record ExportedFileMessage(String name, byte[] data) implements AbstractMessage {
     private static final Logger LOGGER = LogManager.getLogger();
 
     ///////////////////////////////////////////////////////////////////
 
-    private String name;
-    private byte[] data;
+    public static final StreamCodec<ByteBuf, ExportedFileMessage> STREAM_CODEC = StreamCodec.composite(
+        ByteBufCodecs.STRING_UTF8,
+        ExportedFileMessage::name,
+        ByteBufCodecs.BYTE_ARRAY,
+        ExportedFileMessage::data,
+        ExportedFileMessage::new
+    );
 
-    ///////////////////////////////////////////////////////////////////
-
-    public ExportedFileMessage(final String name, final byte[] data) {
-        this.name = name;
-        this.data = data;
-    }
-
-    public ExportedFileMessage(final FriendlyByteBuf buffer) {
-        super(buffer);
-    }
-
-    ///////////////////////////////////////////////////////////////////
+    public static final CustomPacketPayload.Type<ExportedFileMessage> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "exported_file_message"));
 
     @Override
-    public void fromBytes(final FriendlyByteBuf buffer) {
-        name = buffer.readUtf();
-        data = buffer.readByteArray();
-    }
-
-    @Override
-    public void toBytes(final FriendlyByteBuf buffer) {
-        buffer.writeUtf(name);
-        buffer.writeByteArray(data);
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 
     ///////////////////////////////////////////////////////////////////
 
-    protected void handleMessage(final NetworkEvent.Context context) {
+    public void handleMessage(IPayloadContext context) {
         FileChooserScreen.openFileChooserForSave(name, path -> {
             try {
                 Files.write(path, data);

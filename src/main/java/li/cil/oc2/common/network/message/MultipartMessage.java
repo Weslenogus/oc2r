@@ -8,10 +8,15 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import li.cil.oc2.api.API;
 import li.cil.oc2.common.Constants;
 import li.cil.oc2.common.network.Network;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -19,13 +24,30 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Function;
-import java.util.function.Supplier;
 
 /**
  * Utility wrapper message for client to server messages exceeding the regular custom payload size.
  */
-public final class MultipartMessage extends AbstractMessage {
+public record MultipartMessage(int messageId, int multipartMessageId, byte[] data) implements CustomPacketPayload {
+    public static final StreamCodec<ByteBuf, MultipartMessage> STREAM_CODEC = StreamCodec.composite(
+        ByteBufCodecs.INT,
+        MultipartMessage::messageId,
+        ByteBufCodecs.INT,
+        MultipartMessage::multipartMessageId,
+        ByteBufCodecs.BYTE_ARRAY,
+        MultipartMessage::data,
+        MultipartMessage::new
+    );
+
+    public static final CustomPacketPayload.Type<MultipartMessage> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "multipart_message"));
+
+    @Override
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
+    }
+
+    ///////////////////////////////////////////////////////////////////
+
     private static final Logger LOGGER = LogManager.getLogger();
 
     private static final int MAX_MULTIPART_MESSAGE_SIZE = 1024 * Constants.KILOBYTE;
@@ -53,12 +75,13 @@ public final class MultipartMessage extends AbstractMessage {
     private static final Int2ObjectMap<Entry> ENTRY_BY_ID = new Int2ObjectArrayMap<>();
     private static int lastAssignedId;
 
-    public static <T extends AbstractMessage> void registerMessage(final Class<T> type, final Function<FriendlyByteBuf, T> factory) {
+    public static <T extends AbstractMessage> void registerMessage(final Class<T> type, StreamCodec<? super FriendlyByteBuf, T> streamCodec) {
         if (ENTRY_BY_TYPE.containsKey(type)) {
             throw new IllegalArgumentException("Message of this type has already been registered.");
         }
         final int id = ++lastAssignedId;
-        final Entry entry = new Entry(id, factory);
+        //noinspection unchecked
+        final Entry entry = new Entry(id, (StreamCodec<? super FriendlyByteBuf, AbstractMessage>) streamCodec);
         ENTRY_BY_TYPE.put(type, entry);
         ENTRY_BY_ID.put(id, entry);
     }
@@ -66,8 +89,13 @@ public final class MultipartMessage extends AbstractMessage {
     ///////////////////////////////////////////////////////////////////
 
     public static void sendToServer(final AbstractMessage message) {
+        final Entry entry = ENTRY_BY_TYPE.get(message.getClass());
+        if (entry == null) {
+            throw new IllegalArgumentException("Trying to send multipart message of unregistered message (" + message.getClass().getName() + ").");
+        }
+
         final FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
-        message.toBytes(buffer);
+        entry.streamCodec.encode(buffer, message);
         if (buffer.readableBytes() <= MAX_PAYLOAD_SIZE) {
             // Message fits into one custom payload packet, send it as is.
             Network.sendToServer(message);
@@ -77,32 +105,19 @@ public final class MultipartMessage extends AbstractMessage {
             throw new IllegalArgumentException("Message too large.");
         }
 
-        final Entry entry = ENTRY_BY_TYPE.get(message.getClass());
-        if (entry == null) {
-            throw new IllegalArgumentException("Trying to send multipart message of unregistered message (" + message.getClass().getName() + ").");
-        }
-
         final int messageId = entry.id();
         final int multipartMessageId = ++lastAssignedMultipartMessageId;
 
-        while (buffer.readableBytes() > 0) {
-            final int dataLength = Math.min(buffer.readableBytes(), MAX_PAYLOAD_SIZE - HEADER_SIZE);
+        boolean lastPacketFullLength = true;
+
+        while (buffer.readableBytes() > 0 || lastPacketFullLength) {
+            int dataLength = Math.min(buffer.readableBytes(), MAX_PAYLOAD_SIZE - HEADER_SIZE);
+            lastPacketFullLength = dataLength == MAX_PAYLOAD_SIZE - HEADER_SIZE;
             final byte[] data = new byte[dataLength];
             buffer.readBytes(data);
             Network.sendToServer(new MultipartMessage(messageId, multipartMessageId, data));
         }
     }
-
-    ///////////////////////////////////////////////////////////////////
-
-    /**
-     * Automatically computed on client. Implicit because all but last packets are max size.
-     */
-    private boolean isFinalPart;
-
-    private int messageId;
-    private int multipartMessageId;
-    private byte[] data;
 
     ///////////////////////////////////////////////////////////////////
 
@@ -112,36 +127,12 @@ public final class MultipartMessage extends AbstractMessage {
         this.data = data;
     }
 
-    public MultipartMessage(final FriendlyByteBuf buffer) {
-        super(buffer);
-    }
-
     ///////////////////////////////////////////////////////////////////
 
-    @Override
-    public void fromBytes(final FriendlyByteBuf buffer) {
-        isFinalPart = buffer.readableBytes() < MAX_PAYLOAD_SIZE - 1 /* forge message index */;
-
-        messageId = buffer.readInt();
-        multipartMessageId = buffer.readInt();
-        final int length = buffer.readUnsignedShort();
-        data = new byte[length];
-        buffer.readBytes(data);
-    }
-
-    @Override
-    public void toBytes(final FriendlyByteBuf buffer) {
-        buffer.writeInt(messageId);
-        buffer.writeInt(multipartMessageId);
-        buffer.writeShort(data.length);
-        buffer.writeBytes(data);
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-    @Override
-    protected void handleMessage(final Supplier<NetworkEvent.Context> contextSupplier) {
+    public void handleMessage(IPayloadContext context) {
         try {
+            final boolean isFinalPart = data.length < MAX_PAYLOAD_SIZE - HEADER_SIZE;
+
             final ByteBuf buffer = MULTIPART_MESSAGE_BUFFER_CACHE.get(lastAssignedMultipartMessageId, Unpooled::buffer);
             if (buffer.capacity() == 0) {
                 return; // Invalidated entry due to being over-sized.
@@ -149,7 +140,7 @@ public final class MultipartMessage extends AbstractMessage {
 
             buffer.writeBytes(data);
             if (buffer.readableBytes() > MAX_MULTIPART_MESSAGE_SIZE) {
-                LOGGER.error("Received over-sized multipart message from client [{}], ignoring.", contextSupplier.get().getSender());
+                LOGGER.error("Received over-sized multipart message from client [{}], ignoring.", context.player());
                 MULTIPART_MESSAGE_BUFFER_CACHE.put(lastAssignedMultipartMessageId, Unpooled.buffer(0));
                 return;
             }
@@ -159,18 +150,18 @@ public final class MultipartMessage extends AbstractMessage {
 
                 final Entry entry = ENTRY_BY_ID.get(messageId);
                 if (entry == null) {
-                    LOGGER.error("Received multipart message for unregistered message from client [{}]. Are the mod version on the server and client the same?", contextSupplier.get().getSender());
+                    LOGGER.error("Received multipart message for unregistered message from client [{}]. Are the mod version on the server and client the same?", context.player());
                     return;
                 }
 
-                entry.factory.apply(new FriendlyByteBuf(buffer)).handleMessage(contextSupplier);
+                entry.streamCodec.decode(new FriendlyByteBuf(buffer)).handleMessage(context);
             }
         } catch (final ExecutionException e) {
-            LOGGER.error("Error when handling multipart message received from client [{}]: {}", contextSupplier.get().getSender(), e);
+            LOGGER.error("Error when handling multipart message received from client [{}]: {}", context.player(), e);
         }
     }
 
     ///////////////////////////////////////////////////////////////////
 
-    private record Entry(int id, Function<FriendlyByteBuf, ? extends AbstractMessage> factory) { }
+    private record Entry(int id, StreamCodec<? super FriendlyByteBuf, AbstractMessage> streamCodec) { }
 }
