@@ -10,8 +10,7 @@ import li.cil.oc2.common.bus.device.provider.ProviderRegistry;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.neoforged.bus.api.IEventBus;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.IForgeRegistry;
+import net.neoforged.neoforge.registries.DeferredRegister;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -30,7 +29,7 @@ public abstract class RegistryUtils {
     private static final List<DeferredRegister<?>> ENTRIES = new ArrayList<>();
     private static Phase phase = Phase.PRE_INIT;
 
-    public static <T extends IForgeRegistry<T>> DeferredRegister<T> getInitializerFor(final ResourceKey<Registry<T>> key) {
+    public static <T extends Registry<T>> DeferredRegister<T> getInitializerFor(final ResourceKey<Registry<T>> key) {
         if (phase != Phase.INIT) throw new IllegalStateException();
 
         final DeferredRegister<T> entry = DeferredRegister.create(key, API.MOD_ID);
@@ -38,7 +37,7 @@ public abstract class RegistryUtils {
         return entry;
     }
 
-    public static <T extends IForgeRegistry<T>> DeferredRegister<T> getInitializerFor(final IForgeRegistry<T> registry) {
+    public static <T extends Registry<T>> DeferredRegister<T> getInitializerFor(final Registry<T> registry) {
         if (phase != Phase.INIT) throw new IllegalStateException();
 
         final DeferredRegister<T> entry = DeferredRegister.create(registry, API.MOD_ID);
@@ -72,9 +71,9 @@ public abstract class RegistryUtils {
         }
         String providerName = null;
         if (BlockDeviceProvider.class.isAssignableFrom(registryEntry.getClass())) {
-            providerName = ProviderRegistry.BLOCK_DEVICE_PROVIDER_REGISTRY.get().getRegistryName().toString();
+            providerName = ProviderRegistry.BLOCK_DEVICE_PROVIDER_REGISTRY.key().location().toString();
         } else if (ItemDeviceProvider.class.isAssignableFrom(registryEntry.getClass())) {
-            providerName = ProviderRegistry.ITEM_DEVICE_PROVIDER_REGISTRY.get().getRegistryName().toString();
+            providerName = ProviderRegistry.ITEM_DEVICE_PROVIDER_REGISTRY.key().location().toString();
         }
 
         if(providerName == null) {

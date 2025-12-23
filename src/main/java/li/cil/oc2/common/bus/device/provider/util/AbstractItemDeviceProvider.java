@@ -7,7 +7,7 @@ import li.cil.oc2.api.bus.device.provider.ItemDeviceProvider;
 import li.cil.oc2.api.bus.device.provider.ItemDeviceQuery;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.neoforge.registries.DeferredItem;
 
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -21,7 +21,7 @@ public abstract class AbstractItemDeviceProvider implements ItemDeviceProvider {
         this.predicate = predicate;
     }
 
-    protected AbstractItemDeviceProvider(final RegistryObject<? extends Item> item) {
+    protected AbstractItemDeviceProvider(final DeferredItem<? extends Item> item) {
         this(i -> i == item.get());
     }
 

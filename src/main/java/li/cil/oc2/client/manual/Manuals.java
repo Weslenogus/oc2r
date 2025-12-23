@@ -21,8 +21,8 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.bus.api.IEventBus;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.neoforge.registries.DeferredHolder;
+import net.neoforged.neoforge.registries.DeferredRegister;
 
 @OnlyIn(Dist.CLIENT)
 public final class Manuals {
@@ -33,7 +33,7 @@ public final class Manuals {
 
     ///////////////////////////////////////////////////////////////////
 
-    public static final RegistryObject<ManualModel> MANUAL = MANUALS.register("manual", Manual::new);
+    public static final DeferredHolder<ManualModel, Manual> MANUAL = MANUALS.register("manual", Manual::new);
 
     ///////////////////////////////////////////////////////////////////
 

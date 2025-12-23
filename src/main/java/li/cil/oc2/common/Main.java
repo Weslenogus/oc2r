@@ -8,7 +8,6 @@ import li.cil.oc2.api.API;
 import li.cil.oc2.client.manual.Manuals;
 import li.cil.oc2.common.block.Blocks;
 import li.cil.oc2.common.blockentity.BlockEntities;
-import li.cil.oc2.common.bus.device.DeviceTypes;
 import li.cil.oc2.common.bus.device.data.BlockDeviceDataRegistry;
 import li.cil.oc2.common.bus.device.data.FirmwareRegistry;
 import li.cil.oc2.common.bus.device.provider.ProviderRegistry;
@@ -74,7 +73,6 @@ public final class Main {
         SoundEvents.initialize(modBus);
 
         ProviderRegistry.initialize(modBus);
-        DeviceTypes.initialize(modBus);
 
         BlockDeviceDataRegistry.initialize(modBus);
         FirmwareRegistry.initialize(modBus);

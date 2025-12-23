@@ -12,10 +12,10 @@ import li.cil.oc2.common.bus.device.util.Devices;
 import li.cil.oc2.common.bus.device.util.ItemDeviceInfo;
 import li.cil.oc2.common.util.ItemDeviceUtils;
 import li.cil.oc2.common.util.NBTTagIds;
+import net.minecraft.core.Registry;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.registries.IForgeRegistry;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -99,8 +99,8 @@ public abstract class AbstractItemDeviceBusElement extends AbstractGroupingDevic
     @Override
     protected void onEntryRemoved(final String dataKey, final CompoundTag tag, @Nullable final ItemDeviceQuery query) {
         super.onEntryRemoved(dataKey, tag, query);
-        final IForgeRegistry<ItemDeviceProvider> registry = Providers.itemDeviceProviderRegistry();
-        final ItemDeviceProvider provider = registry.getValue(ResourceLocation.parse(dataKey));
+        final Registry<ItemDeviceProvider> registry = Providers.itemDeviceProviderRegistry();
+        final ItemDeviceProvider provider = registry.get(ResourceLocation.parse(dataKey));
         if (provider != null) {
             provider.unmount(query, tag);
         }

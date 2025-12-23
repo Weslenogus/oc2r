@@ -335,7 +335,7 @@ Shared device provider registration:
 ```java
 import li.cil.oc2.api.bus.device.provider.BlockDeviceProvider;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.registries.DeferredRegister;
+import net.neoforged.neoforge.registries.DeferredRegister;
 
 class Providers {
     static final DeferredRegister<BlockDeviceProvider> BLOCK_DEVICE_PROVIDERS =

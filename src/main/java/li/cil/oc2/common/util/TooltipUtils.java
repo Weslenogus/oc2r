@@ -26,8 +26,6 @@ import net.minecraft.network.chat.*;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.ClientHooks;
-import net.minecraftforge.registries.ForgeRegistry;
-import net.minecraftforge.registries.RegistryManager;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -177,12 +175,7 @@ public final class TooltipUtils {
     ///////////////////////////////////////////////////////////////////
 
     private static String[] getDeviceTypeNames() {
-        final ForgeRegistry<DeviceType> registry = RegistryManager.ACTIVE.getRegistry(DeviceType.REGISTRY);
-        if (registry != null) {
-            return registry.getValues().stream().map(RegistryUtils::key).toArray(String[]::new);
-        } else {
-            return new String[0];
-        }
+        return DeviceType.REGISTRY.stream().map(RegistryUtils::key).toArray(String[]::new);
     }
 
     private static void collectItemStacks(final CompoundTag tag, final List<ItemStack> stacks, final IntList stackSizes) {

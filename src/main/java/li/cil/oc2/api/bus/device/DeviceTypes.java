@@ -2,24 +2,20 @@
 
 package li.cil.oc2.api.bus.device;
 
-import li.cil.oc2.api.API;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.registries.RegistryObject;
-
 /**
  * Lists built-in device types for convenience.
  */
 @SuppressWarnings("unused")
 public final class DeviceTypes {
-    public static final DeviceType MEMORY = (DeviceType) RegistryObject.create(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "memory"), ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "device_type"), API.MOD_ID).get();
+    public static final DeviceType MEMORY = li.cil.oc2.common.bus.device.DeviceTypes.MEMORY;
 
-    public static final DeviceType HARD_DRIVE = (DeviceType) RegistryObject.create(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "hard_drive"), ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "device_type"), API.MOD_ID).get();
+    public static final DeviceType HARD_DRIVE = li.cil.oc2.common.bus.device.DeviceTypes.HARD_DRIVE;
 
-    public static final DeviceType FLASH_MEMORY = (DeviceType) RegistryObject.create(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "flash_memory"), ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "device_type"), API.MOD_ID).get();
-    public static final DeviceType CARD = (DeviceType) RegistryObject.create(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "card"), ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "device_type"), API.MOD_ID).get();
-    public static final DeviceType ROBOT_MODULE = (DeviceType) RegistryObject.create(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "robot_module"), ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "device_type"), API.MOD_ID).get();
+    public static final DeviceType FLASH_MEMORY = li.cil.oc2.common.bus.device.DeviceTypes.FLASH_MEMORY;
+    public static final DeviceType CARD = li.cil.oc2.common.bus.device.DeviceTypes.CARD;
+    public static final DeviceType ROBOT_MODULE = li.cil.oc2.common.bus.device.DeviceTypes.ROBOT_MODULE;
 
-    public static final DeviceType FLOPPY = (DeviceType) RegistryObject.create(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "floppy"), ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "device_type"), API.MOD_ID).get();
-    public static final DeviceType NETWORK_TUNNEL = (DeviceType) RegistryObject.create(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "network_tunnel"), ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "device_type"), API.MOD_ID).get();
-    public static final DeviceType CPU = (DeviceType) RegistryObject.create(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "cpu"), ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "device_type"), API.MOD_ID).get();
+    public static final DeviceType FLOPPY = li.cil.oc2.common.bus.device.DeviceTypes.FLOPPY;
+    public static final DeviceType NETWORK_TUNNEL = li.cil.oc2.common.bus.device.DeviceTypes.NETWORK_TUNNEL;
+    public static final DeviceType CPU = li.cil.oc2.common.bus.device.DeviceTypes.CPU;
 }

@@ -5,15 +5,13 @@ package li.cil.oc2.common.bus.device.data;
 import li.cil.oc2.api.API;
 import li.cil.oc2.api.bus.device.data.Firmware;
 import li.cil.oc2.api.util.Registries;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.IForgeRegistry;
-import net.minecraftforge.registries.RegistryBuilder;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.registries.DeferredHolder;
 
 import javax.annotation.Nullable;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 public final class FirmwareRegistry {
@@ -21,11 +19,11 @@ public final class FirmwareRegistry {
 
     ///////////////////////////////////////////////////////////////////
 
-    private static final Supplier<IForgeRegistry<Firmware>> REGISTRY = INITIALIZER.makeRegistry(RegistryBuilder::new);
+    private static final Registry<Firmware> REGISTRY = INITIALIZER.makeRegistry(builder -> {});
 
     ///////////////////////////////////////////////////////////////////
 
-    public static final RegistryObject<Firmware> MINUX = INITIALIZER.register("minux", MinuxFirmware::new);
+    public static final DeferredHolder<Firmware, MinuxFirmware> MINUX = INITIALIZER.register("minux", MinuxFirmware::new);
 
     ///////////////////////////////////////////////////////////////////
 
@@ -40,10 +38,10 @@ public final class FirmwareRegistry {
 
     @Nullable
     public static Firmware getValue(final ResourceLocation location) {
-        return REGISTRY.get().getValue(location);
+        return REGISTRY.get(location);
     }
 
     public static Stream<Firmware> values() {
-        return REGISTRY.get().getValues().stream();
+        return REGISTRY.stream();
     }
 }
