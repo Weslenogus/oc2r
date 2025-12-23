@@ -30,15 +30,22 @@ gradle.projectsEvaluated {
             "android/liboc2rnet-android-x86_64.so"
         ]
 
-        targets.each { path ->
-            def file = new File(nativeLibsDir, path)
-            file.parentFile.mkdirs()
-            def fileName = path.tokenize('/')[-1]
-            def url = new URL("${nativeNetworkingBaseUrl}${fileName}")
-            println "Downloading ${url} → ${file}"
-            file.withOutputStream { out ->
-                url.openStream().withCloseable { IOUtils.copy(it, out) }
+        def version_file = new File(nativeLibsDir, ".version")
+        def old_version = version_file.isFile() ? version_file.withReader { it.readLine() } : ""
+        def new_version = "${network_lib_version}"
+        if (old_version != "${new_version}") {
+            targets.each { path ->
+                def file = new File(nativeLibsDir, path)
+                file.parentFile.mkdirs()
+                def fileName = path.tokenize('/')[-1]
+                def url = new URL("${nativeNetworkingBaseUrl}${fileName}")
+                println "Downloading ${url} → ${file}"
+                file.withOutputStream { out ->
+                    url.openStream().withCloseable { IOUtils.copy(it, out) }
+                }
             }
+
+            version_file.withWriter { it.writeLine(new_version) }
         }
 
         // senda
