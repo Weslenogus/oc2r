@@ -24,6 +24,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -147,34 +148,42 @@ public final class ComputerBlock extends HorizontalDirectionalBlock implements E
         };
     }
 
-    @SuppressWarnings("deprecation")
     @Override
-    public InteractionResult use(final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hit) {
+    protected ItemInteractionResult useItemOn(final ItemStack stack, final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hitResult) {
         final BlockEntity blockEntity = level.getBlockEntity(pos);
         if (!(blockEntity instanceof final ComputerBlockEntity computer)) {
-            return super.use(state, level, pos, player, hand, hit);
+            return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
         }
 
-        final ItemStack heldItem = player.getItemInHand(hand);
-        if (Wrenches.isWrench(heldItem)) {
+        if (Wrenches.isWrench(stack)) {
             if (!player.isShiftKeyDown()) {
                 if (!level.isClientSide() && player instanceof final ServerPlayer serverPlayer) {
                     computer.openInventoryScreen(serverPlayer);
                 }
-                return InteractionResult.sidedSuccess(level.isClientSide());
+                return ItemInteractionResult.sidedSuccess(level.isClientSide());
             }
-        } else {
-            if (!level.isClientSide()) {
-                if (player.isShiftKeyDown()) {
-                    computer.start();
-                } else if (player instanceof final ServerPlayer serverPlayer) {
-                    computer.openTerminalScreen(serverPlayer);
-                }
-            }
-            return InteractionResult.sidedSuccess(level.isClientSide());
+            return ItemInteractionResult.SKIP_DEFAULT_BLOCK_INTERACTION;
         }
 
-        return super.use(state, level, pos, player, hand, hit);
+        return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
+    }
+
+    @Override
+    protected InteractionResult useWithoutItem(final BlockState state, final Level level, final BlockPos pos, final Player player, final BlockHitResult hitResult) {
+        final BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (!(blockEntity instanceof final ComputerBlockEntity computer)) {
+            return super.useWithoutItem(state, level, pos, player, hitResult);
+        }
+
+        if (!level.isClientSide()) {
+            if (player.isShiftKeyDown()) {
+                computer.start();
+            } else if (player instanceof final ServerPlayer serverPlayer) {
+                computer.openTerminalScreen(serverPlayer);
+            }
+        }
+
+        return InteractionResult.sidedSuccess(level.isClientSide());
     }
 
     @Override

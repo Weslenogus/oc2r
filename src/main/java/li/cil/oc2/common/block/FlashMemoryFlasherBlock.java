@@ -9,6 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -39,6 +40,7 @@ public final class FlashMemoryFlasherBlock extends HorizontalDirectionalBlock im
     protected MapCodec<FlashMemoryFlasherBlock> codec() {
         return BlockCodecs.FLASH_MEMORY_FLASHER.get();
     }
+
     ///////////////////////////////////////////////////////////////////
 
     @Override
@@ -46,15 +48,32 @@ public final class FlashMemoryFlasherBlock extends HorizontalDirectionalBlock im
         return super.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
     }
 
-    @SuppressWarnings("deprecation")
     @Override
-    public InteractionResult use(final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hit) {
+    protected ItemInteractionResult useItemOn(final ItemStack stack, final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hitResult) {
         final BlockEntity blockEntity = level.getBlockEntity(pos);
-        if (!(blockEntity instanceof final FlashMemoryFlasherBlockEntity diskDrive)) {
-            return super.use(state, level, pos, player, hand, hit);
+        if (!(blockEntity instanceof FlashMemoryFlasherBlockEntity diskDrive)) {
+            return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
         }
 
-        final ItemStack heldStack = player.getItemInHand(hand);
+        if (!player.isShiftKeyDown()) {
+            if (diskDrive.canInsert(stack)) {
+                if (!level.isClientSide()) {
+                    player.setItemInHand(hand, diskDrive.insert(stack, player));
+                }
+                return ItemInteractionResult.sidedSuccess(level.isClientSide());
+            }
+        }
+
+        return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
+    }
+
+    @Override
+    protected InteractionResult useWithoutItem(final BlockState state, final Level level, final BlockPos pos, final Player player, final BlockHitResult hitResult) {
+        final BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (!(blockEntity instanceof final FlashMemoryFlasherBlockEntity diskDrive)) {
+            return super.useWithoutItem(state, level, pos, player, hitResult);
+        }
+
         if (player.isShiftKeyDown()) {
             if (diskDrive.canEject()) {
                 if (!level.isClientSide()) {
@@ -62,16 +81,9 @@ public final class FlashMemoryFlasherBlock extends HorizontalDirectionalBlock im
                 }
                 return InteractionResult.sidedSuccess(level.isClientSide());
             }
-        } else {
-            if (diskDrive.canInsert(heldStack)) {
-                if (!level.isClientSide()) {
-                    player.setItemInHand(hand, diskDrive.insert(heldStack, player));
-                }
-                return InteractionResult.sidedSuccess(level.isClientSide());
-            }
         }
 
-        return super.use(state, level, pos, player, hand, hit);
+        return super.useWithoutItem(state, level, pos, player, hitResult);
     }
 
     @Override

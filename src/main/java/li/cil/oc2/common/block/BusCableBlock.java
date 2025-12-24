@@ -19,7 +19,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -203,18 +203,16 @@ public final class BusCableBlock extends BaseEntityBlock {
         }
     }
 
-    @SuppressWarnings("deprecation")
     @Override
-    public InteractionResult use(final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hit) {
-        final ItemStack heldItem = player.getItemInHand(hand);
+    protected ItemInteractionResult useItemOn(final ItemStack heldItem, final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hitResult) {
         if (heldItem.getItem() == Items.BUS_CABLE.get() ||
             heldItem.getItem() == Items.BUS_INTERFACE.get()) {
-            return InteractionResult.PASS;
+            return ItemInteractionResult.SKIP_DEFAULT_BLOCK_INTERACTION;
         }
 
         final BlockEntity blockEntity = level.getBlockEntity(pos);
         if (!(blockEntity instanceof final BusCableBlockEntity busCableBlockEntity)) {
-            return super.use(state, level, pos, player, hand, hit);
+            return super.useItemOn(heldItem, state, level, pos, player, hand, hitResult);
         }
 
         if (Wrenches.isWrench(heldItem)) {
@@ -224,26 +222,28 @@ public final class BusCableBlock extends BaseEntityBlock {
                     if (!level.isClientSide()) {
                         busCableBlockEntity.removeFacade();
                         if (!player.isCreative() && level.getGameRules().getBoolean(GameRules.RULE_DOBLOCKDROPS)) {
-                            ItemStackUtils.spawnAsEntity(level, pos, facadeItem, hit.getDirection()).ifPresent(entity -> {
+                            ItemStackUtils.spawnAsEntity(level, pos, facadeItem, hitResult.getDirection()).ifPresent(entity -> {
                                 entity.setNoPickUpDelay();
                                 entity.playerTouch(player);
                             });
                         }
                     }
-                    return InteractionResult.sidedSuccess(level.isClientSide());
+                    return ItemInteractionResult.sidedSuccess(level.isClientSide());
                 } else {
                     // NB: leave wrenching logic up to wrench when the to-be-removed interface is the last
                     //     part of this bus. This ensures we properly remove the block itself without having
                     //     to duplicate the logic needed for that.
-                    if (getPartCount(state) > 1 && (tryRemoveInterface(state, level, pos, player, hit) || tryRemoveCable(state, level, pos, player))) {
-                        return InteractionResult.sidedSuccess(level.isClientSide());
+                    if (getPartCount(state) > 1 && (tryRemoveInterface(state, level, pos, player, hitResult) || tryRemoveCable(state, level, pos, player))) {
+                        return ItemInteractionResult.sidedSuccess(level.isClientSide());
                     }
                 }
-            } else if (level.isClientSide()) {
-                final Direction side = getHitSide(pos, hit);
+            } else {
+                final Direction side = getHitSide(pos, hitResult);
                 if (getConnectionType(state, side) == ConnectionType.INTERFACE) {
-                    openBusInterfaceScreen(busCableBlockEntity, side);
-                    return InteractionResult.sidedSuccess(level.isClientSide());
+                    if (level.isClientSide()) {
+                        openBusInterfaceScreen(busCableBlockEntity, side);
+                    }
+                    return ItemInteractionResult.sidedSuccess(level.isClientSide());
                 }
             }
         } else if (!player.isShiftKeyDown() && !state.getValue(HAS_FACADE) && getInterfaceCount(state) == 0) {
@@ -254,7 +254,7 @@ public final class BusCableBlock extends BaseEntityBlock {
                     }
 
                     // Always return success (even on failure) to avoid accidentally placing blocks.
-                    return InteractionResult.sidedSuccess(level.isClientSide());
+                    return ItemInteractionResult.sidedSuccess(level.isClientSide());
                 }
                 case VALID_BLOCK -> {
                     if (!level.isClientSide()) {
@@ -263,12 +263,12 @@ public final class BusCableBlock extends BaseEntityBlock {
                             heldItem.shrink(1);
                         }
                     }
-                    return InteractionResult.sidedSuccess(level.isClientSide());
+                    return ItemInteractionResult.sidedSuccess(level.isClientSide());
                 }
             }
         }
 
-        return super.use(state, level, pos, player, hand, hit);
+        return super.useItemOn(heldItem, state, level, pos, player, hand, hitResult);
     }
 
     @SuppressWarnings("deprecation")

@@ -72,12 +72,11 @@ public final class KeyboardBlock extends HorizontalDirectionalBlock implements E
         };
     }
 
-    @SuppressWarnings("deprecation")
     @Override
-    public InteractionResult use(final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hit) {
+    protected InteractionResult useWithoutItem(final BlockState state, final Level level, final BlockPos pos, final Player player, final BlockHitResult hitResult) {
         final BlockEntity blockEntity = level.getBlockEntity(pos);
         if (!(blockEntity instanceof final KeyboardBlockEntity keyboard)) {
-            return super.use(state, level, pos, player, hand, hit);
+            return super.useWithoutItem(state, level, pos, player, hitResult);
         }
 
         if (level.isClientSide()) {
