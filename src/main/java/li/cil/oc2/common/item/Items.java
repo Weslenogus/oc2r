@@ -10,10 +10,10 @@ import li.cil.oc2.common.bus.device.data.FirmwareRegistry;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.bus.api.IEventBus;
 
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -108,8 +108,8 @@ public final class Items {
 
     ///////////////////////////////////////////////////////////////////
 
-    public static void initialize(FMLJavaModLoadingContext context) {
-        ITEMS.register(context.getModEventBus());
+    public static void initialize(IEventBus modBus) {
+        ITEMS.register(modBus);
     }
 
     ///////////////////////////////////////////////////////////////////

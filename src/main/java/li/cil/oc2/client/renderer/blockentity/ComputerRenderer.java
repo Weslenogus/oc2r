@@ -10,6 +10,9 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import org.joml.Matrix4f;
 import li.cil.oc2.api.API;
 import li.cil.oc2.client.renderer.ModRenderType;
@@ -30,17 +33,14 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.api.distmarker.Dist;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 @SuppressWarnings("unused")
-@Mod.EventBusSubscriber(value = Dist.CLIENT, modid = API.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(value = Dist.CLIENT, modid = API.MOD_ID)
 public final class ComputerRenderer implements BlockEntityRenderer<ComputerBlockEntity> {
     public static final ResourceLocation OVERLAY_POWER_LOCATION = ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "block/computer/computer_overlay_power");
     public static final ResourceLocation OVERLAY_STATUS_LOCATION = ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "block/computer/computer_overlay_status");
@@ -263,7 +263,7 @@ public final class ComputerRenderer implements BlockEntityRenderer<ComputerBlock
     }
 
     @SubscribeEvent
-    public static void updateCache(final TickEvent.ClientTickEvent event) {
+    public static void updateCache(final ClientTickEvent.Pre event) {
         rendererViews.cleanUp();
     }
 

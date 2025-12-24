@@ -31,10 +31,10 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import org.joml.Matrix4f;
 
 import java.time.Duration;
@@ -42,7 +42,7 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 @SuppressWarnings("unused")
-@Mod.EventBusSubscriber(value = Dist.CLIENT, modid = API.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(value = Dist.CLIENT, modid = API.MOD_ID)
 public final class MonitorRenderer implements BlockEntityRenderer<MonitorBlockEntity> {
     public static final ResourceLocation OVERLAY_POWER_LOCATION = ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "block/monitor/monitor_overlay_power");
     public static final ResourceLocation OVERLAY_TERMINAL_LOCATION = ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "block/computer/computer_overlay_terminal");
@@ -227,7 +227,7 @@ public final class MonitorRenderer implements BlockEntityRenderer<MonitorBlockEn
     }
 
     @SubscribeEvent
-    public static void updateCache(final TickEvent.ClientTickEvent event) {
+    public static void updateCache(final ClientTickEvent.Pre event) {
         rendererViews.cleanUp();
     }
 

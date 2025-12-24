@@ -67,16 +67,16 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.MinecraftForge;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.event.level.ChunkEvent;
-import net.minecraftforge.event.level.LevelEvent;
-import net.minecraftforge.items.ItemStackHandler;
 import net.minecraftforge.network.NetworkHooks;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.level.ChunkEvent;
+import net.neoforged.neoforge.event.level.LevelEvent;
+import net.neoforged.neoforge.items.ItemStackHandler;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -483,13 +483,13 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
     }
 
     private void registerListeners() {
-        MinecraftForge.EVENT_BUS.addListener(chunkUnloadListener);
-        MinecraftForge.EVENT_BUS.addListener(worldUnloadListener);
+        NeoForge.EVENT_BUS.addListener(chunkUnloadListener);
+        NeoForge.EVENT_BUS.addListener(worldUnloadListener);
     }
 
     private void unregisterListeners() {
-        MinecraftForge.EVENT_BUS.unregister(chunkUnloadListener);
-        MinecraftForge.EVENT_BUS.unregister(worldUnloadListener);
+        NeoForge.EVENT_BUS.unregister(chunkUnloadListener);
+        NeoForge.EVENT_BUS.unregister(worldUnloadListener);
     }
 
     private void handleChunkUnload(final ChunkEvent.Unload event) {

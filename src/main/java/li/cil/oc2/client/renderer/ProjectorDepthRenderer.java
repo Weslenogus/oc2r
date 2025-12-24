@@ -14,7 +14,15 @@ import com.mojang.blaze3d.platform.TextureUtil;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 import com.mojang.math.Axis;
+import li.cil.oc2.api.API;
 import org.joml.Matrix3f;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.client.event.RenderNameTagEvent;
+import net.neoforged.neoforge.client.event.ViewportEvent;
+import net.neoforged.neoforge.common.util.TriState;
 import org.joml.Matrix4f;
 import li.cil.oc2.common.block.ProjectorBlock;
 import li.cil.oc2.common.blockentity.ProjectorBlockEntity;
@@ -40,12 +48,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.client.event.EntityRenderersEvent;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
-import net.minecraftforge.client.event.RenderNameTagEvent;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.Event;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -58,7 +60,7 @@ import static org.lwjgl.opengl.GL11.glDrawBuffer;
 import static org.lwjgl.opengl.GL30.GL_FRAMEBUFFER;
 import static org.lwjgl.opengl.GL30.glBindFramebuffer;
 
-// No @Mod.EventBusSubscriber: we need to register this manually, because static init throws errors when running data generation.
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class ProjectorDepthRenderer {
     private static final int DEPTH_CAPTURE_SIZE = 256;
 
@@ -205,7 +207,7 @@ public final class ProjectorDepthRenderer {
      * Suppresses fog rendering while rendering depth buffer for projectors.
      */
     @SubscribeEvent
-    public static void handleFog(final EntityRenderersEvent event) {
+    public static void handleFog(final ViewportEvent.RenderFog event) {
         if (isRenderingProjectorDepth) {
             FogRenderer.setupNoFog();
         }
@@ -217,7 +219,7 @@ public final class ProjectorDepthRenderer {
     @SubscribeEvent
     public static void handleNameplate(final RenderNameTagEvent event) {
         if (isRenderingProjectorDepth) {
-            event.setResult(Event.Result.DENY);
+            event.setCanRender(TriState.FALSE);
         }
     }
 
@@ -225,7 +227,7 @@ public final class ProjectorDepthRenderer {
      * Updates cached rendering info, such as textures holding image data for projectors, to allow expiration.
      */
     @SubscribeEvent
-    public static void handleClientTick(final TickEvent.ClientTickEvent event) {
+    public static void handleClientTick(final ClientTickEvent.Pre event) {
         RENDER_INFO.cleanUp();
     }
 

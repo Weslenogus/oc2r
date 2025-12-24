@@ -4,10 +4,10 @@ import li.cil.oc2.api.API;
 import li.cil.oc2.common.config.AsyncConfig;
 import li.cil.oc2.common.util.AsyncUtils;
 import net.minecraft.server.MinecraftServer;
-import net.minecraftforge.event.server.ServerAboutToStartEvent;
-import net.minecraftforge.event.server.ServerStoppedEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -16,7 +16,7 @@ import javax.annotation.Nullable;
 /**
  * Handles Forge lifecycle events to ensure proper initialization and cleanup of async operations.
  */
-@Mod.EventBusSubscriber(modid = API.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class ForgeEventHandlers {
     private static final Logger LOGGER = LogManager.getLogger();
     private static MinecraftServer server;

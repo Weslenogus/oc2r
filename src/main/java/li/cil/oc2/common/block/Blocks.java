@@ -4,10 +4,10 @@ package li.cil.oc2.common.block;
 
 import li.cil.oc2.api.API;
 import net.minecraft.world.level.block.Block;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.bus.api.IEventBus;
 
 public final class Blocks {
     public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, API.MOD_ID);
@@ -34,7 +34,7 @@ public final class Blocks {
 
     ///////////////////////////////////////////////////////////////////
 
-    public static void initialize(FMLJavaModLoadingContext context) {
-        BLOCKS.register(context.getModEventBus());
+    public static void initialize(IEventBus modBus) {
+        BLOCKS.register(modBus);
     }
 }

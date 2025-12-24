@@ -2,11 +2,9 @@
 
 package li.cil.oc2.common;
 
-import dev.architectury.platform.forge.EventBuses;
 import joptsimple.util.InetAddressConverter;
 import li.cil.ceres.Ceres;
 import li.cil.oc2.api.API;
-import li.cil.oc2.client.ClientSetup;
 import li.cil.oc2.client.manual.Manuals;
 import li.cil.oc2.common.block.Blocks;
 import li.cil.oc2.common.blockentity.BlockEntities;
@@ -31,12 +29,13 @@ import li.cil.oc2.common.util.RegistryUtils;
 import li.cil.oc2.common.util.SoundEvents;
 import li.cil.oc2.common.vm.provider.DeviceTreeProviders;
 import li.cil.sedna.Sedna;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.config.ModConfig;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.apache.logging.log4j.LogManager;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.loading.FMLLoader;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -52,43 +51,42 @@ import java.util.Random;
 public final class Main {
     public static boolean LoadedLibrary = false;
 
-    public Main(FMLJavaModLoadingContext context) {
-        EventBuses.registerModEventBus(API.MOD_ID, context.getModEventBus());
+    public Main(IEventBus modBus, ModContainer container) {
         Ceres.initialize();
         Sedna.initialize();
         DeviceTreeProviders.initialize();
         Serializers.initialize();
 
-        context.registerConfig(ModConfig.Type.COMMON, CommonSpec.CONFIG_SPEC);
-        context.registerConfig(ModConfig.Type.CLIENT, ClientSpec.CLIENT_CONFIG_SPEC);
-        context.registerConfig(ModConfig.Type.SERVER, AsyncConfig.SERVER_SPEC);
+        container.registerConfig(ModConfig.Type.COMMON, CommonSpec.CONFIG_SPEC);
+        container.registerConfig(ModConfig.Type.CLIENT, ClientSpec.CLIENT_CONFIG_SPEC);
+        container.registerConfig(ModConfig.Type.SERVER, AsyncConfig.SERVER_SPEC);
 
         RegistryUtils.begin();
 
         ItemTags.initialize();
         BlockTags.initialize();
-        Blocks.initialize(context);
-        Items.initialize(context);
-        BlockEntities.initialize(context);
-        Entities.initialize(context);
-        Containers.initialize(context);
-        RecipeSerializers.initialize(context);
-        SoundEvents.initialize(context);
+        Blocks.initialize(modBus);
+        Items.initialize(modBus);
+        BlockEntities.initialize(modBus);
+        Entities.initialize(modBus);
+        Containers.initialize(modBus);
+        RecipeSerializers.initialize(modBus);
+        SoundEvents.initialize(modBus);
 
-        ProviderRegistry.initialize(context);
-        DeviceTypes.initialize(context);
+        ProviderRegistry.initialize(modBus);
+        DeviceTypes.initialize(modBus);
 
-        BlockDeviceDataRegistry.initialize(context);
-        FirmwareRegistry.initialize(context);
+        BlockDeviceDataRegistry.initialize(modBus);
+        FirmwareRegistry.initialize(modBus);
 
-        RegistryUtils.finish(context);
+        RegistryUtils.finish(modBus);
 
-        context.getModEventBus().register(CommonSetup.class);
-        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> Manuals.initialize(context));
-        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
-            context.getModEventBus().register(ClientSetup.class));
+        modBus.register(CommonSetup.class);
+        if (FMLLoader.getDist() == Dist.CLIENT) {
+            Manuals.initialize(modBus);
+        }
 
-        ItemGroup.TAB_REGISTER.register(context.getModEventBus());
+        ItemGroup.TAB_REGISTER.register(modBus);
 
         NativeLoader.loadLibrary();
     }

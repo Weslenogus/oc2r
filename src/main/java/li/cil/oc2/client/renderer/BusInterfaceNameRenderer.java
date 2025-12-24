@@ -4,6 +4,8 @@ package li.cil.oc2.client.renderer;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.common.NeoForge;
 import org.joml.Matrix4f;
 import li.cil.oc2.common.block.BusCableBlock;
 import li.cil.oc2.common.blockentity.BusCableBlockEntity;
@@ -20,9 +22,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 public enum BusInterfaceNameRenderer {
     INSTANCE;
@@ -30,7 +30,7 @@ public enum BusInterfaceNameRenderer {
     ///////////////////////////////////////////////////////////////////
 
     public static void initialize() {
-        MinecraftForge.EVENT_BUS.register(INSTANCE);
+        NeoForge.EVENT_BUS.register(INSTANCE);
     }
 
     @SubscribeEvent

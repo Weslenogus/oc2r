@@ -1,13 +1,13 @@
 package li.cil.oc2.common.config.client;
 
 import li.cil.oc2.common.config.Config;
-import net.minecraftforge.common.ForgeConfigSpec;
+import net.neoforged.neoforge.common.ModConfigSpec;
 
 public class GUISpec {
-    public final ForgeConfigSpec.EnumValue<CaptureInputMode> captureInputMode;
-    public final ForgeConfigSpec.BooleanValue captureInputDefaultState;
+    public final ModConfigSpec.EnumValue<CaptureInputMode> captureInputMode;
+    public final ModConfigSpec.BooleanValue captureInputDefaultState;
 
-    GUISpec(ForgeConfigSpec.Builder builder) {
+    GUISpec(ModConfigSpec.Builder builder) {
         captureInputMode = builder.comment(
             "The option below changes the behavior of the capture input feature:",
             "PER_BLOCK - The capture input value is saved between UI opens on a per computer/monitor/robot basis",

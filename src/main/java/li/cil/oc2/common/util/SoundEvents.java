@@ -5,7 +5,7 @@ package li.cil.oc2.common.util;
 import li.cil.oc2.api.API;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.neoforged.bus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
@@ -23,8 +23,8 @@ public final class SoundEvents {
 
     ///////////////////////////////////////////////////////////////////
 
-    public static void initialize(FMLJavaModLoadingContext context) {
-        SOUNDS.register(context.getModEventBus());
+    public static void initialize(IEventBus modBus) {
+        SOUNDS.register(modBus);
     }
 
     ///////////////////////////////////////////////////////////////////

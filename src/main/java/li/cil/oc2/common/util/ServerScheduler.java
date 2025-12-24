@@ -4,12 +4,13 @@ package li.cil.oc2.common.util;
 
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LevelAccessor;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.server.ServerStoppedEvent;
-import net.minecraftforge.event.level.ChunkEvent;
-import net.minecraftforge.event.level.LevelEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.neoforge.event.level.ChunkEvent;
+import net.neoforged.neoforge.event.level.LevelEvent;
+import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -24,7 +25,7 @@ public final class ServerScheduler {
     ///////////////////////////////////////////////////////////////////
 
     public static void initialize() {
-        MinecraftForge.EVENT_BUS.register(EventHandler.class);
+        NeoForge.EVENT_BUS.register(EventHandler.class);
     }
 
     public static void schedule(final Runnable runnable) {
@@ -166,25 +167,19 @@ public final class ServerScheduler {
         }
 
         @SubscribeEvent
-        public static void handleServerTick(final TickEvent.ServerTickEvent event) {
-            if (event.phase == TickEvent.Phase.START) {
-                globalTickScheduler.tick();
+        public static void handleServerTick(final ServerTickEvent.Pre event) {
+            globalTickScheduler.tick();
 
-                for (final TickScheduler scheduler : levelTickSchedulers.values()) {
-                    scheduler.tick();
-                }
+            for (final TickScheduler scheduler : levelTickSchedulers.values()) {
+                scheduler.tick();
             }
         }
 
         @SubscribeEvent
-        public static void handleLevelTick(final TickEvent.LevelTickEvent event) {
-            if (event.phase != TickEvent.Phase.START) {
-                return;
-            }
-
+        public static void handleLevelTick(final LevelTickEvent.Pre event) {
             globalTickScheduler.processQueue();
 
-            final TickScheduler scheduler = levelTickSchedulers.get(event.level);
+            final TickScheduler scheduler = levelTickSchedulers.get(event.getLevel());
             if (scheduler != null) {
                 scheduler.processQueue();
             }

@@ -1,16 +1,16 @@
 package li.cil.oc2.common.config.common;
 
 import li.cil.oc2.common.config.Config;
-import net.minecraftforge.common.ForgeConfigSpec;
+import net.neoforged.neoforge.common.ModConfigSpec;
 
 public class VXLANSpec {
-    public final ForgeConfigSpec.BooleanValue enable;
-    public final ForgeConfigSpec.ConfigValue<String> remoteHost;
-    public final ForgeConfigSpec.IntValue remotePort;
-    public final ForgeConfigSpec.ConfigValue<String> bindHost;
-    public final ForgeConfigSpec.IntValue bindPort;
+    public final ModConfigSpec.BooleanValue enable;
+    public final ModConfigSpec.ConfigValue<String> remoteHost;
+    public final ModConfigSpec.IntValue remotePort;
+    public final ModConfigSpec.ConfigValue<String> bindHost;
+    public final ModConfigSpec.IntValue bindPort;
 
-    VXLANSpec(ForgeConfigSpec.Builder builder) {
+    VXLANSpec(ModConfigSpec.Builder builder) {
         enable = builder.comment(
             "Whether to enable VXLAN support, must be on for the internet card to work"
         ).define("enable", false);

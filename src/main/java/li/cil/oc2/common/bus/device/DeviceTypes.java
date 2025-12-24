@@ -9,7 +9,7 @@ import li.cil.oc2.common.tags.ItemTags;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.neoforged.bus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.IForgeRegistry;
 import net.minecraftforge.registries.RegistryBuilder;
@@ -28,8 +28,8 @@ public final class DeviceTypes {
 
     ///////////////////////////////////////////////////////////////////
 
-    public static void initialize(FMLJavaModLoadingContext context) {
-        DEVICE_TYPES.register(context.getModEventBus());
+    public static void initialize(IEventBus modBus) {
+        DEVICE_TYPES.register(modBus);
 
         register(ItemTags.DEVICES_MEMORY);
         register(ItemTags.DEVICES_HARD_DRIVE);

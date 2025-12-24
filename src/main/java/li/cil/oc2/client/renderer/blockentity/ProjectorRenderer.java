@@ -5,6 +5,7 @@ package li.cil.oc2.client.renderer.blockentity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
+import net.neoforged.fml.common.EventBusSubscriber;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector4f;
@@ -18,10 +19,8 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.api.distmarker.Dist;
 
-@Mod.EventBusSubscriber(value = Dist.CLIENT, modid = API.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class ProjectorRenderer implements BlockEntityRenderer<ProjectorBlockEntity> {
     private static final int LIGHT_COLOR_NEAR = 0x22FFFFFF;
     private static final int LIGHT_COLOR_FAR = 0x00FFFFFF;

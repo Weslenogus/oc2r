@@ -9,12 +9,12 @@ import li.cil.oc2.api.util.Registries;
 import li.cil.oc2.common.bus.device.provider.block.BlockEntityCapabilityDeviceProvider;
 import li.cil.oc2.common.bus.device.provider.item.*;
 import li.cil.oc2.common.bus.device.rpc.block.*;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.IForgeRegistry;
 import net.minecraftforge.registries.RegistryBuilder;
 
 import java.util.function.Supplier;
+import net.neoforged.bus.api.IEventBus;
 
 public final class ProviderRegistry {
     private static final DeferredRegister<BlockDeviceProvider> BLOCK_DEVICE_PROVIDERS = DeferredRegister.create(Registries.BLOCK_DEVICE_PROVIDER, API.MOD_ID);
@@ -27,9 +27,9 @@ public final class ProviderRegistry {
 
     ///////////////////////////////////////////////////////////////////
 
-    public static void initialize(FMLJavaModLoadingContext context) {
-        ITEM_DEVICE_PROVIDERS.register(context.getModEventBus());
-        BLOCK_DEVICE_PROVIDERS.register(context.getModEventBus());
+    public static void initialize(IEventBus modBus) {
+        ITEM_DEVICE_PROVIDERS.register(modBus);
+        BLOCK_DEVICE_PROVIDERS.register(modBus);
 
         ITEM_DEVICE_PROVIDERS.register("memory", MemoryItemDeviceProvider::new);
         ITEM_DEVICE_PROVIDERS.register("hard_drive", HardDriveItemDeviceProvider::new);

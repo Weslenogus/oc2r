@@ -5,10 +5,10 @@ package li.cil.oc2.common.container;
 import li.cil.oc2.api.API;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraftforge.common.extensions.IForgeMenuType;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.bus.api.IEventBus;
 
 public final class Containers {
     private static final DeferredRegister<MenuType<?>> CONTAINERS = DeferredRegister.create(ForgeRegistries.MENU_TYPES, API.MOD_ID);
@@ -24,7 +24,8 @@ public final class Containers {
 
     ///////////////////////////////////////////////////////////////////
 
-    public static void initialize(FMLJavaModLoadingContext context) {
-        CONTAINERS.register(context.getModEventBus());
+    public static void initialize(IEventBus modBus) {
+        CONTAINERS.register(modBus);
+    }
     }
 }

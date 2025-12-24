@@ -7,7 +7,7 @@ import li.cil.oc2.api.bus.device.object.ObjectDevice;
 import li.cil.oc2.api.bus.device.provider.ItemDeviceQuery;
 import li.cil.oc2.common.bus.device.rpc.EnergyStorageDevice;
 import li.cil.oc2.common.capabilities.Capabilities;
-import net.minecraftforge.energy.IEnergyStorage;
+import net.neoforged.neoforge.energy.IEnergyStorage;
 
 import java.util.Optional;
 

@@ -9,10 +9,10 @@ import li.cil.oc2.common.network.message.ProjectorFramebufferMessage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.server.ServerStoppedEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
@@ -44,7 +44,7 @@ import java.util.function.Supplier;
  * of the load balancer. For example, projectors further away from their closest player will get
  * a penalty, as will projectors with a large number of players watching them.
  */
-@Mod.EventBusSubscriber(modid = API.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class ProjectorLoadBalancer {
     private static final long CACHE_EXPIRES_AFTER = 2000; /* In milliseconds */
 
@@ -104,7 +104,7 @@ public final class ProjectorLoadBalancer {
      * generation of the package to send.
      */
     @SubscribeEvent
-    public static void handleServerTick(final TickEvent.ServerTickEvent event) {
+    public static void handleServerTick(final ServerTickEvent.Pre event) {
         updateCache();
 
         if (BUDGET.updateAndGet(ProjectorLoadBalancer::replenishBudget) > 0) {

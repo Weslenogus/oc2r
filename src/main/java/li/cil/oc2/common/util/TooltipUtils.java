@@ -25,7 +25,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.*;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.client.ForgeHooksClient;
+import net.neoforged.neoforge.client.ClientHooks;
 import net.minecraftforge.registries.ForgeRegistry;
 import net.minecraftforge.registries.RegistryManager;
 
@@ -64,7 +64,7 @@ public final class TooltipUtils {
 
         final int availableWidth = Math.max(x, screen.width - x);
         final int targetWidth = Math.min(availableWidth, widthHint);
-        final Font font = ForgeHooksClient.getTooltipFont(itemStack, minecraft.font);
+        final Font font = ClientHooks.getTooltipFont(itemStack, minecraft.font);
 
         final boolean needsWrapping = tooltip.stream().anyMatch(line -> font.width(line) > targetWidth);
         if (!needsWrapping) {

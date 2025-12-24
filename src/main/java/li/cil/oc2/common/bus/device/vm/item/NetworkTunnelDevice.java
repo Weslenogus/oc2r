@@ -4,6 +4,7 @@ package li.cil.oc2.common.bus.device.vm.item;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
+import li.cil.oc2.api.API;
 import li.cil.oc2.api.bus.device.vm.VMDeviceLoadResult;
 import li.cil.oc2.api.bus.device.vm.context.VMContext;
 import li.cil.oc2.api.capabilities.NetworkInterface;
@@ -11,14 +12,14 @@ import li.cil.oc2.common.item.NetworkTunnelItem;
 import li.cil.oc2.common.util.TickUtils;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.server.ServerStoppedEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import java.time.Duration;
 import java.util.*;
@@ -54,7 +55,7 @@ public final class NetworkTunnelDevice extends AbstractNetworkInterfaceDevice {
 
     ///////////////////////////////////////////////////////////////
 
-    @Mod.EventBusSubscriber
+    @EventBusSubscriber(modid = API.MOD_ID)
     private static final class TunnelManager {
         private static final int BYTES_PER_TICK = 32 * 1024 / TickUtils.toTicks(Duration.ofSeconds(1)); // bytes / sec -> bytes / tick
         private static final int MIN_ETHERNET_FRAME_SIZE = 42;
@@ -73,10 +74,8 @@ public final class NetworkTunnelDevice extends AbstractNetworkInterfaceDevice {
         }
 
         @SubscribeEvent
-        public static void handleServerTick(final TickEvent.ServerTickEvent event) {
-            if (event.phase == TickEvent.Phase.START) {
-                pumpMessages();
-            }
+        public static void handleServerTick(final ServerTickEvent.Pre event) {
+            pumpMessages();
         }
 
         @SubscribeEvent

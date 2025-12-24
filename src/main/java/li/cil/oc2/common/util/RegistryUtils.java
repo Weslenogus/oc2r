@@ -9,7 +9,7 @@ import li.cil.oc2.api.bus.device.provider.ItemDeviceProvider;
 import li.cil.oc2.common.bus.device.provider.ProviderRegistry;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.neoforged.bus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.IForgeRegistry;
 
@@ -51,12 +51,12 @@ public abstract class RegistryUtils {
         phase = Phase.INIT;
     }
 
-    public static void finish(FMLJavaModLoadingContext context) {
+    public static void finish(IEventBus modBus) {
         if (phase != Phase.INIT) throw new IllegalStateException();
         phase = Phase.POST_INIT;
 
         for (final DeferredRegister<?> register : ENTRIES) {
-            register.register(context.getModEventBus());
+            register.register(modBus);
         }
 
         ENTRIES.clear();

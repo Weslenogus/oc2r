@@ -5,6 +5,8 @@ package li.cil.oc2.client.renderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import li.cil.oc2.common.util.Vec3Utils;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import li.cil.oc2.api.API;
@@ -19,12 +21,10 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.*;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
-import net.minecraftforge.event.level.ChunkEvent;
-import net.minecraftforge.event.level.LevelEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.event.level.ChunkEvent;
+import net.neoforged.neoforge.event.level.LevelEvent;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -37,7 +37,7 @@ import java.util.function.Predicate;
 // fall back to letting the TESRs trigger the cable rendering. We still use the data
 // structures with precomputed data and such, it's just that they need much larger
 // render bounds and require an addition hash map look-up.
-@Mod.EventBusSubscriber(value = Dist.CLIENT, modid = API.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(value = Dist.CLIENT, modid = API.MOD_ID)
 public final class NetworkCableRenderer {
     private static final int MAX_RENDER_DISTANCE = 100;
     private static final int CABLE_VERTEX_COUNT = 9;

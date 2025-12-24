@@ -17,7 +17,7 @@ public class FrustumMixin {
      * fit inside, which would then leave to an endless loop (would shift out of bounds
      * and never get back in).
      */
-    @Inject(method = "offsetToFullyIncludeCameraCube", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "offsetToFullyIncludeCameraCube", at = @At("HEAD"), cancellable = true, remap = false)
     private void skipOffset(final CallbackInfoReturnable<Frustum> ci) {
         if (ProjectorDepthRenderer.isIsRenderingProjectorDepth()) {
             ci.setReturnValue((Frustum) (Object) this);

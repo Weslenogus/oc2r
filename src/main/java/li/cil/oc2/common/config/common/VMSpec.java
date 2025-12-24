@@ -2,13 +2,13 @@ package li.cil.oc2.common.config.common;
 
 import li.cil.oc2.common.Constants;
 import li.cil.oc2.common.config.Config;
-import net.minecraftforge.common.ForgeConfigSpec;
+import net.neoforged.neoforge.common.ModConfigSpec;
 
 public class VMSpec {
-    public final ForgeConfigSpec.LongValue maxAllocatedMemory;
-    public final ForgeConfigSpec.IntValue diskSizeFactor;
+    public final ModConfigSpec.LongValue maxAllocatedMemory;
+    public final ModConfigSpec.IntValue diskSizeFactor;
 
-    VMSpec(ForgeConfigSpec.Builder builder) {
+    VMSpec(ModConfigSpec.Builder builder) {
         maxAllocatedMemory = builder.comment(
             "Maximum memory that can be allocated across all virtual machines (computers/robots) at any one time (in bytes)"
         ).defineInRange("maxAllocatedMemory", 512 * Constants.MEGABYTE, 0, Long.MAX_VALUE);

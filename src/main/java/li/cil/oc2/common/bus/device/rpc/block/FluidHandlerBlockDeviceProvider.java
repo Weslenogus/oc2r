@@ -10,7 +10,7 @@ import li.cil.oc2.common.bus.device.provider.util.AbstractBlockEntityCapabilityD
 import li.cil.oc2.common.bus.device.rpc.FluidHandlerDevice;
 import li.cil.oc2.common.capabilities.Capabilities;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 
 public final class FluidHandlerBlockDeviceProvider extends AbstractBlockEntityCapabilityDeviceProvider<IFluidHandler, BlockEntity> {
     public FluidHandlerBlockDeviceProvider() {
