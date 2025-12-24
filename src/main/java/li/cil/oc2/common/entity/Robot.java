@@ -11,6 +11,7 @@ import li.cil.oc2.api.bus.device.object.ObjectDevice;
 import li.cil.oc2.api.bus.device.object.Parameter;
 import li.cil.oc2.api.bus.device.provider.ItemDeviceQuery;
 import li.cil.oc2.api.capabilities.TerminalUserProvider;
+import li.cil.oc2.common.components.RestrictedContainer;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.bus.AbstractDeviceBusElement;
 import li.cil.oc2.common.bus.CommonDeviceBusController;
@@ -396,24 +397,27 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
     }
 
     public void exportToItemStack(final ItemStack stack) {
-        final var provider = registryAccess();
-        CustomData.update(DataComponents.CUSTOM_DATA, stack, (nbt) -> {
-            final CompoundTag itemsTag = NBTUtils.getOrCreateChildTag(nbt, MOD_TAG_NAME, ITEMS_TAG_NAME);
-            deviceItems.saveItems(provider, itemsTag); // Puts one tag per device type, as expected by TooltipUtils.
-            itemsTag.put(INVENTORY_TAG_NAME, inventory.serializeNBT(provider)); // Won't show up in tooltip.
+        var container = new RestrictedContainer();
+        deviceItems.saveItems(container);
+        stack.set(li.cil.oc2.common.components.DataComponents.RESTRICTED_CONTAINER, container);
 
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, (nbt) -> {
             var tag = NBTUtils.getOrCreateChildTag(nbt, MOD_TAG_NAME);
-            tag.put(ENERGY_TAG_NAME, energy.serializeNBT(provider));
+            tag.put(ENERGY_TAG_NAME, energy.serializeNBT(registryAccess()));
         });
     }
 
     public void importFromItemStack(final ItemStack stack) {
         final var provider = registryAccess();
+        final var container = stack.get(li.cil.oc2.common.components.DataComponents.RESTRICTED_CONTAINER);
         final CompoundTag itemsTag = NBTUtils.getChildTag(stack, MOD_TAG_NAME, ITEMS_TAG_NAME);
 
-        deviceItems.loadItems(provider, itemsTag);
-
-        inventory.deserializeNBT(provider, itemsTag.getCompound(INVENTORY_TAG_NAME));
+        if (container != null) {
+            deviceItems.loadItems(provider, container);
+        } else {
+            deviceItems.loadItems(provider, itemsTag);
+            inventory.deserializeNBT(provider, itemsTag.getCompound(INVENTORY_TAG_NAME));
+        }
 
         energy.deserializeNBT(provider, NBTUtils.getChildTag(stack, MOD_TAG_NAME, ENERGY_TAG_NAME));
     }

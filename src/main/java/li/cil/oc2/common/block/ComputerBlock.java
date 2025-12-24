@@ -2,9 +2,9 @@
 
 package li.cil.oc2.common.block;
 
-import li.cil.oc2.api.bus.device.DeviceTypes;
 import com.mojang.serialization.MapCodec;
 import li.cil.oc2.api.capabilities.RedstoneEmitter;
+import li.cil.oc2.common.components.RestrictedContainer;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.blockentity.BlockEntities;
 import li.cil.oc2.common.blockentity.ComputerBlockEntity;
@@ -12,13 +12,12 @@ import li.cil.oc2.common.blockentity.TickableBlockEntity;
 import li.cil.oc2.common.capabilities.Capabilities;
 import li.cil.oc2.common.integration.Wrenches;
 import li.cil.oc2.common.item.Items;
-import li.cil.oc2.common.util.NBTUtils;
+import li.cil.oc2.common.tags.ItemTags;
 import li.cil.oc2.common.util.TooltipUtils;
 import li.cil.oc2.common.util.VoxelShapeUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -29,7 +28,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -54,9 +52,6 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Optional;
 
-import static li.cil.oc2.common.Constants.BLOCK_ENTITY_TAG_NAME_IN_ITEM;
-import static li.cil.oc2.common.Constants.ITEMS_TAG_NAME;
-import static li.cil.oc2.common.util.NBTUtils.makeInventoryTag;
 import static li.cil.oc2.common.util.TranslationUtils.text;
 
 public final class ComputerBlock extends HorizontalDirectionalBlock implements EntityBlock {
@@ -96,7 +91,7 @@ public final class ComputerBlock extends HorizontalDirectionalBlock implements E
     public void appendHoverText(final ItemStack stack, final Item.TooltipContext context, final List<Component> tooltip, final TooltipFlag advanced) {
         super.appendHoverText(stack, context, tooltip, advanced);
         TooltipUtils.addEnergyConsumption(Config.computerEnergyPerTick, tooltip);
-        TooltipUtils.addBlockEntityInventoryInformation(stack, tooltip);
+        TooltipUtils.addInventoryInformation(stack, tooltip);
     }
 
     @SuppressWarnings("deprecation")
@@ -192,8 +187,6 @@ public final class ComputerBlock extends HorizontalDirectionalBlock implements E
         final BlockEntity blockEntity = level.getBlockEntity(pos);
         if (!level.isClientSide() && blockEntity instanceof final ComputerBlockEntity computer) {
             if (!computer.getItemStackHandlers().isEmpty()) {
-                computer.getItemStackHandlers().exportDeviceDataToItemStacks();
-
                 if (player.isCreative()) {
                     final ItemStack stack = new ItemStack(Items.COMPUTER.get());
                     computer.exportToItemStack(stack);
@@ -235,49 +228,44 @@ public final class ComputerBlock extends HorizontalDirectionalBlock implements E
 
     ///////////////////////////////////////////////////////////////////
 
-    public static ItemStack getComputerWithFlash(HolderLookup.Provider provider) {
+    private static RestrictedContainer emptyRestrictedContainer() {
+        var container = new RestrictedContainer();
+
+        container.items().put(ItemTags.DEVICES_FLASH_MEMORY, NonNullList.withSize(1, ItemStack.EMPTY));
+        container.items().put(ItemTags.DEVICES_CPU, NonNullList.withSize(1, ItemStack.EMPTY));
+        container.items().put(ItemTags.DEVICES_MEMORY, NonNullList.withSize(4, ItemStack.EMPTY));
+        container.items().put(ItemTags.DEVICES_CARD, NonNullList.withSize(4, ItemStack.EMPTY));
+        container.items().put(ItemTags.DEVICES_HARD_DRIVE, NonNullList.withSize(4, ItemStack.EMPTY));
+
+        return container;
+    }
+
+    public static ItemStack getComputerWithFlash() {
         final ItemStack computer = new ItemStack(Items.COMPUTER.get());
 
-        CustomData.update(DataComponents.CUSTOM_DATA, computer, nbt -> {
-            final CompoundTag itemsTag = NBTUtils.getOrCreateChildTag(nbt, BLOCK_ENTITY_TAG_NAME_IN_ITEM, ITEMS_TAG_NAME);
-            itemsTag.put(DeviceTypes.FLASH_MEMORY.getName().toString(), makeInventoryTag(
-                provider,
-                new ItemStack(Items.FLASH_MEMORY_CUSTOM.get())
-            ));
-        });
+        var container = emptyRestrictedContainer();
+        container.items().get(ItemTags.DEVICES_FLASH_MEMORY).set(0, new ItemStack(Items.FLASH_MEMORY_CUSTOM.get()));
+        computer.set(
+            li.cil.oc2.common.components.DataComponents.RESTRICTED_CONTAINER,
+            container
+        );
 
         return computer;
     }
 
-    public static ItemStack getPreconfiguredComputer(HolderLookup.Provider provider) {
-        final ItemStack computer = getComputerWithFlash(provider);
+    public static ItemStack getPreconfiguredComputer() {
+        final ItemStack computer = new ItemStack(Items.COMPUTER.get());
 
-        CustomData.update(DataComponents.CUSTOM_DATA, computer, nbt -> {
-            final CompoundTag itemsTag = NBTUtils.getOrCreateChildTag(nbt, BLOCK_ENTITY_TAG_NAME_IN_ITEM, ITEMS_TAG_NAME);
-
-            itemsTag.put(DeviceTypes.MEMORY.getName().toString(), makeInventoryTag(
-                provider,
-                new ItemStack(Items.MEMORY_LARGE.get()),
-                new ItemStack(Items.MEMORY_LARGE.get()),
-                new ItemStack(Items.MEMORY_LARGE.get()),
-                new ItemStack(Items.MEMORY_LARGE.get())
-            ));
-
-            itemsTag.put(DeviceTypes.HARD_DRIVE.getName().toString(), makeInventoryTag(
-                provider,
-                new ItemStack(Items.HARD_DRIVE_LARGE.get())
-            ));
-
-            itemsTag.put(DeviceTypes.CARD.getName().toString(), makeInventoryTag(
-                provider,
-                new ItemStack(Items.NETWORK_INTERFACE_CARD.get())
-            ));
-
-            itemsTag.put(DeviceTypes.CPU.getName().toString(), makeInventoryTag(
-                provider,
-                new ItemStack(Items.CPU_TIER_3.get())
-            ));
-        });
+        var container = emptyRestrictedContainer();
+        container.items().get(ItemTags.DEVICES_FLASH_MEMORY).set(0, new ItemStack(Items.FLASH_MEMORY_CUSTOM.get()));
+        container.items().get(ItemTags.DEVICES_CPU).set(0, new ItemStack(Items.CPU_TIER_3.get()));
+        container.items().get(ItemTags.DEVICES_MEMORY).replaceAll(ignored -> new ItemStack(Items.MEMORY_LARGE.get()));
+        container.items().get(ItemTags.DEVICES_CARD).set(0, new ItemStack(Items.NETWORK_INTERFACE_CARD.get()));
+        container.items().get(ItemTags.DEVICES_HARD_DRIVE).set(0, new ItemStack(Items.HARD_DRIVE_LARGE.get()));
+        computer.set(
+            li.cil.oc2.common.components.DataComponents.RESTRICTED_CONTAINER,
+            container
+        );
 
         computer.set(DataComponents.CUSTOM_NAME, text("block.{mod}.computer.preconfigured"));
 

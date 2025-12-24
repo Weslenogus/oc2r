@@ -4,27 +4,22 @@ package li.cil.oc2.common.integration.jei;
 
 import com.google.common.base.Strings;
 import li.cil.oc2.api.API;
+import li.cil.oc2.common.components.RestrictedContainer;
 import li.cil.oc2.common.item.AbstractBlockDeviceItem;
 import li.cil.oc2.common.item.Items;
 import li.cil.oc2.common.util.ItemStackUtils;
-import li.cil.oc2.common.util.NBTUtils;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.ingredients.subtypes.IIngredientSubtypeInterpreter;
 import mezz.jei.api.ingredients.subtypes.UidContext;
 import mezz.jei.api.registration.ISubtypeRegistration;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NumericTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.ItemStack;
 
-import javax.annotation.Nullable;
-
-import static li.cil.oc2.common.Constants.BLOCK_ENTITY_TAG_NAME_IN_ITEM;
-import static li.cil.oc2.common.Constants.ITEMS_TAG_NAME;
+import java.util.Comparator;
+import java.util.List;
 
 @JeiPlugin
 @SuppressWarnings("unused")
@@ -44,16 +39,16 @@ public class ExtraItemsJEIPlugin implements IModPlugin {
     private static final class ComputerSubtypeInterpreter implements IIngredientSubtypeInterpreter<ItemStack> {
         @Override
         public String apply(final ItemStack ingredient, final UidContext context) {
-            final CompoundTag itemsTag = NBTUtils.getChildTag(ingredient, BLOCK_ENTITY_TAG_NAME_IN_ITEM, ITEMS_TAG_NAME);
-            return itemsTag.isEmpty() ? NONE : stableTagToString(itemsTag);
+            var container = ingredient.get(li.cil.oc2.common.components.DataComponents.RESTRICTED_CONTAINER);
+            return container == null ? NONE : stableRestrictedContainerToString(container);
         }
     }
 
     private static final class RobotSubtypeInterpreter implements IIngredientSubtypeInterpreter<ItemStack> {
         @Override
         public String apply(final ItemStack ingredient, final UidContext context) {
-            final CompoundTag itemsTag = NBTUtils.getChildTag(ingredient, API.MOD_ID, ITEMS_TAG_NAME);
-            return itemsTag.isEmpty() ? NONE : stableTagToString(itemsTag);
+            var container = ingredient.get(li.cil.oc2.common.components.DataComponents.RESTRICTED_CONTAINER);
+            return container == null ? NONE : stableRestrictedContainerToString(container);
         }
     }
 
@@ -65,37 +60,39 @@ public class ExtraItemsJEIPlugin implements IModPlugin {
         }
     }
 
-    private static String stableTagToString(@Nullable final Tag tag) {
+    private static String stableRestrictedContainerToString(final RestrictedContainer container) {
         final StringBuilder stringBuilder = new StringBuilder();
-        stableTagToString(tag, stringBuilder);
+        stableRestrictedContainerToString(container, stringBuilder);
         return stringBuilder.toString();
     }
 
-    private static void stableTagToString(@Nullable final Tag tag, final StringBuilder stringBuilder) {
-        if (tag == null) {
-            stringBuilder.append("null");
-        }
-        if (tag instanceof CompoundTag compoundTag) {
-            stringBuilder.append("{");
-            compoundTag.getAllKeys().stream().sorted().forEach(key -> {
-                stringBuilder.append(key).append(":");
-                stableTagToString(compoundTag.get(key), stringBuilder);
-                stringBuilder.append(",");
-            });
+    private static void stableRestrictedContainerToString(final RestrictedContainer container, final StringBuilder stringBuilder) {
+        stringBuilder.append("{");
+        container.items().keySet().stream().sorted(Comparator.comparing(TagKey::location)).forEach(key -> {
+            var values = container.items().get(key);
+            if (values.isEmpty()) return;
+            stringBuilder.append(key).append(":");
+            stableItemStackListToString(values, stringBuilder);
+            stringBuilder.append(",");
+        });
+        if (stringBuilder.length() > 1) {
             stringBuilder.setLength(stringBuilder.length() - 1); // remove last comma
-            stringBuilder.append("}");
-        } else if (tag instanceof ListTag listTag) {
-            stringBuilder.append("[");
-            for (final Tag childTag : listTag) {
-                stableTagToString(childTag, stringBuilder);
-                stringBuilder.append(",");
-            }
-            stringBuilder.setLength(stringBuilder.length() - 1); // remove last comma
-            stringBuilder.append("]");
-        } else if (tag instanceof NumericTag numericTag) {
-            stringBuilder.append(numericTag.getAsNumber());
-        } else {
-            stringBuilder.append(tag);
         }
+        stringBuilder.append("}");
+    }
+
+    private static void stableItemStackListToString(final List<ItemStack> items, final StringBuilder stringBuilder) {
+        stringBuilder.append("[");
+        for (final ItemStack stack : items) {
+            if (stack.isEmpty()) continue;
+            stringBuilder.append(stack.getCount());
+            stringBuilder.append("x ");
+            stringBuilder.append(stack.getDisplayName());
+            stringBuilder.append(",");
+        }
+        if (stringBuilder.length() > 1) {
+            stringBuilder.setLength(stringBuilder.length() - 1); // remove last comma
+        }
+        stringBuilder.append("]");
     }
 }

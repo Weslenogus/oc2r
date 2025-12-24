@@ -3,8 +3,8 @@
 package li.cil.oc2.data;
 
 import li.cil.oc2.common.block.Blocks;
+import li.cil.oc2.common.components.DataComponents;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.data.PackOutput;
 import net.minecraft.data.loot.BlockLootSubProvider;
 import net.minecraft.resources.ResourceKey;
@@ -79,8 +79,9 @@ public final class ModLootTableProvider extends LootTableProvider {
                 .withPool(applyExplosionCondition(block, LootPool.lootPool()
                     .setRolls(ConstantValue.exactly(1))
                     .add(LootItem.lootTableItem(block)
-                        .apply(CopyComponentsFunction.copyComponents(CopyComponentsFunction.Source.BLOCK_ENTITY)
-                            .include(DataComponents.CUSTOM_DATA)
+                        .apply(
+                            CopyComponentsFunction.copyComponents(CopyComponentsFunction.Source.BLOCK_ENTITY)
+                                .include(DataComponents.RESTRICTED_CONTAINER.get())
                         )
                     )
                 ));

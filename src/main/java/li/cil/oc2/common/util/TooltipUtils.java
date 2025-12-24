@@ -6,6 +6,7 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import li.cil.oc2.api.bus.device.DeviceType;
 import li.cil.oc2.api.bus.device.provider.ItemDeviceQuery;
+import li.cil.oc2.common.components.RestrictedContainer;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.Constants;
 import li.cil.oc2.common.block.EnergyConsumingBlock;
@@ -32,7 +33,6 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
-import static li.cil.oc2.common.Constants.*;
 import static li.cil.oc2.common.util.TextFormatUtils.withFormat;
 
 public final class TooltipUtils {
@@ -117,39 +117,40 @@ public final class TooltipUtils {
         }
     }
 
-    public static void addBlockEntityInventoryInformation(final ItemStack stack, final List<Component> tooltip) {
-        addInventoryInformation(NBTUtils.getChildTag(stack, BLOCK_ENTITY_TAG_NAME_IN_ITEM, ITEMS_TAG_NAME), tooltip);
+    public static void addInventoryInformation(final ItemStack stack, final List<Component> tooltip) {
+        var container = stack.getOrDefault(li.cil.oc2.common.components.DataComponents.RESTRICTED_CONTAINER, new RestrictedContainer());
+        addInventoryInformation(container, tooltip);
     }
 
-    public static void addEntityInventoryInformation(final ItemStack stack, final List<Component> tooltip) {
-        addInventoryInformation(NBTUtils.getChildTag(stack, MOD_TAG_NAME, ITEMS_TAG_NAME), tooltip);
-    }
-
-    public static void addInventoryInformation(final CompoundTag itemsTag, final List<Component> tooltip) {
-        addInventoryInformation(itemsTag, tooltip, getDeviceTypeNames());
-    }
-
-    public static void addInventoryInformation(final CompoundTag itemsTag, final List<Component> tooltip, final String... subInventoryNames) {
+    public static void addInventoryInformation(final RestrictedContainer container, final List<Component> tooltip, final String... subInventoryNames) {
         final List<ItemStack> itemStacks = ITEM_STACKS.get();
         itemStacks.clear();
-        final IntList itemStackSizes = ITEM_STACKS_SIZES.get();
-        itemStackSizes.clear();
 
-        collectItemStacks(itemsTag, itemStacks, itemStackSizes);
+        for (final var typed_stacks : container.items().values()) {
+            for (final var x : typed_stacks) {
+                if (x.getCount() == 0) continue;
 
-        for (final String subInventoryName : subInventoryNames) {
-            if (itemsTag.contains(subInventoryName, NBTTagIds.TAG_COMPOUND)) {
-                collectItemStacks(itemsTag.getCompound(subInventoryName), itemStacks, itemStackSizes);
+                var item = x.getItem();
+                var found = false;
+                for (final var y : itemStacks) {
+                    if (y.getItem() == item) {
+                        y.setCount(y.getCount()+1);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    itemStacks.add(x.copy());
+                }
             }
         }
 
-        for (int i = 0; i < itemStacks.size(); i++) {
-            final ItemStack itemStack = itemStacks.get(i);
+        for (final ItemStack stack : itemStacks) {
             tooltip.add(Component.literal("- ")
-                .append(itemStack.getDisplayName())
+                .append(stack.getDisplayName())
                 .withStyle(style -> style.withColor(TextColor.fromLegacyFormat(ChatFormatting.GRAY)))
                 .append(Component.literal(" x")
-                    .append(String.valueOf(itemStackSizes.getInt(i)))
+                    .append(String.valueOf(stack.getCount()))
                     .withStyle(style -> style.withColor(TextColor.fromLegacyFormat(ChatFormatting.DARK_GRAY))))
             );
         }

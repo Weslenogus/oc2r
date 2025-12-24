@@ -10,6 +10,8 @@ import li.cil.oc2.api.bus.device.provider.ItemDeviceQuery;
 import li.cil.oc2.api.capabilities.TerminalUserProvider;
 import li.cil.oc2.client.audio.LoopingSoundManager;
 import li.cil.oc2.common.block.Blocks;
+import li.cil.oc2.common.components.DataComponents;
+import li.cil.oc2.common.components.RestrictedContainer;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.block.ComputerBlock;
 import li.cil.oc2.common.bus.AbstractBlockDeviceBusElement;
@@ -33,14 +35,13 @@ import li.cil.oc2.common.vm.terminal.Terminal;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -54,7 +55,6 @@ import java.time.Duration;
 import java.util.*;
 import java.util.function.Supplier;
 
-import static li.cil.oc2.common.Constants.BLOCK_ENTITY_TAG_NAME_IN_ITEM;
 import static li.cil.oc2.common.Constants.ITEMS_TAG_NAME;
 
 @EventBusSubscriber(modid = API.MOD_ID)
@@ -210,6 +210,30 @@ public final class ComputerBlockEntity extends ModBlockEntity implements Termina
     }
 
     @Override
+    protected void applyImplicitComponents(final DataComponentInput componentInput) {
+        super.applyImplicitComponents(componentInput);
+
+        var container = componentInput.get(DataComponents.RESTRICTED_CONTAINER);
+        if (container != null) {
+            deviceItems.loadItems(getLevel().registryAccess(), container);
+        } else {
+            var block_entity_data = componentInput.get(net.minecraft.core.component.DataComponents.BLOCK_ENTITY_DATA);
+            if (block_entity_data == null) return;
+            var tag = block_entity_data.copyTag();
+            tag.size();
+        }
+    }
+
+    @Override
+    protected void collectImplicitComponents(final DataComponentMap.Builder components) {
+        super.collectImplicitComponents(components);
+
+        var container = new RestrictedContainer();
+        deviceItems.saveItems(container);
+        components.set(DataComponents.RESTRICTED_CONTAINER, container);
+    }
+
+    @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         final CompoundTag tag = super.getUpdateTag(registries);
 
@@ -263,9 +287,10 @@ public final class ComputerBlockEntity extends ModBlockEntity implements Termina
     }
 
     public void exportToItemStack(final ItemStack stack) {
-        CustomData.update(DataComponents.CUSTOM_DATA, stack, nbt -> {
-            deviceItems.saveItems(level.registryAccess(), NBTUtils.getOrCreateChildTag(nbt, BLOCK_ENTITY_TAG_NAME_IN_ITEM, ITEMS_TAG_NAME));
-        });
+        var container = new RestrictedContainer();
+        deviceItems.exportDeviceDataToItemStacks();
+        deviceItems.saveItems(container);
+        stack.set(li.cil.oc2.common.components.DataComponents.RESTRICTED_CONTAINER, container);
     }
 
     ///////////////////////////////////////////////////////////////////

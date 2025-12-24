@@ -9,6 +9,7 @@ import li.cil.oc2.api.bus.device.provider.ItemDeviceQuery;
 import li.cil.oc2.api.bus.device.vm.VMDevice;
 import li.cil.oc2.common.bus.AbstractDeviceBusElement;
 import li.cil.oc2.common.bus.AbstractItemDeviceBusElement;
+import li.cil.oc2.common.components.RestrictedContainer;
 import li.cil.oc2.common.container.AbstractDeviceItemStackHandler;
 import li.cil.oc2.common.container.AbstractTypedDeviceItemStackHandler;
 import net.minecraft.core.HolderLookup;
@@ -101,6 +102,12 @@ public abstract class AbstractVMItemStackHandlers implements VMItemStackHandlers
         }
     }
 
+    public void saveItems(RestrictedContainer container) {
+        itemHandlers.forEach((deviceType, handler) -> {
+            handler.saveItems(container);
+        });
+    }
+
     public void saveItems(HolderLookup.Provider provider, final CompoundTag tag) {
         itemHandlers.forEach((deviceType, handler) -> {
             if (!handler.isEmpty()) {
@@ -113,6 +120,12 @@ public abstract class AbstractVMItemStackHandlers implements VMItemStackHandlers
         final CompoundTag tag = new CompoundTag();
         saveItems(provider, tag);
         return tag;
+    }
+
+    public void loadItems(HolderLookup.Provider provider, RestrictedContainer container) {
+        itemHandlers.forEach((deviceType, handler) -> {
+            handler.loadItems(provider, container);
+        });
     }
 
     public void loadItems(HolderLookup.Provider provider, final CompoundTag tag) {

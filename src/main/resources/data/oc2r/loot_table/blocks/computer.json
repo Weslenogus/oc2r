@@ -13,7 +13,11 @@
           "type": "minecraft:item",
           "functions": [
             {
-              "function": "oc2r:copy_computer_inventory"
+              "function": "minecraft:copy_components",
+              "include": [
+                "oc2r:restricted_container"
+              ],
+              "source": "block_entity"
             }
           ],
           "name": "oc2r:computer"

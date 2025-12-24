@@ -14,6 +14,7 @@ import li.cil.oc2.common.bus.device.data.FirmwareRegistry;
 import li.cil.oc2.common.bus.device.provider.ProviderRegistry;
 import li.cil.oc2.common.config.AsyncConfig;
 import li.cil.oc2.common.config.Config;
+import li.cil.oc2.common.components.DataComponents;
 import li.cil.oc2.common.config.client.ClientSpec;
 import li.cil.oc2.common.config.common.CommonSpec;
 import li.cil.oc2.common.container.Containers;
@@ -65,6 +66,7 @@ public final class Main {
 
         ItemTags.initialize();
         BlockTags.initialize();
+        DataComponents.initialize(modBus);
         Blocks.initialize(modBus);
         BlockCodecs.initialize(modBus);
         Items.initialize(modBus);

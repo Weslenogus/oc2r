@@ -13,7 +13,6 @@ import mezz.jei.api.gui.handlers.IGuiContainerHandler;
 import mezz.jei.api.registration.IGuiHandlerRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import net.minecraft.client.renderer.Rect2i;
-import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
@@ -32,7 +31,7 @@ public class ExtraGuiAreasJEIPlugin implements IModPlugin {
     public void registerRecipes(final IRecipeRegistration registration)
     {
         HashSet<ItemStack> removals = new HashSet<>();
-        removals.add(ComputerBlock.getPreconfiguredComputer(RegistryAccess.EMPTY));
+        removals.add(ComputerBlock.getPreconfiguredComputer());
         registration.getIngredientManager().removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, removals);
     }
 
