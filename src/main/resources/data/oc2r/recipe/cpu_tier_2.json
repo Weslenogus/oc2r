@@ -7,10 +7,10 @@
   ],
   "key": {
     "G": {
-      "tag": "forge:ingots/gold"
+      "tag": "c:ingots/gold"
     },
     "C": {
-      "tag": "forge:ingots/copper"
+      "tag": "c:ingots/copper"
     },
     "T": {
       "item": "oc2r:transistor"
@@ -23,6 +23,6 @@
     }
   },
   "result": {
-    "item": "oc2r:cpu_tier_2"
+    "id": "oc2r:cpu_tier_2"
   }
 }

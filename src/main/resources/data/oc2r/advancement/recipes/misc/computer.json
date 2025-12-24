@@ -1,47 +1,43 @@
 {
   "parent": "minecraft:recipes/root",
-  "rewards": {
-    "recipes": [
-      "oc2r:computer"
-    ]
-  },
   "criteria": {
-    "has_transistor": {
-      "trigger": "minecraft:inventory_changed",
-      "conditions": {
-        "items": [
-          {
-            "items": [
-              "oc2r:transistor"
-            ]
-          }
-        ]
-      }
-    },
     "has_circuit_board": {
-      "trigger": "minecraft:inventory_changed",
       "conditions": {
         "items": [
           {
-            "items": [
-              "oc2r:circuit_board"
-            ]
+            "items": "oc2r:circuit_board"
           }
         ]
-      }
+      },
+      "trigger": "minecraft:inventory_changed"
     },
     "has_the_recipe": {
-      "trigger": "minecraft:recipe_unlocked",
       "conditions": {
         "recipe": "oc2r:computer"
-      }
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    },
+    "has_transistor": {
+      "conditions": {
+        "items": [
+          {
+            "items": "oc2r:transistor"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
     }
   },
   "requirements": [
     [
+      "has_the_recipe",
       "has_transistor",
-      "has_circuit_board",
-      "has_the_recipe"
+      "has_circuit_board"
     ]
-  ]
+  ],
+  "rewards": {
+    "recipes": [
+      "oc2r:computer"
+    ]
+  }
 }

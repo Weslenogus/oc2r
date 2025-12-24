@@ -1,5 +1,4 @@
 {
-  "replace": false,
   "values": [
     "oc2r:flash_memory",
     "oc2r:flash_memory_custom"

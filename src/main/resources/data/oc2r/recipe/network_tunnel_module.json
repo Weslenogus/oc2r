@@ -1,24 +1,26 @@
 {
   "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": {
+      "item": "oc2r:circuit_board"
+    },
+    "E": {
+      "tag": "c:ender_pearls"
+    },
+    "G": {
+      "tag": "c:ingots/gold"
+    },
+    "T": {
+      "item": "oc2r:transistor"
+    }
+  },
   "pattern": [
     "TEG",
     " B "
   ],
-  "key": {
-    "T": {
-      "item": "oc2r:transistor"
-    },
-    "E": {
-      "tag": "forge:ender_pearls"
-    },
-    "G": {
-      "tag": "forge:ingots/gold"
-    },
-    "B": {
-      "item": "oc2r:circuit_board"
-    }
-  },
   "result": {
-    "item": "oc2r:network_tunnel_module"
+    "count": 1,
+    "id": "oc2r:network_tunnel_module"
   }
 }

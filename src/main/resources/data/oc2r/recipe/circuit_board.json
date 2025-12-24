@@ -1,8 +1,9 @@
 {
   "type": "minecraft:crafting_shapeless",
+  "category": "misc",
   "ingredients": [
     {
-      "tag": "forge:ingots/gold"
+      "tag": "c:ingots/gold"
     },
     {
       "item": "minecraft:clay_ball"
@@ -12,7 +13,7 @@
     }
   ],
   "result": {
-    "item": "oc2r:circuit_board",
-    "count": 6
+    "count": 6,
+    "id": "oc2r:circuit_board"
   }
 }

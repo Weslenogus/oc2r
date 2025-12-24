@@ -1,34 +1,32 @@
 {
   "parent": "minecraft:recipes/root",
-  "rewards": {
-    "recipes": [
-      "oc2r:network_hub"
-    ]
-  },
   "criteria": {
     "has_network_connector": {
-      "trigger": "minecraft:inventory_changed",
       "conditions": {
         "items": [
           {
-            "items": [
-              "oc2r:network_connector"
-            ]
+            "items": "oc2r:network_connector"
           }
         ]
-      }
+      },
+      "trigger": "minecraft:inventory_changed"
     },
     "has_the_recipe": {
-      "trigger": "minecraft:recipe_unlocked",
       "conditions": {
         "recipe": "oc2r:network_hub"
-      }
+      },
+      "trigger": "minecraft:recipe_unlocked"
     }
   },
   "requirements": [
     [
-      "has_network_connector",
-      "has_the_recipe"
+      "has_the_recipe",
+      "has_network_connector"
     ]
-  ]
+  ],
+  "rewards": {
+    "recipes": [
+      "oc2r:network_hub"
+    ]
+  }
 }

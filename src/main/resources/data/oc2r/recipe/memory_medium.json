@@ -1,22 +1,23 @@
 {
   "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": {
+      "item": "oc2r:circuit_board"
+    },
+    "G": {
+      "tag": "c:ingots/gold"
+    },
+    "T": {
+      "item": "oc2r:transistor"
+    }
+  },
   "pattern": [
     "GTG",
     " B "
   ],
-  "key": {
-    "G": {
-      "tag": "forge:ingots/gold"
-    },
-    "T": {
-      "item": "oc2r:transistor"
-    },
-    "B": {
-      "item": "oc2r:circuit_board"
-    }
-  },
   "result": {
-    "item": "oc2r:memory_medium",
-    "count": 2
+    "count": 2,
+    "id": "oc2r:memory_medium"
   }
 }

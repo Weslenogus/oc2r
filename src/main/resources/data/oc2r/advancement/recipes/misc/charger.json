@@ -1,34 +1,32 @@
 {
   "parent": "minecraft:recipes/root",
-  "rewards": {
-    "recipes": [
-      "oc2r:charger"
-    ]
-  },
   "criteria": {
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "oc2r:charger"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    },
     "has_transistor": {
-      "trigger": "minecraft:inventory_changed",
       "conditions": {
         "items": [
           {
-            "items": [
-              "oc2r:transistor"
-            ]
+            "items": "oc2r:transistor"
           }
         ]
-      }
-    },
-    "has_the_recipe": {
-      "trigger": "minecraft:recipe_unlocked",
-      "conditions": {
-        "recipe": "oc2r:charger"
-      }
+      },
+      "trigger": "minecraft:inventory_changed"
     }
   },
   "requirements": [
     [
-      "has_transistor",
-      "has_the_recipe"
+      "has_the_recipe",
+      "has_transistor"
     ]
-  ]
+  ],
+  "rewards": {
+    "recipes": [
+      "oc2r:charger"
+    ]
+  }
 }

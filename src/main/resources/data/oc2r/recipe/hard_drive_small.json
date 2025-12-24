@@ -1,24 +1,26 @@
 {
   "type": "minecraft:crafting_shaped",
-  "pattern": [
-    "ITI",
-    "EBE"
-  ],
+  "category": "misc",
   "key": {
-    "I": {
-      "tag": "forge:ingots/iron"
-    },
-    "T": {
-      "item": "oc2r:transistor"
-    },
     "B": {
       "item": "oc2r:circuit_board"
     },
     "E": {
-      "tag": "forge:gems/emerald"
+      "tag": "c:gems/emerald"
+    },
+    "I": {
+      "tag": "c:ingots/iron"
+    },
+    "T": {
+      "item": "oc2r:transistor"
     }
   },
+  "pattern": [
+    "ITI",
+    "EBE"
+  ],
   "result": {
-    "item": "oc2r:hard_drive_small"
+    "count": 1,
+    "id": "oc2r:hard_drive_small"
   }
 }

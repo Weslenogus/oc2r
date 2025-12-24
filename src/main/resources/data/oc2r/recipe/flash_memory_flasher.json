@@ -7,7 +7,7 @@
   ],
   "key": {
     "I": {
-      "tag": "forge:ingots/iron"
+      "tag": "c:ingots/iron"
     },
     "U": {
       "tag": "minecraft:buttons"
@@ -26,6 +26,6 @@
     }
   },
   "result": {
-    "item": "oc2r:flash_memory_flasher"
+    "id": "oc2r:flash_memory_flasher"
   }
 }

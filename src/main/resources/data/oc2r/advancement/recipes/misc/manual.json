@@ -1,47 +1,43 @@
 {
   "parent": "minecraft:recipes/root",
-  "rewards": {
-    "recipes": [
-      "oc2r:manual"
-    ]
-  },
   "criteria": {
     "has_book": {
-      "trigger": "minecraft:inventory_changed",
       "conditions": {
         "items": [
           {
-            "items": [
-              "minecraft:book"
-            ]
+            "items": "minecraft:book"
           }
         ]
-      }
-    },
-    "has_wrench": {
-      "trigger": "minecraft:inventory_changed",
-      "conditions": {
-        "items": [
-          {
-            "items": [
-              "oc2r:wrench"
-            ]
-          }
-        ]
-      }
+      },
+      "trigger": "minecraft:inventory_changed"
     },
     "has_the_recipe": {
-      "trigger": "minecraft:recipe_unlocked",
       "conditions": {
         "recipe": "oc2r:manual"
-      }
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    },
+    "has_wrench": {
+      "conditions": {
+        "items": [
+          {
+            "items": "oc2r:wrench"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
     }
   },
   "requirements": [
     [
+      "has_the_recipe",
       "has_book",
-      "has_wrench",
-      "has_the_recipe"
+      "has_wrench"
     ]
-  ]
+  ],
+  "rewards": {
+    "recipes": [
+      "oc2r:manual"
+    ]
+  }
 }

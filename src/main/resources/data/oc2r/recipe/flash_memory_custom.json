@@ -1,14 +1,13 @@
 {
   "type": "oc2r:wrench",
+  "category": "misc",
   "ingredients": [
-    {
-      "item": "oc2r:wrench"
-    },
     {
       "item": "oc2r:flash_memory"
     }
   ],
   "result": {
-    "item": "oc2r:flash_memory_custom"
+    "count": 1,
+    "id": "oc2r:flash_memory_custom"
   }
 }

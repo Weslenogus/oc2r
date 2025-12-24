@@ -5,11 +5,11 @@
   ],
   "key": {
     "S": {
-      "tag": "forge:silicon"
+      "tag": "c:silicon"
     }
   },
   "result": {
-    "item": "oc2r:raw_silicon_wafer",
+    "id": "oc2r:raw_silicon_wafer",
     "count": 1
   }
 }

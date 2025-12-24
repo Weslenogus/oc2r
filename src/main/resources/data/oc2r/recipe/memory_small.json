@@ -1,22 +1,23 @@
 {
   "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": {
+      "item": "oc2r:circuit_board"
+    },
+    "I": {
+      "tag": "c:ingots/iron"
+    },
+    "T": {
+      "item": "oc2r:transistor"
+    }
+  },
   "pattern": [
     "ITI",
     " B "
   ],
-  "key": {
-    "I": {
-      "tag": "forge:ingots/iron"
-    },
-    "T": {
-      "item": "oc2r:transistor"
-    },
-    "B": {
-      "item": "oc2r:circuit_board"
-    }
-  },
   "result": {
-    "item": "oc2r:memory_small",
-    "count": 2
+    "count": 2,
+    "id": "oc2r:memory_small"
   }
 }

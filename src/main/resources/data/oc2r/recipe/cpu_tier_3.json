@@ -7,10 +7,10 @@
   ],
   "key": {
     "D": {
-      "tag": "forge:gems/diamond"
+      "tag": "c:gems/diamond"
     },
     "G": {
-      "tag": "forge:ingots/gold"
+      "tag": "c:ingots/gold"
     },
     "T": {
       "item": "oc2r:transistor"
@@ -23,6 +23,6 @@
     }
   },
   "result": {
-    "item": "oc2r:cpu_tier_3"
+    "id": "oc2r:cpu_tier_3"
   }
 }

@@ -1,28 +1,30 @@
 {
   "type": "minecraft:crafting_shaped",
-  "pattern": [
-    "ICI",
-    "XTX",
-    "IBI"
-  ],
+  "category": "misc",
   "key": {
-    "I": {
-      "tag": "forge:ingots/iron"
+    "B": {
+      "item": "oc2r:circuit_board"
     },
     "C": {
       "item": "minecraft:comparator"
+    },
+    "I": {
+      "tag": "c:ingots/iron"
     },
     "T": {
       "item": "oc2r:transistor"
     },
     "X": {
       "item": "oc2r:bus_interface"
-    },
-    "B": {
-      "item": "oc2r:circuit_board"
     }
   },
+  "pattern": [
+    "ICI",
+    "XTX",
+    "IBI"
+  ],
   "result": {
-    "item": "oc2r:redstone_interface"
+    "count": 1,
+    "id": "oc2r:redstone_interface"
   }
 }

@@ -1,28 +1,30 @@
 {
   "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": {
+      "item": "oc2r:circuit_board"
+    },
+    "I": {
+      "tag": "c:ingots/iron"
+    },
+    "T": {
+      "item": "oc2r:transistor"
+    },
+    "U": {
+      "tag": "minecraft:buttons"
+    },
+    "X": {
+      "item": "oc2r:bus_interface"
+    }
+  },
   "pattern": [
     "UUU",
     "XTU",
     "IBI"
   ],
-  "key": {
-    "I": {
-      "tag": "forge:ingots/iron"
-    },
-    "U": {
-      "tag": "minecraft:buttons"
-    },
-    "T": {
-      "item": "oc2r:transistor"
-    },
-    "X": {
-      "item": "oc2r:bus_interface"
-    },
-    "B": {
-      "item": "oc2r:circuit_board"
-    }
-  },
   "result": {
-    "item": "oc2r:keyboard"
+    "count": 1,
+    "id": "oc2r:keyboard"
   }
 }

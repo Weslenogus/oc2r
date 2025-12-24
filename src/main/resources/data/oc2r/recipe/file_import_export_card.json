@@ -1,24 +1,26 @@
 {
   "type": "minecraft:crafting_shaped",
-  "pattern": [
-    "IET",
-    " B "
-  ],
+  "category": "misc",
   "key": {
+    "B": {
+      "item": "oc2r:circuit_board"
+    },
     "E": {
       "item": "minecraft:paper"
     },
     "I": {
-      "tag": "forge:ingots/iron"
+      "tag": "c:ingots/iron"
     },
     "T": {
       "item": "oc2r:transistor"
-    },
-    "B": {
-      "item": "oc2r:circuit_board"
     }
   },
+  "pattern": [
+    "IET",
+    " B "
+  ],
   "result": {
-    "item": "oc2r:file_import_export_card"
+    "count": 1,
+    "id": "oc2r:file_import_export_card"
   }
 }

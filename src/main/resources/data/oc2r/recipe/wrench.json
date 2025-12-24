@@ -1,19 +1,21 @@
 {
   "type": "minecraft:crafting_shaped",
-  "pattern": [
-    "I I",
-    " T ",
-    " I "
-  ],
+  "category": "misc",
   "key": {
     "I": {
-      "tag": "forge:ingots/iron"
+      "tag": "c:ingots/iron"
     },
     "T": {
       "item": "oc2r:transistor"
     }
   },
+  "pattern": [
+    "I I",
+    " T ",
+    " I "
+  ],
   "result": {
-    "item": "oc2r:wrench"
+    "count": 1,
+    "id": "oc2r:wrench"
   }
 }

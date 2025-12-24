@@ -1,5 +1,4 @@
 {
-  "replace": false,
   "values": [
     "oc2r:inventory_operations_module",
     "oc2r:block_operations_module",

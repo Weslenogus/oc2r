@@ -1,24 +1,26 @@
 {
   "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": {
+      "item": "oc2r:circuit_board"
+    },
+    "I": {
+      "tag": "c:ingots/iron"
+    },
+    "Q": {
+      "tag": "c:gems/quartz"
+    },
+    "T": {
+      "item": "oc2r:transistor"
+    }
+  },
   "pattern": [
     "ITI",
     "QBQ"
   ],
-  "key": {
-    "I": {
-      "tag": "forge:ingots/iron"
-    },
-    "T": {
-      "item": "oc2r:transistor"
-    },
-    "Q": {
-      "tag": "forge:gems/quartz"
-    },
-    "B": {
-      "item": "oc2r:circuit_board"
-    }
-  },
   "result": {
-    "item": "oc2r:floppy"
+    "count": 1,
+    "id": "oc2r:floppy"
   }
 }
