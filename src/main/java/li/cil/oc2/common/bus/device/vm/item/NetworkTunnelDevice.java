@@ -10,14 +10,9 @@ import li.cil.oc2.api.bus.device.vm.context.VMContext;
 import li.cil.oc2.api.capabilities.NetworkInterface;
 import li.cil.oc2.common.item.NetworkTunnelItem;
 import li.cil.oc2.common.util.TickUtils;
-import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.LazyOptional;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
@@ -30,12 +25,6 @@ public final class NetworkTunnelDevice extends AbstractNetworkInterfaceDevice {
     }
 
     ///////////////////////////////////////////////////////////////
-
-    @NotNull
-    @Override
-    public <T> LazyOptional<T> getCapability(final Capability<T> cap, @Nullable final Direction side) {
-        return LazyOptional.empty();
-    }
 
     @Override
     public VMDeviceLoadResult mount(final VMContext context) {

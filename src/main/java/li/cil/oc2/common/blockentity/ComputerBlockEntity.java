@@ -2,12 +2,14 @@
 
 package li.cil.oc2.common.blockentity;
 
+import li.cil.oc2.api.API;
 import li.cil.oc2.api.bus.DeviceBusElement;
 import li.cil.oc2.api.bus.device.Device;
 import li.cil.oc2.api.bus.device.DeviceTypes;
 import li.cil.oc2.api.bus.device.provider.ItemDeviceQuery;
 import li.cil.oc2.api.capabilities.TerminalUserProvider;
 import li.cil.oc2.client.audio.LoopingSoundManager;
+import li.cil.oc2.common.block.Blocks;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.block.ComputerBlock;
 import li.cil.oc2.common.bus.AbstractBlockDeviceBusElement;
@@ -42,10 +44,9 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
-import net.minecraftforge.common.util.LazyOptional;
-import org.jetbrains.annotations.NotNull;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
@@ -56,6 +57,7 @@ import java.util.function.Supplier;
 import static li.cil.oc2.common.Constants.BLOCK_ENTITY_TAG_NAME_IN_ITEM;
 import static li.cil.oc2.common.Constants.ITEMS_TAG_NAME;
 
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class ComputerBlockEntity extends ModBlockEntity implements TerminalUserProvider, TickableBlockEntity, ICaptureInputStateStorage {
     private static final String BUS_ELEMENT_TAG_NAME = "busElement";
     private static final String DEVICES_TAG_NAME = "devices";
@@ -94,6 +96,8 @@ public final class ComputerBlockEntity extends ModBlockEntity implements Termina
 
         // We want to unload devices even on level unload to free global resources.
         setNeedsLevelUnloadEvent();
+
+        virtualMachine.busController.onAfterDeviceScan.add(this::onAfterDeviceScan);
     }
 
     public Terminal getTerminal() {
@@ -157,29 +161,22 @@ public final class ComputerBlockEntity extends ModBlockEntity implements Termina
         }
     }
 
-    @NotNull
-    @Override
-    public <T> LazyOptional<T> getCapability(final Capability<T> capability, @Nullable final Direction side) {
-        if (!isValid()) {
-            return LazyOptional.empty();
+    public void onAfterDeviceScan(final CommonDeviceBusController.AfterDeviceScanEvent event) {
+        if (event.didDevicesChange()) {
+            level.invalidateCapabilities(getBlockPos());
         }
+    }
 
-        final LazyOptional<T> optional = super.getCapability(capability, side);
-        if (optional.isPresent()) {
-            return optional;
-        }
-
-        final Direction localSide = HorizontalBlockUtils.toLocal(getBlockState(), side);
-        for (final Device device : virtualMachine.busController.getDevices()) {
-            if (device instanceof final ICapabilityProvider capabilityProvider) {
-                final LazyOptional<T> value = capabilityProvider.getCapability(capability, localSide);
-                if (value.isPresent()) {
-                    return value;
-                }
+    public <T extends Device> @Nullable T getFirstDevice(Class<T> cls) {
+        for (final Device device : virtualMachine.busController.getDevices())
+        {
+            if (cls.isAssignableFrom(device.getClass())) {
+                //noinspection unchecked
+                return (T) device;
             }
         }
 
-        return LazyOptional.empty();
+        return null;
     }
 
     @Override
@@ -273,14 +270,40 @@ public final class ComputerBlockEntity extends ModBlockEntity implements Termina
 
     ///////////////////////////////////////////////////////////////////
 
-    @Override
-    protected void collectCapabilities(final CapabilityCollector collector, @Nullable final Direction direction) {
-        collector.offer(Capabilities.itemHandler(), deviceItems.combinedItemHandlers);
-        collector.offer(Capabilities.deviceBusElement(), busElement);
-        collector.offer(Capabilities.terminalUserProvider(), this);
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerBlock(
+            Capabilities.ItemHandler.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (be instanceof final ComputerBlockEntity self) {
+                    return self.deviceItems.combinedItemHandlers;
+                }
+                return null;
+            },
+            Blocks.COMPUTER.get()
+        );
+        event.registerBlock(
+            Capabilities.DeviceBusElement.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (be instanceof final ComputerBlockEntity self) {
+                    return self.busElement;
+                }
+                return null;
+            },
+            Blocks.COMPUTER.get()
+        );
 
         if (Config.computersUseEnergy()) {
-            collector.offer(Capabilities.energyStorage(), energy);
+            event.registerBlock(
+                Capabilities.EnergyStorage.BLOCK,
+                (level, pos, state, be, side) -> {
+                    if (be instanceof final ComputerBlockEntity self) {
+                        return self.energy;
+                    }
+                    return null;
+                },
+                Blocks.COMPUTER.get()
+            );
         }
     }
 
@@ -380,12 +403,12 @@ public final class ComputerBlockEntity extends ModBlockEntity implements Termina
         }
 
         @Override
-        public Optional<Collection<LazyOptional<DeviceBusElement>>> getNeighbors() {
+        public Optional<Collection<DeviceBusElement>> getNeighbors() {
             return super.getNeighbors().map(neighbors -> {
                 // If we have valid neighbors (complete bus) also add a connection to the bus
                 // element hosting our item devices.
-                final ArrayList<LazyOptional<DeviceBusElement>> list = new ArrayList<>(neighbors);
-                list.add(LazyOptional.of(() -> deviceItems.busElement));
+                final ArrayList<DeviceBusElement> list = new ArrayList<>(neighbors);
+                list.add(deviceItems.busElement);
                 return list;
             });
         }

@@ -2,6 +2,8 @@
 
 package li.cil.oc2.common.blockentity;
 
+import li.cil.oc2.api.API;
+import li.cil.oc2.common.block.Blocks;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.block.PciCardCageBlock;
 import li.cil.oc2.common.bus.device.vm.block.PciCardCageDevice;
@@ -12,10 +14,13 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
 import javax.annotation.Nullable;
 
-
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class PciCardCageBlockEntity extends ModBlockEntity implements TickableBlockEntity {
 
     private static final String ENERGY_TAG_NAME = "energy";
@@ -104,15 +109,33 @@ public final class PciCardCageBlockEntity extends ModBlockEntity implements Tick
 
     ///////////////////////////////////////////////////////////////
 
-    @Override
-    protected void collectCapabilities(final CapabilityCollector collector, @Nullable final Direction direction) {
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
         if (Config.cardCagesUseEnergy()) {
-            collector.offer(Capabilities.energyStorage(), energy);
+            event.registerBlock(
+                Capabilities.EnergyStorage.BLOCK,
+                (level, pos, state, be, side) -> {
+                    if (be instanceof final PciCardCageBlockEntity self) {
+                        return self.energy;
+                    }
+                    return null;
+                },
+                Blocks.PCI_CARD_CAGE.get()
+            );
         }
 
-        if (direction == getBlockState().getValue(PciCardCageBlock.FACING).getOpposite()) {
-            collector.offer(Capabilities.device(), cardCageDevice);
-        }
+        event.registerBlock(
+            Capabilities.Device.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (be instanceof final PciCardCageBlockEntity self) {
+                    if (side == self.getBlockState().getValue(PciCardCageBlock.FACING).getOpposite()) {
+                        return self.cardCageDevice;
+                    }
+                }
+                return null;
+            },
+            Blocks.PCI_CARD_CAGE.get()
+        );
     }
 
     ///////////////////////////////////////////////////////////////

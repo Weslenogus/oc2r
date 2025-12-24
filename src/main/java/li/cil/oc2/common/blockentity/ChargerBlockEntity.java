@@ -2,8 +2,10 @@
 
 package li.cil.oc2.common.blockentity;
 
+import li.cil.oc2.api.API;
 import li.cil.oc2.api.bus.device.object.Callback;
 import li.cil.oc2.api.bus.device.object.NamedDevice;
+import li.cil.oc2.common.block.Blocks;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.Constants;
 import li.cil.oc2.common.capabilities.Capabilities;
@@ -19,17 +21,19 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.items.IItemHandler;
 
-import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Predicate;
 
 import static java.util.Collections.singletonList;
 
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class ChargerBlockEntity extends ModBlockEntity implements NamedDevice, TickableBlockEntity {
     private static final Predicate<Entity> ENTITY_PREDICATE =
         EntitySelector.NO_SPECTATORS
@@ -100,9 +104,18 @@ public final class ChargerBlockEntity extends ModBlockEntity implements NamedDev
 
     ///////////////////////////////////////////////////////////////////
 
-    @Override
-    protected void collectCapabilities(final CapabilityCollector collector, @Nullable final Direction direction) {
-        collector.offer(Capabilities.energyStorage(), energy);
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerBlock(
+            Capabilities.EnergyStorage.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (be instanceof final ChargerBlockEntity self) {
+                    return self.energy;
+                }
+                return null;
+            },
+            Blocks.CHARGER.get()
+        );
     }
 
     ///////////////////////////////////////////////////////////////////
@@ -114,9 +127,13 @@ public final class ChargerBlockEntity extends ModBlockEntity implements NamedDev
             return;
         }
 
-        final BlockEntity blockEntity = level.getBlockEntity(getBlockPos().above());
+        final var above = getBlockPos().above();
+        final BlockEntity blockEntity = level.getBlockEntity(above);
         if (blockEntity != null) {
-            chargeCapabilityProvider(blockEntity);
+            final var energy = level.getCapability(Capabilities.EnergyStorage.BLOCK, above, null, blockEntity, Direction.DOWN);
+            if (energy != null) charge(energy);
+            final var items = level.getCapability(Capabilities.ItemHandler.BLOCK, above, null, blockEntity, null);
+            if (items != null) chargeItems(items);
         }
     }
 
@@ -129,20 +146,19 @@ public final class ChargerBlockEntity extends ModBlockEntity implements NamedDev
 
         final List<Entity> entities = level.getEntities((Entity) null, new AABB(getBlockPos().above()), ENTITY_PREDICATE);
         for (final Entity entity : entities) {
-            chargeCapabilityProvider(entity);
+            final var energy = entity.getCapability(Capabilities.EnergyStorage.ENTITY, Direction.DOWN);
+            if (energy != null) charge(energy);
+            final var items = entity.getCapability(Capabilities.ItemHandler.ENTITY, null);
+            if (items != null) chargeItems(items);
         }
-    }
-
-    private void chargeCapabilityProvider(final ICapabilityProvider capabilityProvider) {
-        capabilityProvider.getCapability(Capabilities.energyStorage(), Direction.DOWN).ifPresent(this::charge);
-        capabilityProvider.getCapability(Capabilities.itemHandler(), Direction.DOWN).ifPresent(this::chargeItems);
     }
 
     private void chargeItems(final IItemHandler itemHandler) {
         for (int slot = 0; slot < itemHandler.getSlots(); slot++) {
             final ItemStack stack = itemHandler.getStackInSlot(slot);
             if (!stack.isEmpty()) {
-                stack.getCapability(Capabilities.energyStorage()).ifPresent(this::charge);
+                final var energy = stack.getCapability(Capabilities.EnergyStorage.ITEM);
+                if (energy != null) charge(energy);
             }
         }
     }

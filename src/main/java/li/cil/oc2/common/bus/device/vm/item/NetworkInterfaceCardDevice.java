@@ -2,15 +2,17 @@
 
 package li.cil.oc2.common.bus.device.vm.item;
 
+import li.cil.oc2.api.API;
+import li.cil.oc2.common.block.Blocks;
+import li.cil.oc2.common.blockentity.ComputerBlockEntity;
+import li.cil.oc2.common.capabilities.Capabilities;
 import li.cil.oc2.common.item.NetworkInterfaceCardItem;
-import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.LazyOptional;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class NetworkInterfaceCardDevice extends AbstractNetworkInterfaceDevice {
     public NetworkInterfaceCardDevice(final ItemStack identity) {
         super(identity);
@@ -18,13 +20,20 @@ public final class NetworkInterfaceCardDevice extends AbstractNetworkInterfaceDe
 
     ///////////////////////////////////////////////////////////////
 
-    @Nonnull
-    @Override
-    public <T> LazyOptional<T> getCapability(final Capability<T> cap, @Nullable final Direction side) {
-        if (NetworkInterfaceCardItem.getSideConfiguration(identity, side)) {
-            return super.getCapability(cap, side);
-        }
-
-        return LazyOptional.empty();
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerBlock(
+            Capabilities.NetworkInterface.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (be instanceof final ComputerBlockEntity computer) {
+                    NetworkInterfaceCardDevice self = computer.getFirstDevice(NetworkInterfaceCardDevice.class);
+                    if (self != null && NetworkInterfaceCardItem.getSideConfiguration(self.identity, side)) {
+                        return self.getNetworkInterface();
+                    }
+                }
+                return null;
+            },
+            Blocks.COMPUTER.get()
+        );
     }
 }

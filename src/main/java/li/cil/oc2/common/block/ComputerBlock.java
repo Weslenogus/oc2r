@@ -49,6 +49,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Optional;
 
 import static li.cil.oc2.common.Constants.BLOCK_ENTITY_TAG_NAME_IN_ITEM;
 import static li.cil.oc2.common.Constants.ITEMS_TAG_NAME;
@@ -96,19 +97,22 @@ public final class ComputerBlock extends HorizontalDirectionalBlock implements E
         return true;
     }
 
-    @SuppressWarnings("deprecation")
     @Override
-    public int getSignal(final BlockState state, final BlockGetter level, final BlockPos pos, final Direction side) {
-        final BlockEntity blockEntity = level.getBlockEntity(pos);
+    public int getSignal(final BlockState state, final BlockGetter blockGetter, final BlockPos pos, final Direction side) {
+        final BlockEntity blockEntity = blockGetter.getBlockEntity(pos);
         if (blockEntity != null) {
-            // Redstone requests info for faces with external perspective. Capabilities treat
-            // the Direction from internal perspective, so flip it.
-            return blockEntity.getCapability(Capabilities.redstoneEmitter(), side.getOpposite())
-                .map(RedstoneEmitter::getRedstoneOutput)
-                .orElse(0);
+            var level = blockEntity.getLevel();
+            if (level != null) {
+                // Redstone requests info for faces with external perspective. Capabilities treat
+                // the Direction from internal perspective, so flip it.
+                var cap = level.getCapability(Capabilities.RedstoneEmitter.BLOCK, blockEntity.getBlockPos(), null, blockEntity, side.getOpposite());
+                return Optional.ofNullable(cap)
+                    .map(RedstoneEmitter::getRedstoneOutput)
+                    .orElse(0);
+            }
         }
 
-        return super.getSignal(state, level, pos, side);
+        return super.getSignal(state, blockGetter, pos, side);
     }
 
     @SuppressWarnings("deprecation")

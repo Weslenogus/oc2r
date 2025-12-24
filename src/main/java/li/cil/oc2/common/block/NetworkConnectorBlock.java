@@ -3,7 +3,6 @@
 package li.cil.oc2.common.block;
 
 import li.cil.oc2.common.blockentity.BlockEntities;
-import li.cil.oc2.common.blockentity.NetworkConnectorBlockEntity;
 import li.cil.oc2.common.blockentity.TickableBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -51,17 +50,6 @@ public final class NetworkConnectorBlock extends FaceAttachedHorizontalDirection
 
     public static Direction getFacing(final BlockState state) {
         return FaceAttachedHorizontalDirectionalBlock.getConnectedDirection(state);
-    }
-
-    @SuppressWarnings("deprecation")
-    @Override
-    public void neighborChanged(final BlockState state, final Level level, final BlockPos pos, final Block changedBlock, final BlockPos changedBlockPos, final boolean isMoving) {
-        if (Objects.equals(changedBlockPos, pos.relative(getFacing(state).getOpposite()))) {
-            final BlockEntity blockEntity = level.getBlockEntity(pos);
-            if (blockEntity instanceof final NetworkConnectorBlockEntity networkConnector) {
-                networkConnector.setNeighborChanged();
-            }
-        }
     }
 
     @SuppressWarnings("deprecation")

@@ -14,7 +14,7 @@ import net.neoforged.neoforge.energy.IEnergyStorage;
 
 public final class EnergyStorageBlockDeviceProvider extends AbstractBlockEntityCapabilityDeviceProvider<IEnergyStorage, BlockEntity> {
     public EnergyStorageBlockDeviceProvider() {
-        super(Capabilities::energyStorage);
+        super(() -> Capabilities.EnergyStorage.BLOCK);
     }
 
     ///////////////////////////////////////////////////////////////////

@@ -3,9 +3,9 @@ package li.cil.oc2.common.blockentity;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
-import javax.annotation.Nullable;
-
+import li.cil.oc2.api.API;
 import li.cil.oc2.api.capabilities.NetworkInterface;
+import li.cil.oc2.common.block.Blocks;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.Constants;
 import li.cil.oc2.common.capabilities.Capabilities;
@@ -16,7 +16,6 @@ import li.cil.oc2.common.inet.InternetManagerImpl;
 import li.cil.oc2.common.util.ChunkUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.Connection;
@@ -27,9 +26,13 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+@EventBusSubscriber(modid = API.MOD_ID)
 public class InternetGateWayBlockEntity extends ModBlockEntity implements NetworkInterface, InternetAdapter {
     private static final Logger LOGGER = LogManager.getLogger();
 
@@ -130,10 +133,28 @@ public class InternetGateWayBlockEntity extends ModBlockEntity implements Networ
         }
     }
 
-    @Override
-    protected void collectCapabilities(final CapabilityCollector collector, @Nullable final Direction direction) {
-        collector.offer(Capabilities.networkInterface(), this);
-        collector.offer(Capabilities.energyStorage(), energy);
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerBlock(
+            Capabilities.NetworkInterface.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (be instanceof final InternetGateWayBlockEntity self) {
+                    return self;
+                }
+                return null;
+            },
+            Blocks.INTERNET_GATEWAY.get()
+        );
+        event.registerBlock(
+            Capabilities.EnergyStorage.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (be instanceof final InternetGateWayBlockEntity self) {
+                    return self.energy;
+                }
+                return null;
+            },
+            Blocks.INTERNET_GATEWAY.get()
+        );
     }
 
     @Override

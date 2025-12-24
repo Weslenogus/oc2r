@@ -14,7 +14,6 @@ import li.cil.oc2.common.container.AbstractTypedDeviceItemStackHandler;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.util.LazyOptional;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.IItemHandlerModifiable;
 import net.neoforged.neoforge.items.wrapper.CombinedInvWrapper;
@@ -38,7 +37,7 @@ public abstract class AbstractVMItemStackHandlers implements VMItemStackHandlers
 
     // NB: linked hash map such that order of parameters in constructor is retained.
     //     This is relevant when assigning default addresses for devices.
-    private final LinkedHashMap<DeviceType, AbstractDeviceItemStackHandler> itemHandlers = new LinkedHashMap<>();
+    private final LinkedHashMap<DeviceType, AbstractTypedDeviceItemStackHandler> itemHandlers = new LinkedHashMap<>();
 
     public final IItemHandler combinedItemHandlers;
 
@@ -179,9 +178,9 @@ public abstract class AbstractVMItemStackHandlers implements VMItemStackHandlers
 
     private final class VMBusElement extends AbstractDeviceBusElement {
         @Override
-        public Optional<Collection<LazyOptional<DeviceBusElement>>> getNeighbors() {
+        public Optional<Collection<DeviceBusElement>> getNeighbors() {
             return Optional.of(itemHandlers.values().stream()
-                .map(handler -> LazyOptional.of(() -> (DeviceBusElement) handler.getBusElement()))
+                .map(AbstractDeviceItemStackHandler::getBusElement)
                 .collect(Collectors.toList()));
         }
     }

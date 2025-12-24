@@ -5,6 +5,7 @@ package li.cil.oc2.common.item;
 import li.cil.oc2.api.API;
 import li.cil.oc2.api.bus.device.DeviceTypes;
 import li.cil.oc2.client.renderer.entity.RobotWithoutLevelRenderer;
+import li.cil.oc2.common.capabilities.Capabilities;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.energy.EnergyStorageItemStack;
 import li.cil.oc2.common.entity.Entities;
@@ -32,7 +33,9 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 
 import javax.annotation.Nullable;
@@ -43,6 +46,7 @@ import static li.cil.oc2.common.Constants.*;
 import static li.cil.oc2.common.util.NBTUtils.makeInventoryTag;
 import static li.cil.oc2.common.util.RegistryUtils.key;
 
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class RobotItem extends ModItem {
     @Override
     public void appendHoverText(final ItemStack stack, @Nullable final Level level, final List<Component> tooltip, final TooltipFlag flag) {
@@ -52,13 +56,16 @@ public final class RobotItem extends ModItem {
         TooltipUtils.addEntityInventoryInformation(stack, tooltip);
     }
 
-    @Nullable
-    @Override
-    public ICapabilityProvider initCapabilities(final ItemStack stack, @Nullable final CompoundTag nbt) {
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
         if (Config.robotsUseEnergy()) {
-            return new EnergyStorageItemStack(stack, Config.robotEnergyStorage, MOD_TAG_NAME, ENERGY_TAG_NAME);
-        } else {
-            return null;
+            event.registerItem(
+                Capabilities.EnergyStorage.ITEM,
+                (stack, ctx) -> {
+                    return new EnergyStorageItemStack(stack, Config.robotEnergyStorage, MOD_TAG_NAME, ENERGY_TAG_NAME);
+                },
+                Items.ROBOT.get()
+            );
         }
     }
 

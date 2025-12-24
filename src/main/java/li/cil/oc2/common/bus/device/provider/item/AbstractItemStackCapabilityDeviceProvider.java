@@ -5,18 +5,18 @@ package li.cil.oc2.common.bus.device.provider.item;
 import li.cil.oc2.api.bus.device.ItemDevice;
 import li.cil.oc2.api.bus.device.provider.ItemDeviceQuery;
 import li.cil.oc2.common.bus.device.provider.util.AbstractItemDeviceProvider;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.LazyOptional;
+import net.neoforged.neoforge.capabilities.ItemCapability;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 import java.util.function.Supplier;
 
 public abstract class AbstractItemStackCapabilityDeviceProvider<TCapability> extends AbstractItemDeviceProvider {
-    private final Supplier<Capability<TCapability>> capabilitySupplier;
+    private final Supplier<ItemCapability<TCapability, @Nullable Void>> capabilitySupplier;
 
     ///////////////////////////////////////////////////////////////////
 
-    protected AbstractItemStackCapabilityDeviceProvider(final Supplier<Capability<TCapability>> capabilitySupplier) {
+    protected AbstractItemStackCapabilityDeviceProvider(final Supplier<ItemCapability<TCapability, @Nullable Void>> capabilitySupplier) {
         this.capabilitySupplier = capabilitySupplier;
     }
 
@@ -24,16 +24,14 @@ public abstract class AbstractItemStackCapabilityDeviceProvider<TCapability> ext
 
     @Override
     protected Optional<ItemDevice> getItemDevice(final ItemDeviceQuery query) {
-        final Capability<TCapability> capability = capabilitySupplier.get();
+        final ItemCapability<TCapability, @Nullable Void> capability = capabilitySupplier.get();
         if (capability == null) throw new IllegalStateException();
-        final LazyOptional<TCapability> optional = query.getItemStack().getCapability(capability);
-        if (!optional.isPresent()) {
+        final TCapability optional = query.getItemStack().getCapability(capability);
+        if (optional == null) {
             return Optional.empty();
         }
 
-        final TCapability value = optional.orElseThrow(AssertionError::new);
-
-        return getItemDevice(query, value);
+        return getItemDevice(query, optional);
     }
 
     protected abstract Optional<ItemDevice> getItemDevice(ItemDeviceQuery query, TCapability value);

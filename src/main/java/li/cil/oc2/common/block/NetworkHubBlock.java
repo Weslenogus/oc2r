@@ -36,15 +36,6 @@ public final class NetworkHubBlock extends HorizontalDirectionalBlock implements
         return super.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
     }
 
-    @SuppressWarnings("deprecation")
-    @Override
-    public void neighborChanged(final BlockState state, final Level level, final BlockPos pos, final Block changedBlock, final BlockPos changedBlockPos, final boolean isMoving) {
-        final BlockEntity blockEntity = level.getBlockEntity(pos);
-        if (blockEntity instanceof final NetworkHubBlockEntity networkHub) {
-            networkHub.handleNeighborChanged();
-        }
-    }
-
     ///////////////////////////////////////////////////////////////////
     // EntityBlock
 

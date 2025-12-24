@@ -14,7 +14,7 @@ import net.neoforged.neoforge.items.IItemHandler;
 
 public final class ItemHandlerBlockDeviceProvider extends AbstractBlockEntityCapabilityDeviceProvider<IItemHandler, BlockEntity> {
     public ItemHandlerBlockDeviceProvider() {
-        super(Capabilities::itemHandler);
+        super(() -> Capabilities.ItemHandler.BLOCK);
     }
 
     ///////////////////////////////////////////////////////////////////

@@ -2,6 +2,7 @@
 
 package li.cil.oc2.common.entity;
 
+import li.cil.oc2.api.API;
 import li.cil.oc2.api.bus.DeviceBusElement;
 import li.cil.oc2.api.bus.device.Device;
 import li.cil.oc2.api.bus.device.DeviceTypes;
@@ -70,15 +71,14 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
-import net.minecraftforge.common.util.LazyOptional;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.level.ChunkEvent;
 import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -88,6 +88,7 @@ import java.util.function.Supplier;
 import static java.util.Collections.singleton;
 import static li.cil.oc2.common.Constants.*;
 
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class Robot extends Entity implements li.cil.oc2.api.capabilities.Robot, TerminalUserProvider, ICaptureInputStateStorage {
     public static final EntityDataAccessor<BlockPos> TARGET_POSITION = SynchedEntityData.defineId(Robot.class, EntityDataSerializers.BLOCK_POS);
     public static final EntityDataAccessor<Direction> TARGET_DIRECTION = SynchedEntityData.defineId(Robot.class, EntityDataSerializers.DIRECTION);
@@ -190,34 +191,31 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
         this.captureInputState = value;
     }
 
-    @Nonnull
-    @Override
-    public <T> LazyOptional<T> getCapability(final Capability<T> capability, @Nullable final Direction side) {
-        if (capability == Capabilities.itemHandler()) {
-            return LazyOptional.of(() -> inventory).cast();
-        }
-        if (capability == Capabilities.energyStorage() && Config.robotsUseEnergy()) {
-            return LazyOptional.of(() -> energy).cast();
-        }
-        if (capability == Capabilities.robot()) {
-            return LazyOptional.of(() -> this).cast();
-        }
-
-        final LazyOptional<T> optional = super.getCapability(capability, side);
-        if (optional.isPresent()) {
-            return optional;
-        }
-
-        for (final Device device : virtualMachine.busController.getDevices()) {
-            if (device instanceof final ICapabilityProvider capabilityProvider) {
-                final LazyOptional<T> value = capabilityProvider.getCapability(capability, side);
-                if (value.isPresent()) {
-                    return value;
-                }
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerEntity(
+            Capabilities.ItemHandler.ENTITY,
+            Entities.ROBOT.get(),
+            (robot, ctx) -> {
+                return robot.inventory;
             }
+        );
+        if (Config.robotsUseEnergy()) {
+            event.registerEntity(
+                Capabilities.EnergyStorage.ENTITY,
+                Entities.ROBOT.get(),
+                (robot, ctx) -> {
+                    return robot.energy;
+                }
+            );
         }
-
-        return LazyOptional.empty();
+        event.registerEntity(
+            Capabilities.Robot.ENTITY,
+            Entities.ROBOT.get(),
+            (robot, ctx) -> {
+                return robot;
+            }
+        );
     }
 
     public long getLastPistonMovement() {
@@ -786,8 +784,10 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
         private UUID deviceId = UUID.randomUUID();
 
         @Override
-        public Optional<Collection<LazyOptional<DeviceBusElement>>> getNeighbors() {
-            return Optional.of(singleton(LazyOptional.of(() -> deviceItems.busElement)));
+        public Optional<Collection<DeviceBusElement>> getNeighbors() {
+            return Optional.of(singleton(
+                deviceItems.busElement
+            ));
         }
 
         @Override

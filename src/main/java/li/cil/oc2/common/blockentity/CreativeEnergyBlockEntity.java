@@ -28,10 +28,9 @@ public final class CreativeEnergyBlockEntity extends ModBlockEntity implements T
             final BlockPos neighborPos = getBlockPos().relative(side);
             final ChunkPos neighborChunkPos = new ChunkPos(neighborPos);
             if (level.hasChunk(neighborChunkPos.x, neighborChunkPos.z)) {
-                final BlockEntity blockEntity = level.getBlockEntity(neighborPos);
-                if (blockEntity != null) {
-                    blockEntity.getCapability(Capabilities.energyStorage(), side.getOpposite()).ifPresent(energy ->
-                        energy.receiveEnergy(Integer.MAX_VALUE, false));
+                final var energy = level.getCapability(Capabilities.EnergyStorage.BLOCK, neighborPos, side.getOpposite());
+                if (energy != null) {
+                    energy.receiveEnergy(Integer.MAX_VALUE, false);
                 }
             }
         }

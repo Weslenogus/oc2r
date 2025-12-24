@@ -2,6 +2,8 @@
 
 package li.cil.oc2.common.blockentity;
 
+import li.cil.oc2.api.API;
+import li.cil.oc2.common.block.Blocks;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.block.ProjectorBlock;
 import li.cil.oc2.common.bus.device.vm.block.ProjectorDevice;
@@ -24,6 +26,9 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
 import javax.annotation.Nullable;
 import java.nio.BufferOverflowException;
@@ -37,6 +42,7 @@ import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class ProjectorBlockEntity extends ModBlockEntity implements TickableBlockEntity {
     @FunctionalInterface
     public interface FrameConsumer {
@@ -251,15 +257,32 @@ public final class ProjectorBlockEntity extends ModBlockEntity implements Tickab
 
     ///////////////////////////////////////////////////////////////
 
-    @Override
-    protected void collectCapabilities(final CapabilityCollector collector, @Nullable final Direction direction) {
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
         if (Config.projectorsUseEnergy()) {
-            collector.offer(Capabilities.energyStorage(), energy);
+            event.registerBlock(
+                Capabilities.EnergyStorage.BLOCK,
+                (level, pos, state, be, side) -> {
+                    if (be instanceof final ProjectorBlockEntity self) {
+                        return self.energy;
+                    }
+                    return null;
+                },
+                Blocks.PROJECTOR.get()
+            );
         }
-
-        if (direction == getBlockState().getValue(ProjectorBlock.FACING).getOpposite()) {
-            collector.offer(Capabilities.device(), projectorDevice);
-        }
+        event.registerBlock(
+            Capabilities.Device.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (be instanceof final ProjectorBlockEntity self) {
+                    if (side == self.getBlockState().getValue(ProjectorBlock.FACING).getOpposite()) {
+                        return self.projectorDevice;
+                    }
+                }
+                return null;
+            },
+            Blocks.PROJECTOR.get()
+        );
     }
 
     ///////////////////////////////////////////////////////////////

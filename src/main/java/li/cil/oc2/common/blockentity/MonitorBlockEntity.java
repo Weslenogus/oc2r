@@ -2,7 +2,9 @@
 
 package li.cil.oc2.common.blockentity;
 
+import li.cil.oc2.api.API;
 import li.cil.oc2.client.renderer.MonitorGUIRenderer;
+import li.cil.oc2.common.block.Blocks;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.block.MonitorBlock;
 import li.cil.oc2.common.bus.device.DeviceGroup;
@@ -23,12 +25,14 @@ import li.cil.oc2.jcodec.common.model.ColorSpace;
 import li.cil.oc2.jcodec.common.model.Picture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
 import javax.annotation.Nullable;
 import java.nio.BufferOverflowException;
@@ -45,6 +49,7 @@ import java.util.zip.Inflater;
 import static li.cil.oc2.common.bus.device.vm.block.MonitorDevice.HEIGHT;
 import static li.cil.oc2.common.bus.device.vm.block.MonitorDevice.WIDTH;
 
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class MonitorBlockEntity extends ModBlockEntity implements TickableBlockEntity, ICaptureInputStateStorage {
     @FunctionalInterface
     public interface FrameConsumer {
@@ -328,14 +333,34 @@ public final class MonitorBlockEntity extends ModBlockEntity implements Tickable
 
     ///////////////////////////////////////////////////////////////////
 
-    @Override
-    protected void collectCapabilities(final CapabilityCollector collector, @Nullable final Direction direction) {
-        if(direction != getBlockState().getValue(MonitorBlock.FACING)) {
-            collector.offer(Capabilities.device(), deviceGroup);
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerBlock(
+            Capabilities.Device.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (be instanceof final MonitorBlockEntity self) {
+                    if (side != self.getBlockState().getValue(MonitorBlock.FACING)) {
+                        return self.deviceGroup;
+                    }
+                }
+                return null;
+            },
+            Blocks.MONITOR.get()
+        );
 
-            if (Config.monitorsUseEnergy()) {
-                collector.offer(Capabilities.energyStorage(), energy);
-            }
+        if (Config.monitorsUseEnergy()) {
+            event.registerBlock(
+                Capabilities.EnergyStorage.BLOCK,
+                (level, pos, state, be, side) -> {
+                    if (be instanceof final MonitorBlockEntity self) {
+                        if (side != self.getBlockState().getValue(MonitorBlock.FACING)) {
+                            return self.energy;
+                        }
+                    }
+                    return null;
+                },
+                Blocks.MONITOR.get()
+            );
         }
     }
 }

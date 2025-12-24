@@ -14,7 +14,7 @@ import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 
 public final class FluidHandlerBlockDeviceProvider extends AbstractBlockEntityCapabilityDeviceProvider<IFluidHandler, BlockEntity> {
     public FluidHandlerBlockDeviceProvider() {
-        super(Capabilities::fluidHandler);
+        super(() -> Capabilities.FluidHandler.BLOCK);
     }
 
     ///////////////////////////////////////////////////////////////////

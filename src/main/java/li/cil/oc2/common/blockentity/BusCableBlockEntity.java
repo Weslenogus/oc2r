@@ -2,8 +2,7 @@
 
 package li.cil.oc2.common.blockentity;
 
-import li.cil.oc2.api.bus.DeviceBus;
-import li.cil.oc2.api.bus.DeviceBusElement;
+import li.cil.oc2.api.API;
 import li.cil.oc2.client.model.BusCableBakedModel;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.Constants;
@@ -41,8 +40,10 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.client.model.data.ModelData;
-import net.minecraftforge.common.util.LazyOptional;
 
 import javax.annotation.Nullable;
 import java.util.HashSet;
@@ -51,6 +52,7 @@ import java.util.Objects;
 import static java.util.Objects.requireNonNull;
 import static li.cil.oc2.client.model.BusCableBakedModel.*;
 
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class BusCableBlockEntity extends ModBlockEntity {
     public enum FacadeType {
         NOT_A_BLOCK,
@@ -197,7 +199,8 @@ public final class BusCableBlockEntity extends ModBlockEntity {
             // we can just do this.
             setInterfaceName(side, "");
 
-            invalidateCapability(Capabilities.deviceBusElement(), side);
+            if (level != null)
+                level.invalidateCapabilities(getBlockPos());
 
             final NeighborTracker tracker = neighborTrackers[side.get3DDataValue()];
             tracker.updateListener();
@@ -316,11 +319,20 @@ public final class BusCableBlockEntity extends ModBlockEntity {
 
     ///////////////////////////////////////////////////////////////////
 
-    @Override
-    protected void collectCapabilities(final CapabilityCollector collector, @Nullable final Direction direction) {
-        if (BusCableBlock.getConnectionType(getBlockState(), direction) != BusCableBlock.ConnectionType.NONE) {
-            collector.offer(Capabilities.deviceBusElement(), busElement);
-        }
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerBlock(
+            Capabilities.DeviceBusElement.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (be instanceof final BusCableBlockEntity self) {
+                    if (BusCableBlock.getConnectionType(be.getBlockState(), side) != BusCableBlock.ConnectionType.NONE) {
+                        return self.busElement;
+                    }
+                }
+                return null;
+            },
+            li.cil.oc2.common.block.Blocks.BUS_CABLE.get()
+        );
     }
 
     @Override
@@ -389,9 +401,10 @@ public final class BusCableBlockEntity extends ModBlockEntity {
                     continue;
                 }
 
-                final LazyOptional<DeviceBusElement> capability = blockEntity
-                    .getCapability(Capabilities.deviceBusElement(), direction.getOpposite());
-                capability.ifPresent(DeviceBus::scheduleScan);
+                final var capability = level.getCapability(Capabilities.DeviceBusElement.BLOCK, neighborPos, null, blockEntity, direction.getOpposite());
+                if (capability != null) {
+                    capability.scheduleScan();
+                }
             }
         });
     }

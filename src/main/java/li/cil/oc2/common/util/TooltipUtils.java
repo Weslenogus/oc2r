@@ -35,7 +35,6 @@ import java.util.List;
 import static li.cil.oc2.common.Constants.*;
 import static li.cil.oc2.common.util.TextFormatUtils.withFormat;
 
-@SuppressWarnings("UnstableApiUsage")
 public final class TooltipUtils {
     private static final MutableComponent DEVICE_NEEDS_REBOOT =
         Component.translatable(Constants.TOOLTIP_DEVICE_NEEDS_REBOOT)
@@ -157,14 +156,15 @@ public final class TooltipUtils {
     }
 
     public static void addEntityEnergyInformation(final ItemStack stack, final List<Component> tooltip) {
-        stack.getCapability(Capabilities.energyStorage()).ifPresent(energy -> {
+        var energy = stack.getCapability(Capabilities.EnergyStorage.ITEM);
+        if (energy != null) {
             if (energy.getEnergyStored() == 0) {
                 return;
             }
 
             final MutableComponent value = withFormat(energy.getEnergyStored() + "/" + energy.getMaxEnergyStored(), ChatFormatting.GREEN);
             tooltip.add(withFormat(Component.translatable(Constants.TOOLTIP_ENERGY, value), ChatFormatting.GRAY));
-        });
+        }
     }
 
     public static void addEnergyConsumption(final double value, final List<Component> tooltip) {

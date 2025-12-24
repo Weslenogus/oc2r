@@ -9,20 +9,18 @@ import li.cil.oc2.api.util.RobotOperationSide;
 import li.cil.oc2.common.capabilities.Capabilities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.Vec3i;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.util.LazyOptional;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -223,23 +221,15 @@ public final class InventoryOperationsModuleDevice extends AbstractItemRPCDevice
         var position = Vec3.atCenterOf(blockPos);
         final AABB bounds = AABB.unitCubeFromLowerCorner(position.subtract(0.5, 0.5, 0.5));
         return entity.level().getEntities(entity, bounds).stream()
-            .map(e -> e.getCapability(Capabilities.itemHandler(), side))
-            .filter(LazyOptional::isPresent)
-            .map(c -> c.orElseThrow(AssertionError::new));
+            .map(e -> e.getCapability(Capabilities.ItemHandler.ENTITY))
+            .filter(Objects::nonNull);
     }
 
     private Stream<IItemHandler> getBlockItemHandlersAt(final BlockPos blockPos, final Direction side) {
-        final BlockEntity blockEntity = entity.level().getBlockEntity(blockPos);
-        if (blockEntity == null) {
-            return Stream.empty();
-        }
+        var level = entity.level();
 
-        final LazyOptional<IItemHandler> capability = blockEntity.getCapability(Capabilities.itemHandler(), side);
-        if (capability.isPresent()) {
-            return Stream.of(capability.orElseThrow(AssertionError::new));
-        }
-
-        return Stream.empty();
+        final IItemHandler capability = level.getCapability(Capabilities.ItemHandler.BLOCK, blockPos, side);
+        return Stream.ofNullable(capability);
     }
 
     private List<ItemEntity> getItemsInRange() {

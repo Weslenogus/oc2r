@@ -11,15 +11,13 @@ import li.cil.oc2.api.bus.device.object.NamedDevice;
 import li.cil.oc2.api.capabilities.NetworkInterface;
 import li.cil.oc2.common.Constants;
 import li.cil.oc2.common.capabilities.Capabilities;
-import li.cil.oc2.common.util.LazyOptionalUtils;
-import li.cil.oc2.common.util.LevelUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.*;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.util.LazyOptional;
+import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
 
 
 import static java.util.Collections.emptyList;
@@ -37,6 +35,7 @@ public final class NetworkSwitchBlockEntity extends ModBlockEntity implements Na
     private final PortSettings[] portSettings = new PortSettings[Constants.BLOCK_FACE_COUNT];
     private int tickCount = 0;
     private final NetworkInterface[] adjacentBlockInterfaces = new NetworkInterface[Constants.BLOCK_FACE_COUNT];
+    private BlockCapabilityCache<NetworkInterface, Direction>[] adjacentBlockCaches = null;
     private boolean haveAdjacentBlocksChanged = true;
 
     public NetworkSwitchBlockEntity(final BlockPos pos, final BlockState state) {
@@ -44,6 +43,29 @@ public final class NetworkSwitchBlockEntity extends ModBlockEntity implements Na
         for (int i = 0; i < portSettings.length; i++) {
             portSettings[i] = new PortSettings();
         }
+    }
+
+    @Override
+    protected void loadServer() {
+        super.loadServer();
+
+        final BlockPos pos = getBlockPos();
+        var adj = new ArrayList<BlockCapabilityCache<NetworkInterface, Direction>>();
+        for (var side : Constants.DIRECTIONS) {
+            adj.add(null);
+        }
+        for (var side : Constants.DIRECTIONS) {
+            adj.set(side.get3DDataValue(), BlockCapabilityCache.create(
+                Capabilities.NetworkInterface.BLOCK,
+                (ServerLevel) level,
+                pos.relative(side),
+                side.getOpposite(),
+                () -> !this.isRemoved(),
+                this::handleNeighborChanged
+            ));
+        }
+
+        adjacentBlockCaches = (BlockCapabilityCache<NetworkInterface, Direction>[]) adj.toArray();
     }
 
     public void writeEthernetFrame(final NetworkInterface source, byte[] frame, final int timeToLive) {
@@ -325,16 +347,8 @@ public final class NetworkSwitchBlockEntity extends ModBlockEntity implements Na
             return;
         }
 
-        final BlockPos pos = getBlockPos();
-        for (final Direction side : Constants.DIRECTIONS) {
-            final BlockEntity neighborBlockEntity = LevelUtils.getBlockEntityIfChunkExists(level, pos.relative(side));
-            if (neighborBlockEntity != null) {
-                final LazyOptional<NetworkInterface> optional = neighborBlockEntity.getCapability(Capabilities.networkInterface(), side.getOpposite());
-                optional.ifPresent(adjacentInterface -> {
-                    adjacentBlockInterfaces[side.get3DDataValue()] = adjacentInterface;
-                    LazyOptionalUtils.addWeakListener(optional, this, (hub, unused) -> hub.handleNeighborChanged());
-                });
-            }
+        for (int i = 0; i < adjacentBlockCaches.length; i++) {
+            adjacentBlockInterfaces[i] = adjacentBlockCaches[i].getCapability();
         }
     }
 

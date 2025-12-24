@@ -2,7 +2,9 @@
 
 package li.cil.oc2.common.blockentity;
 
+import li.cil.oc2.api.API;
 import li.cil.oc2.common.Constants;
+import li.cil.oc2.common.block.Blocks;
 import li.cil.oc2.common.block.DiskDriveBlock;
 import li.cil.oc2.common.bus.device.vm.block.DiskDriveContainer;
 import li.cil.oc2.common.bus.device.vm.block.DiskDriveDevice;
@@ -26,11 +28,15 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.time.Duration;
 
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class DiskDriveBlockEntity extends ModBlockEntity implements DiskDriveContainer {
     private static final String DATA_TAG_NAME = "data";
 
@@ -103,13 +109,30 @@ public final class DiskDriveBlockEntity extends ModBlockEntity implements DiskDr
         itemHandler.setStackInSlot(0, stack);
     }
 
-    @Override
-    protected void collectCapabilities(final CapabilityCollector collector, @Nullable final Direction direction) {
-        collector.offer(Capabilities.itemHandler(), itemHandler);
-
-        if (direction == getBlockState().getValue(DiskDriveBlock.FACING).getOpposite()) {
-            collector.offer(Capabilities.device(), device);
-        }
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerBlock(
+            Capabilities.ItemHandler.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (be instanceof final DiskDriveBlockEntity self) {
+                    return self.itemHandler;
+                }
+                return null;
+            },
+            Blocks.DISK_DRIVE.get()
+        );
+        event.registerBlock(
+            Capabilities.Device.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (be instanceof final DiskDriveBlockEntity self) {
+                    if (side == self.getBlockState().getValue(DiskDriveBlock.FACING).getOpposite()) {
+                        return self.device;
+                    }
+                }
+                return null;
+            },
+            Blocks.DISK_DRIVE.get()
+        );
     }
 
     @Override

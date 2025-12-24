@@ -2,23 +2,27 @@
 
 package li.cil.oc2.common.blockentity;
 
+import li.cil.oc2.api.API;
 import li.cil.oc2.api.capabilities.NetworkInterface;
+import li.cil.oc2.common.block.Blocks;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.Constants;
 import li.cil.oc2.common.capabilities.Capabilities;
-import li.cil.oc2.common.util.LazyOptionalUtils;
 import li.cil.oc2.common.util.LevelUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.util.LazyOptional;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
-import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.stream.Stream;
 
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class NetworkHubBlockEntity extends ModBlockEntity implements NetworkInterface {
     private static final int TTL_COST = 1;
 
@@ -37,10 +41,6 @@ public final class NetworkHubBlockEntity extends ModBlockEntity implements Netwo
     }
 
     ///////////////////////////////////////////////////////////////////
-
-    public void handleNeighborChanged() {
-        haveAdjacentBlocksChanged = true;
-    }
 
     @Override
     public byte[] readEthernetFrame() {
@@ -75,16 +75,26 @@ public final class NetworkHubBlockEntity extends ModBlockEntity implements Netwo
 
     ///////////////////////////////////////////////////////////////////
 
-    @Override
-    protected void collectCapabilities(final CapabilityCollector collector, @Nullable final Direction direction) {
-        collector.offer(Capabilities.networkInterface(), this);
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerBlock(
+            Capabilities.NetworkInterface.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (be instanceof final NetworkHubBlockEntity self) {
+                    return self;
+                }
+                return null;
+            },
+            Blocks.NETWORK_HUB.get()
+        );
     }
 
     ///////////////////////////////////////////////////////////////////
 
     private Stream<NetworkInterface> getAdjacentInterfaces() {
         validateAdjacentBlocks();
-        return Arrays.stream(adjacentBlockInterfaces).filter(Objects::nonNull);
+        return Arrays.stream(adjacentBlockInterfaces)
+            .filter(Objects::nonNull);
     }
 
     private void validateAdjacentBlocks() {
@@ -104,14 +114,33 @@ public final class NetworkHubBlockEntity extends ModBlockEntity implements Netwo
 
         final BlockPos pos = getBlockPos();
         for (final Direction side : Constants.DIRECTIONS) {
-            final BlockEntity neighborBlockEntity = LevelUtils.getBlockEntityIfChunkExists(level, pos.relative(side));
+            final var neighborPos = pos.relative(side);
+            final BlockEntity neighborBlockEntity = LevelUtils.getBlockEntityIfChunkExists(level, neighborPos);
             if (neighborBlockEntity != null) {
-                final LazyOptional<NetworkInterface> optional = neighborBlockEntity.getCapability(Capabilities.networkInterface(), side.getOpposite());
-                optional.ifPresent(adjacentInterface -> {
+                final NetworkInterface adjacentInterface = level.getCapability(Capabilities.NetworkInterface.BLOCK, neighborPos, null, neighborBlockEntity, side.getOpposite());
+                if (adjacentInterface != null) {
                     adjacentBlockInterfaces[side.get3DDataValue()] = adjacentInterface;
-                    LazyOptionalUtils.addWeakListener(optional, this, (hub, unused) -> hub.handleNeighborChanged());
-                });
+                }
             }
         }
+    }
+
+    @Override
+    protected void loadServer() {
+        super.loadServer();
+
+        final ServerLevel level = (ServerLevel) this.level;
+        final BlockPos pos = getBlockPos();
+        for (var side : Constants.DIRECTIONS) {
+            final var neighborPos = pos.relative(side);
+            level.registerCapabilityListener(neighborPos, this::handleNeighborChanged);
+        }
+
+        haveAdjacentBlocksChanged = true;
+    }
+
+    public boolean handleNeighborChanged() {
+        haveAdjacentBlocksChanged = true;
+        return true;
     }
 }

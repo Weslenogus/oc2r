@@ -1,19 +1,24 @@
 package li.cil.oc2.common.blockentity;
 
+import li.cil.oc2.api.API;
 import li.cil.oc2.api.capabilities.NetworkInterface;
+import li.cil.oc2.common.block.Blocks;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.Constants;
 import li.cil.oc2.common.capabilities.Capabilities;
-import li.cil.oc2.common.util.LazyOptionalUtils;
 import li.cil.oc2.common.util.LevelUtils;
 import li.cil.oc2.common.vxlan.TunnelManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.util.LazyOptional;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.ICapabilityInvalidationListener;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -22,6 +27,7 @@ import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.stream.Stream;
 
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class VxlanBlockEntity extends ModBlockEntity implements NetworkInterface, TickableBlockEntity {
     private static final int TTL_COST = 1;
     //private int vti = ((int) (Math.random() * Integer.MAX_VALUE)) & 0x00ff_ffff;
@@ -36,6 +42,11 @@ public final class VxlanBlockEntity extends ModBlockEntity implements NetworkInt
     // Each face and the default TunnelInterface connecting to the outernet
     private final NetworkInterface[] adjacentBlockInterfaces = new NetworkInterface[Constants.BLOCK_FACE_COUNT + 1];
     private boolean haveAdjacentBlocksChanged = true;
+
+    // NeoForge will only hold a weak reference to this listener (so that registering a listener cause a memory leak)
+    // Therefore we must hold the reference to keep it from being garbage collected while we're still around
+    @SuppressWarnings("FieldCanBeLocal")
+    private final ICapabilityInvalidationListener adjacentBlockListener = () -> { this.haveAdjacentBlocksChanged = true; return true; };
 
     ///////////////////////////////////////////////////////////////////
 
@@ -127,15 +138,29 @@ public final class VxlanBlockEntity extends ModBlockEntity implements NetworkInt
     @Override
     public void loadServer() {
         adjacentBlockInterfaces[0] = TunnelManager.instance().registerVti(vti, this.packetQueue);
+        var level = (ServerLevel) this.level;
+        final BlockPos pos = getBlockPos();
+        for (final Direction side : Constants.DIRECTIONS) {
+            final BlockPos neighborPos = pos.relative(side);
+            level.registerCapabilityListener(neighborPos, this.adjacentBlockListener);
+        }
+        haveAdjacentBlocksChanged = true;
     }
 
     ///////////////////////////////////////////////////////////////////
 
-
-
-    @Override
-    protected void collectCapabilities(final CapabilityCollector collector, @Nullable final Direction direction) {
-        collector.offer(Capabilities.networkInterface(), this);
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerBlock(
+            Capabilities.NetworkInterface.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (be instanceof final VxlanBlockEntity self) {
+                    return self;
+                }
+                return null;
+            },
+            Blocks.VXLAN_HUB.get()
+        );
     }
 
     ///////////////////////////////////////////////////////////////////
@@ -162,13 +187,13 @@ public final class VxlanBlockEntity extends ModBlockEntity implements NetworkInt
 
         final BlockPos pos = getBlockPos();
         for (final Direction side : Constants.DIRECTIONS) {
-            final BlockEntity neighborBlockEntity = LevelUtils.getBlockEntityIfChunkExists(level, pos.relative(side));
+            final BlockPos neighborPos = pos.relative(side);
+            final BlockEntity neighborBlockEntity = LevelUtils.getBlockEntityIfChunkExists(level, neighborPos);
             if (neighborBlockEntity != null) {
-                final LazyOptional<NetworkInterface> optional = neighborBlockEntity.getCapability(Capabilities.networkInterface(), side.getOpposite());
-                optional.ifPresent(adjacentInterface -> {
+                final NetworkInterface adjacentInterface = level.getCapability(Capabilities.NetworkInterface.BLOCK, neighborPos, null, neighborBlockEntity, side.getOpposite());
+                if (adjacentInterface != null) {
                     adjacentBlockInterfaces[side.get3DDataValue() + 1] = adjacentInterface;
-                    LazyOptionalUtils.addWeakListener(optional, this, (hub, unused) -> hub.handleNeighborChanged());
-                });
+                }
             }
         }
     }

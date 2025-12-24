@@ -189,7 +189,6 @@ public final class BusCableBlock extends BaseEntityBlock {
         LevelUtils.playSound(level, pos, soundsSource.getSoundType(), value ? SoundType::getPlaceSound : SoundType::getBreakSound);
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public void neighborChanged(final BlockState state, final Level level, final BlockPos pos, final Block changedBlock, final BlockPos changedBlockPos, final boolean isMoving) {
         final BlockEntity blockEntity = level.getBlockEntity(pos);

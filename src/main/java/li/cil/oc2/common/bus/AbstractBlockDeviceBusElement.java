@@ -20,12 +20,13 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.Registry;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.common.util.LazyOptional;
+import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.util.*;
 
 import static li.cil.oc2.common.util.RegistryUtils.optionalKey;
@@ -39,13 +40,14 @@ public abstract class AbstractBlockDeviceBusElement extends AbstractGroupingDevi
     // DeviceBusElement
 
     @Override
-    public Optional<Collection<LazyOptional<DeviceBusElement>>> getNeighbors() {
-        final LevelAccessor level = getLevel();
-        if (level == null || level.isClientSide()) {
+    public Optional<Collection<DeviceBusElement>> getNeighbors() {
+        final Level common_level = getLevel();
+        if (common_level == null || common_level.isClientSide()) {
             return Optional.empty();
         }
+        final ServerLevel level = (ServerLevel) common_level;
 
-        final ArrayList<LazyOptional<DeviceBusElement>> neighbors = new ArrayList<>();
+        final ArrayList<DeviceBusElement> neighbors = new ArrayList<>();
         for (final Direction neighborDirection : Constants.DIRECTIONS) {
             if (!canScanContinueTowards(neighborDirection)) {
                 continue;
@@ -63,8 +65,14 @@ public abstract class AbstractBlockDeviceBusElement extends AbstractGroupingDevi
                 continue;
             }
 
-            final LazyOptional<DeviceBusElement> capability = blockEntity.getCapability(Capabilities.deviceBusElement(), neighborDirection.getOpposite());
-            if (capability.isPresent()) {
+            final DeviceBusElement capability =
+                level.getCapability(
+                    Capabilities.DeviceBusElement.BLOCK,
+                    neighborPos,
+                    neighborDirection.getOpposite()
+                );
+
+            if (capability != null) {
                 neighbors.add(capability);
             }
         }
