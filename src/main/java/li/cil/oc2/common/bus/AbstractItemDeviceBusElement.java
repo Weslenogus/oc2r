@@ -152,8 +152,8 @@ public abstract class AbstractItemDeviceBusElement extends AbstractGroupingDevic
         }
 
         @Override
-        public OptionalInt getDeviceEnergyConsumption() {
-            return OptionalInt.of(deviceInfo.getEnergyConsumption());
+        public int getDeviceEnergyConsumption() {
+            return deviceInfo.getEnergyConsumption();
         }
 
         @Override

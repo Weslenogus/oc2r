@@ -197,14 +197,6 @@ public final class BusCableBlock extends BaseEntityBlock {
     }
 
     @Override
-    public void neighborChanged(final BlockState state, final Level level, final BlockPos pos, final Block changedBlock, final BlockPos changedBlockPos, final boolean isMoving) {
-        final BlockEntity blockEntity = level.getBlockEntity(pos);
-        if (blockEntity instanceof final BusCableBlockEntity busCable) {
-            busCable.handleNeighborChanged(changedBlockPos);
-        }
-    }
-
-    @Override
     protected ItemInteractionResult useItemOn(final ItemStack heldItem, final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hitResult) {
         if (heldItem.getItem() == Items.BUS_CABLE.get() ||
             heldItem.getItem() == Items.BUS_INTERFACE.get()) {

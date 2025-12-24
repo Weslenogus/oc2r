@@ -7,7 +7,6 @@ import li.cil.oc2.api.bus.DeviceBusElement;
 import li.cil.oc2.api.bus.device.Device;
 import li.cil.oc2.api.bus.device.provider.BlockDeviceProvider;
 import li.cil.oc2.api.bus.device.provider.BlockDeviceQuery;
-import li.cil.oc2.api.util.Invalidatable;
 import li.cil.oc2.common.Constants;
 import li.cil.oc2.common.bus.device.provider.Providers;
 import li.cil.oc2.common.bus.device.rpc.TypeNameRPCDevice;
@@ -128,12 +127,10 @@ public abstract class AbstractBlockDeviceBusElement extends AbstractGroupingDevi
         final HashSet<BlockEntry> entries = new HashSet<>();
 
         if (canDetectDevicesTowards(side)) {
-            final Optional<List<Invalidatable<BlockDeviceInfo>>> loadedDevices = Devices.getDevices(query);
+            final Optional<List<BlockDeviceInfo>> loadedDevices = Devices.getDevices(query);
             if (loadedDevices.isPresent()) {
-                for (final Invalidatable<BlockDeviceInfo> deviceInfo : loadedDevices.get()) {
-                    if (deviceInfo.isPresent()) {
-                        entries.add(new BlockEntry(deviceInfo, side));
-                    }
+                for (final BlockDeviceInfo blockDeviceInfo : loadedDevices.get()) {
+                    entries.add(new BlockEntry(blockDeviceInfo, side));
                 }
             } else {
                 return Optional.empty();
@@ -154,18 +151,6 @@ public abstract class AbstractBlockDeviceBusElement extends AbstractGroupingDevi
         if (blockName != null) {
             entries.add(new BlockEntry(new BlockDeviceInfo(null, new TypeNameRPCDevice(blockName)), side));
         }
-    }
-
-    @Override
-    protected void onEntryAdded(final BlockEntry entry) {
-        super.onEntryAdded(entry);
-        entry.addListener();
-    }
-
-    @Override
-    protected void onEntryRemoved(final BlockEntry entry) {
-        super.onEntryRemoved(entry);
-        entry.removeListener();
     }
 
     @Override
@@ -200,25 +185,20 @@ public abstract class AbstractBlockDeviceBusElement extends AbstractGroupingDevi
         }
     }
 
-    protected final class BlockEntry implements Entry {
-        private final Invalidatable<BlockDeviceInfo> deviceInfo;
+    protected static final class BlockEntry implements Entry {
+        private final BlockDeviceInfo deviceInfo;
         @Nullable private final String dataKey;
         private final Device device;
         @Nullable private final Direction side;
-        private Invalidatable.ListenerToken token;
 
-        public BlockEntry(final Invalidatable<BlockDeviceInfo> deviceInfo, @Nullable final Direction side) {
+        public BlockEntry(final BlockDeviceInfo deviceInfo, @Nullable final Direction side) {
             this.deviceInfo = deviceInfo;
             this.side = side;
 
             // Grab these while the device info has not yet been invalidated. We still need to access
             // these even after the device has been invalidated to clean up.
-            this.dataKey = optionalKey(deviceInfo.get().provider).orElse(null);
-            this.device = deviceInfo.get().device;
-        }
-
-        public BlockEntry(final BlockDeviceInfo deviceInfo, @Nullable final Direction side) {
-            this(Invalidatable.of(deviceInfo), side);
+            this.dataKey = optionalKey(deviceInfo.provider).orElse(null);
+            this.device = deviceInfo.device;
         }
 
         @Override
@@ -227,29 +207,13 @@ public abstract class AbstractBlockDeviceBusElement extends AbstractGroupingDevi
         }
 
         @Override
-        public OptionalInt getDeviceEnergyConsumption() {
-            return deviceInfo.isPresent() ? OptionalInt.of(deviceInfo.get().getEnergyConsumption()) : OptionalInt.empty();
+        public int getDeviceEnergyConsumption() {
+            return deviceInfo.getEnergyConsumption();
         }
 
         @Override
         public Device getDevice() {
             return device;
-        }
-
-        public void addListener() {
-            // Side can be null for the block that owns the bus element, e.g. in the computer, where the
-            // block adds itself. In this case, we can skip the listener, since the bus element's existence
-            // and validity is tightly coupled to the device source anyway.
-            if (token == null && side != null) {
-                token = deviceInfo.addListener(unused -> updateDevicesForNeighbor(side));
-            }
-        }
-
-        public void removeListener() {
-            if (token != null) {
-                token.removeListener();
-                token = null;
-            }
         }
 
         @Override

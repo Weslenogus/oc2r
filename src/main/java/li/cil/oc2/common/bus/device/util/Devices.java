@@ -8,7 +8,6 @@ import li.cil.oc2.api.bus.device.provider.BlockDeviceProvider;
 import li.cil.oc2.api.bus.device.provider.BlockDeviceQuery;
 import li.cil.oc2.api.bus.device.provider.ItemDeviceProvider;
 import li.cil.oc2.api.bus.device.provider.ItemDeviceQuery;
-import li.cil.oc2.api.util.Invalidatable;
 import li.cil.oc2.common.bus.device.DeviceGroup;
 import li.cil.oc2.common.bus.device.provider.Providers;
 import net.minecraft.core.BlockPos;
@@ -52,27 +51,26 @@ public final class Devices {
         return new ItemQuery(entity, stack);
     }
 
-    public static Optional<List<Invalidatable<BlockDeviceInfo>>> getDevices(final BlockDeviceQuery query) {
+    public static Optional<List<BlockDeviceInfo>> getDevices(final BlockDeviceQuery query) {
         final ChunkPos queryChunk = new ChunkPos(query.getQueryPosition());
         if (!query.getLevel().hasChunk(queryChunk.x, queryChunk.z)) {
             return Optional.empty();
         }
 
         final Registry<BlockDeviceProvider> registry = Providers.blockDeviceProviderRegistry();
-        final ArrayList<Invalidatable<BlockDeviceInfo>> devices = new ArrayList<>();
+        final ArrayList<BlockDeviceInfo> devices = new ArrayList<>();
         for (final BlockDeviceProvider provider : registry) {
-            final Invalidatable<Device> device = provider.getDevice(query);
+            final Optional<Device> device = provider.getDevice(query);
             if (device.isPresent()) {
                 if(device.get() instanceof DeviceGroup group)
                 {
                     for(Device dev : group.getDevices())
                     {
-                        Invalidatable<Device> de = Invalidatable.of(dev);
-                        devices.add(de.mapWithDependency(d -> new BlockDeviceInfo(provider, d)));
+                        devices.add(new BlockDeviceInfo(provider, dev));
                     }
                 }
                 else {
-                    devices.add(device.mapWithDependency(d -> new BlockDeviceInfo(provider, d)));
+                    devices.add(new BlockDeviceInfo(provider, device.get()));
                 }
             }
         }

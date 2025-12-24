@@ -26,7 +26,7 @@ public abstract class AbstractGroupingDeviceBusElement<TEntry extends AbstractGr
     protected interface Entry {
         Optional<String> getDeviceDataKey();
 
-        OptionalInt getDeviceEnergyConsumption();
+        int getDeviceEnergyConsumption();
 
         Device getDevice();
     }
@@ -173,7 +173,7 @@ public abstract class AbstractGroupingDeviceBusElement<TEntry extends AbstractGr
         final HashSet<TEntry> addedEntries = new HashSet<>(newEntries);
         addedEntries.removeAll(entries);
         for (final TEntry entry : addedEntries) {
-            devices.put(entry.getDevice(), entry.getDeviceEnergyConsumption().orElse(0));
+            devices.put(entry.getDevice(), entry.getDeviceEnergyConsumption());
             onEntryAdded(entry);
         }
 
