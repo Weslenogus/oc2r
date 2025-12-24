@@ -5,9 +5,11 @@ package li.cil.oc2.common.item;
 import li.cil.oc2.common.util.ItemStackUtils;
 import li.cil.oc2.common.util.NBTTagIds;
 import li.cil.oc2.common.util.TextFormatUtils;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 
 public abstract class AbstractStorageItem extends ModItem {
     private static final String CAPACITY_TAG_NAME = "capacity";
@@ -39,7 +41,9 @@ public abstract class AbstractStorageItem extends ModItem {
     }
 
     public ItemStack withCapacity(final ItemStack stack, final int capacity) {
-        ItemStackUtils.getOrCreateModDataTag(stack).putInt(CAPACITY_TAG_NAME, capacity);
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, (nbt) -> {
+            ItemStackUtils.getOrCreateModDataTag(nbt).putInt(CAPACITY_TAG_NAME, capacity);
+        });
         return stack;
     }
 

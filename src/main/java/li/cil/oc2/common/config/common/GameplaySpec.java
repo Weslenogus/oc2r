@@ -2,14 +2,13 @@ package li.cil.oc2.common.config.common;
 
 import li.cil.oc2.common.config.Config;
 import net.minecraft.world.item.Tiers;
-import net.minecraftforge.common.ForgeConfigSpec;
-import net.minecraftforge.common.TierSortingRegistry;
+import net.neoforged.neoforge.common.ModConfigSpec;
 
 public class GameplaySpec {
-    public final ForgeConfigSpec.EnumValue<Tiers> blockOperationsModuleToolTier;
-    public final ForgeConfigSpec.LongValue soundCardCoolDownSeconds;
+    public final ModConfigSpec.EnumValue<Tiers> blockOperationsModuleToolTier;
+    public final ModConfigSpec.LongValue soundCardCoolDownSeconds;
 
-    GameplaySpec(ForgeConfigSpec.Builder builder) {
+    GameplaySpec(ModConfigSpec.Builder builder) {
         blockOperationsModuleToolTier = builder.comment(
             "The mining tool equivalent of the block operations module"
         ).defineEnum("blockOperationsModuleToolTier", Tiers.DIAMOND);
@@ -20,7 +19,7 @@ public class GameplaySpec {
     }
 
     public void loadValues() {
-        Config.blockOperationsModuleToolTier = TierSortingRegistry.getName(blockOperationsModuleToolTier.get());
+        Config.blockOperationsModuleToolTier = blockOperationsModuleToolTier.get().name();
         Config.soundCardCoolDownSeconds = soundCardCoolDownSeconds.get();
     }
 }

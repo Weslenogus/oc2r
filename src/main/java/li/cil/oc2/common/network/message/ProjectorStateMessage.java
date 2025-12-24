@@ -6,45 +6,40 @@ import li.cil.oc2.common.blockentity.ProjectorBlockEntity;
 import li.cil.oc2.common.network.MessageUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
 
-public class ProjectorStateMessage extends AbstractMessage {
-    private BlockPos pos;
-    private boolean isMounted;
-    private boolean hasEnergy;
+import io.netty.buffer.ByteBuf;
+import li.cil.oc2.api.API;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+
+public record ProjectorStateMessage(BlockPos pos, boolean isMounted, boolean hasEnergy) implements AbstractMessage {
+    public static final StreamCodec<ByteBuf, ProjectorStateMessage> STREAM_CODEC = StreamCodec.composite(
+        BlockPos.STREAM_CODEC,
+        ProjectorStateMessage::pos,
+        ByteBufCodecs.BOOL,
+        ProjectorStateMessage::isMounted,
+        ByteBufCodecs.BOOL,
+        ProjectorStateMessage::hasEnergy,
+        ProjectorStateMessage::new
+    );
+
+    public static final CustomPacketPayload.Type<ProjectorStateMessage> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "projector_state_message"));
+
+    @Override
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
+    }
 
     ///////////////////////////////////////////////////////////////////
 
     public ProjectorStateMessage(final ProjectorBlockEntity projector, final boolean isMounted, final boolean hasEnergy) {
-        this.pos = projector.getBlockPos();
-        this.isMounted = isMounted;
-        this.hasEnergy = hasEnergy;
+        this(projector.getBlockPos(), isMounted, hasEnergy);
     }
 
-    public ProjectorStateMessage(final FriendlyByteBuf buffer) {
-        super(buffer);
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-    @Override
-    public void fromBytes(final FriendlyByteBuf buffer) {
-        pos = buffer.readBlockPos();
-        isMounted = buffer.readBoolean();
-        hasEnergy = buffer.readBoolean();
-    }
-
-    @Override
-    public void toBytes(final FriendlyByteBuf buffer) {
-        buffer.writeBlockPos(pos);
-        buffer.writeBoolean(isMounted);
-        buffer.writeBoolean(hasEnergy);
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-    @Override
-    protected void handleMessage(final NetworkEvent.Context context) {
+    public void handleMessage(IPayloadContext context) {
         MessageUtils.withClientBlockEntityAt(pos, ProjectorBlockEntity.class,
             projector -> projector.applyProjectorStateClient(isMounted, hasEnergy));
     }

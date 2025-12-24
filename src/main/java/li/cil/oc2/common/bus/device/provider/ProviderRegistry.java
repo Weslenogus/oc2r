@@ -9,27 +9,24 @@ import li.cil.oc2.api.util.Registries;
 import li.cil.oc2.common.bus.device.provider.block.BlockEntityCapabilityDeviceProvider;
 import li.cil.oc2.common.bus.device.provider.item.*;
 import li.cil.oc2.common.bus.device.rpc.block.*;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.IForgeRegistry;
-import net.minecraftforge.registries.RegistryBuilder;
-
-import java.util.function.Supplier;
+import net.minecraft.core.Registry;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.registries.DeferredRegister;
 
 public final class ProviderRegistry {
     private static final DeferredRegister<BlockDeviceProvider> BLOCK_DEVICE_PROVIDERS = DeferredRegister.create(Registries.BLOCK_DEVICE_PROVIDER, API.MOD_ID);
-    public static final Supplier<IForgeRegistry<BlockDeviceProvider>> BLOCK_DEVICE_PROVIDER_REGISTRY = BLOCK_DEVICE_PROVIDERS.makeRegistry(RegistryBuilder::new);
+    public static final Registry<BlockDeviceProvider> BLOCK_DEVICE_PROVIDER_REGISTRY = BLOCK_DEVICE_PROVIDERS.makeRegistry(builder -> {});
 
     ///////////////////////////////////////////////////////////////////
 
     private static final DeferredRegister<ItemDeviceProvider> ITEM_DEVICE_PROVIDERS = DeferredRegister.create(Registries.ITEM_DEVICE_PROVIDER, API.MOD_ID);
-    public static final Supplier<IForgeRegistry<ItemDeviceProvider>> ITEM_DEVICE_PROVIDER_REGISTRY = ITEM_DEVICE_PROVIDERS.makeRegistry(RegistryBuilder::new);
+    public static final Registry<ItemDeviceProvider> ITEM_DEVICE_PROVIDER_REGISTRY = ITEM_DEVICE_PROVIDERS.makeRegistry(builder -> {});
 
     ///////////////////////////////////////////////////////////////////
 
-    public static void initialize(FMLJavaModLoadingContext context) {
-        ITEM_DEVICE_PROVIDERS.register(context.getModEventBus());
-        BLOCK_DEVICE_PROVIDERS.register(context.getModEventBus());
+    public static void initialize(IEventBus modBus) {
+        ITEM_DEVICE_PROVIDERS.register(modBus);
+        BLOCK_DEVICE_PROVIDERS.register(modBus);
 
         ITEM_DEVICE_PROVIDERS.register("memory", MemoryItemDeviceProvider::new);
         ITEM_DEVICE_PROVIDERS.register("hard_drive", HardDriveItemDeviceProvider::new);

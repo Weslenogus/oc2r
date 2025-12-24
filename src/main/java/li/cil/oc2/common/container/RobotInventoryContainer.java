@@ -15,12 +15,11 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraftforge.items.ItemStackHandler;
-import net.minecraftforge.network.NetworkHooks;
+import net.neoforged.neoforge.items.ItemStackHandler;
 
 public final class RobotInventoryContainer extends AbstractRobotContainer {
     public static void createServer(final Robot robot, final FixedEnergyStorage energy, final CommonDeviceBusController busController, final ServerPlayer player) {
-        NetworkHooks.openScreen(player, new MenuProvider() {
+        player.openMenu(new MenuProvider() {
             @Override
             public Component getDisplayName() {
                 return robot.getName();

@@ -2,8 +2,10 @@
 
 package li.cil.oc2.common.blockentity;
 
+import li.cil.oc2.api.API;
 import li.cil.oc2.api.capabilities.NetworkInterface;
 import li.cil.oc2.client.renderer.NetworkCableRenderer;
+import li.cil.oc2.common.block.Blocks;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.block.NetworkConnectorBlock;
 import li.cil.oc2.common.capabilities.Capabilities;
@@ -11,25 +13,29 @@ import li.cil.oc2.common.item.Items;
 import li.cil.oc2.common.network.Network;
 import li.cil.oc2.common.network.message.NetworkConnectorConnectionsMessage;
 import li.cil.oc2.common.util.*;
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.util.LazyOptional;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.ICapabilityInvalidationListener;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
 import javax.annotation.Nullable;
 import java.time.Duration;
@@ -38,6 +44,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class NetworkConnectorBlockEntity extends ModBlockEntity implements TickableBlockEntity {
     public enum ConnectionResult {
         SUCCESS,
@@ -62,8 +69,12 @@ public final class NetworkConnectorBlockEntity extends ModBlockEntity implements
 
     private final NetworkConnectorNetworkInterface networkInterface = new NetworkConnectorNetworkInterface();
 
-    private LazyOptional<NetworkInterface> adjacentInterface = LazyOptional.empty();
+    // NeoForge will only hold a weak reference to this listener (so that registering a listener cause a memory leak)
+    // Therefore we must hold the reference to keep it from being garbage collected while we're still around
+    @SuppressWarnings("FieldCanBeLocal")
+    private final ICapabilityInvalidationListener adjacentInterfaceListener = () -> { this.isAdjacentInterfaceDirty = true; return true; };
     private boolean isAdjacentInterfaceDirty = true;
+    private @Nullable NetworkInterface adjacentInterface = null;
 
     private final HashSet<BlockPos> connectorPositions = new HashSet<>();
     private final HashSet<BlockPos> ownedCables = new HashSet<>();
@@ -161,10 +172,6 @@ public final class NetworkConnectorBlockEntity extends ModBlockEntity implements
         return connectorPositions;
     }
 
-    public void setNeighborChanged() {
-        isAdjacentInterfaceDirty = true;
-    }
-
     @OnlyIn(Dist.CLIENT)
     public void setConnectedPositionsClient(final ArrayList<BlockPos> positions) {
         connectorPositions.clear();
@@ -191,7 +198,8 @@ public final class NetworkConnectorBlockEntity extends ModBlockEntity implements
             }
         }
 
-        final NetworkInterface source = adjacentInterface.orElse(NullNetworkInterface.INSTANCE);
+        NetworkInterface source = adjacentInterface;
+        if (source == null) source = NullNetworkInterface.INSTANCE;
 
         int byteBudget = BYTES_PER_TICK;
         byte[] frame;
@@ -202,12 +210,13 @@ public final class NetworkConnectorBlockEntity extends ModBlockEntity implements
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
-        final CompoundTag tag = super.getUpdateTag();
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        final CompoundTag tag = super.getUpdateTag(registries);
 
         final ListTag connections = new ListTag();
         for (final BlockPos position : connectorPositions) {
-            final CompoundTag connectionTag = NbtUtils.writeBlockPos(position);
+            final CompoundTag connectionTag = new CompoundTag(1);
+            connectionTag.put("pos", NbtUtils.writeBlockPos(position));
             connections.add(connectionTag);
         }
         tag.put(CONNECTIONS_TAG_NAME, connections);
@@ -216,25 +225,26 @@ public final class NetworkConnectorBlockEntity extends ModBlockEntity implements
     }
 
     @Override
-    public void handleUpdateTag(final CompoundTag tag) {
-        super.handleUpdateTag(tag);
+    public void handleUpdateTag(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.handleUpdateTag(tag, registries);
 
         final ListTag connections = tag.getList(CONNECTIONS_TAG_NAME, NBTTagIds.TAG_COMPOUND);
         for (int i = 0; i < Math.min(connections.size(), MAX_CONNECTION_COUNT); i++) {
             final CompoundTag connectionTag = connections.getCompound(i);
-            final BlockPos position = NbtUtils.readBlockPos(connectionTag);
+            final BlockPos position = NbtUtils.readBlockPos(connectionTag, "pos").orElseThrow();
             connectorPositions.add(position);
             dirtyConnectors.add(position);
         }
     }
 
     @Override
-    protected void saveAdditional(final CompoundTag tag) {
-        super.saveAdditional(tag);
+    protected void saveAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
 
         final ListTag connections = new ListTag();
         for (final BlockPos position : connectorPositions) {
-            final CompoundTag connectionTag = NbtUtils.writeBlockPos(position);
+            final CompoundTag connectionTag = new CompoundTag(2);
+            connectionTag.put("pos", NbtUtils.writeBlockPos(position));
             if (ownedCables.contains(position)) {
                 connectionTag.putBoolean(IS_OWNER_TAG_NAME, true);
             }
@@ -244,13 +254,15 @@ public final class NetworkConnectorBlockEntity extends ModBlockEntity implements
     }
 
     @Override
-    public void load(final CompoundTag tag) {
-        super.load(tag);
+    public void loadAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
 
         final ListTag connections = tag.getList(CONNECTIONS_TAG_NAME, NBTTagIds.TAG_COMPOUND);
         for (int i = 0; i < Math.min(connections.size(), MAX_CONNECTION_COUNT); i++) {
             final CompoundTag connectionTag = connections.getCompound(i);
-            final BlockPos position = NbtUtils.readBlockPos(connectionTag);
+            final BlockPos position = NbtUtils.readBlockPos(connectionTag, "pos")
+                .or(() -> NBTUtils.readBlockPosLegacy(connectionTag))
+                .orElseThrow();
             connectorPositions.add(position);
             dirtyConnectors.add(position);
             if (connectionTag.getBoolean(IS_OWNER_TAG_NAME)) {
@@ -259,25 +271,21 @@ public final class NetworkConnectorBlockEntity extends ModBlockEntity implements
         }
     }
 
-    @Override
-    public AABB getRenderBoundingBox() {
-        if (Minecraft.useShaderTransparency()) {
-            return new AABB(
-                getBlockPos().offset(-MAX_CONNECTION_DISTANCE, -MAX_CONNECTION_DISTANCE, -MAX_CONNECTION_DISTANCE),
-                getBlockPos().offset(1 + MAX_CONNECTION_DISTANCE, 1 + MAX_CONNECTION_DISTANCE, 1 + MAX_CONNECTION_DISTANCE)
-            );
-        } else {
-            return super.getRenderBoundingBox();
-        }
-    }
-
     ///////////////////////////////////////////////////////////////////
 
-    @Override
-    protected void collectCapabilities(final CapabilityCollector collector, @Nullable final Direction direction) {
-        if (direction == NetworkConnectorBlock.getFacing(getBlockState()).getOpposite()) {
-            collector.offer(Capabilities.networkInterface(), networkInterface);
-        }
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerBlock(
+            Capabilities.NetworkInterface.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (be instanceof final NetworkConnectorBlockEntity self) {
+                    if (side == NetworkConnectorBlock.getFacing(self.getBlockState()).getOpposite())
+                        return self.networkInterface;
+                }
+                return null;
+            },
+            Blocks.NETWORK_CONNECTOR.get()
+        );
     }
 
     @Override
@@ -285,6 +293,17 @@ public final class NetworkConnectorBlockEntity extends ModBlockEntity implements
         super.loadClient();
 
         NetworkCableRenderer.addNetworkConnector(this);
+    }
+
+    @Override
+    protected void loadServer() {
+        super.loadServer();
+
+        final var level = (ServerLevel) this.level;
+        final Direction facing = NetworkConnectorBlock.getFacing(getBlockState());
+        final BlockPos sourcePos = getBlockPos().relative(facing.getOpposite());
+
+        level.registerCapabilityListener(sourcePos, this.adjacentInterfaceListener);
     }
 
     @Override
@@ -318,7 +337,7 @@ public final class NetworkConnectorBlockEntity extends ModBlockEntity implements
     private void resolveLocalInterface() {
         assert level != null;
 
-        adjacentInterface = LazyOptional.empty();
+        adjacentInterface = null;
 
         if (!isValid()) {
             return;
@@ -328,19 +347,11 @@ public final class NetworkConnectorBlockEntity extends ModBlockEntity implements
         final BlockPos sourcePos = getBlockPos().relative(facing.getOpposite());
 
         if (!level.isLoaded(sourcePos)) {
-            ServerScheduler.schedule(level, this::setNeighborChanged, RETRY_UNLOADED_CHUNK_INTERVAL);
             return;
         }
 
-        final BlockEntity blockEntity = level.getBlockEntity(sourcePos);
-        if (blockEntity == null) {
-            return;
-        }
 
-        adjacentInterface = blockEntity.getCapability(Capabilities.networkInterface(), facing);
-        if (adjacentInterface.isPresent()) {
-            LazyOptionalUtils.addWeakListener(adjacentInterface, this, (connector, unused) -> connector.setNeighborChanged());
-        }
+        adjacentInterface = level.getCapability(Capabilities.NetworkInterface.BLOCK, sourcePos, facing);
     }
 
     private void resolveConnectedInterface(final BlockPos connectedPosition) {
@@ -394,14 +405,14 @@ public final class NetworkConnectorBlockEntity extends ModBlockEntity implements
             vb.subtract(ab),
             ClipContext.Block.COLLIDER,
             ClipContext.Fluid.NONE,
-            null
+            (CollisionContext) null
         ));
         final BlockHitResult hitBA = level.clip(new ClipContext(
             vb.subtract(ab),
             va.add(ab),
             ClipContext.Block.COLLIDER,
             ClipContext.Fluid.NONE,
-            null
+            (CollisionContext) null
         ));
 
         return hitAB.getType() != HitResult.Type.MISS ||
@@ -442,12 +453,10 @@ public final class NetworkConnectorBlockEntity extends ModBlockEntity implements
                 return;
             }
 
-            adjacentInterface.ifPresent(dst -> {
-                if (dst == source) {
-                    return;
-                }
-                dst.writeEthernetFrame(this, frame, timeToLive - TTL_COST);
-            });
+            NetworkInterface adjDst = adjacentInterface;
+            if (adjDst != null && adjDst != source) {
+                adjDst.writeEthernetFrame(this, frame, timeToLive - TTL_COST);
+            }
 
             for (final NetworkConnectorBlockEntity dst : connectors.values()) {
                 if (!dst.isValid() || dst.networkInterface == source) {

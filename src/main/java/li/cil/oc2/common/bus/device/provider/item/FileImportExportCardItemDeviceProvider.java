@@ -8,9 +8,8 @@ import li.cil.oc2.api.capabilities.TerminalUserProvider;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.bus.device.provider.util.AbstractItemDeviceProvider;
 import li.cil.oc2.common.bus.device.rpc.item.FileImportExportCardItemDevice;
-import li.cil.oc2.common.capabilities.Capabilities;
 import li.cil.oc2.common.item.Items;
-import net.minecraftforge.common.util.LazyOptional;
+import net.minecraft.world.entity.Entity;
 
 import java.util.Optional;
 
@@ -41,18 +40,16 @@ public final class FileImportExportCardItemDeviceProvider extends AbstractItemDe
 
     private Optional<TerminalUserProvider> getTerminalUserProvider(final ItemDeviceQuery query) {
         if (query.getContainerBlockEntity().isPresent()) {
-            final LazyOptional<TerminalUserProvider> capability = query.getContainerBlockEntity().get()
-                .getCapability(Capabilities.terminalUserProvider());
-            if (capability.isPresent()) {
-                return capability.resolve();
+            var be = query.getContainerBlockEntity().get();
+            if (be instanceof TerminalUserProvider terminal) {
+                return Optional.of(terminal);
             }
         }
 
         if (query.getContainerEntity().isPresent()) {
-            final LazyOptional<TerminalUserProvider> capability = query.getContainerEntity().get()
-                .getCapability(Capabilities.terminalUserProvider());
-            if (capability.isPresent()) {
-                return capability.resolve();
+            final Entity entity = query.getContainerEntity().get();
+            if (entity instanceof TerminalUserProvider terminal) {
+                return Optional.of(terminal);
             }
         }
 

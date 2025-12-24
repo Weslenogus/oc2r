@@ -10,21 +10,14 @@ import li.cil.oc2.api.capabilities.NetworkInterface;
 import li.cil.oc2.common.bus.device.util.IdentityProxy;
 import li.cil.oc2.common.bus.device.util.OptionalAddress;
 import li.cil.oc2.common.bus.device.util.OptionalInterrupt;
-import li.cil.oc2.common.capabilities.Capabilities;
 import li.cil.oc2.common.serialization.NBTSerialization;
 import li.cil.oc2.common.util.NBTTagIds;
 import li.cil.sedna.device.virtio.VirtIONetworkDevice;
-import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
-import net.minecraftforge.common.util.LazyOptional;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
-public abstract class AbstractNetworkInterfaceDevice extends IdentityProxy<ItemStack> implements VMDevice, ItemDevice, ICapabilityProvider {
+public abstract class AbstractNetworkInterfaceDevice extends IdentityProxy<ItemStack> implements VMDevice, ItemDevice {
     private static final String DEVICE_TAG_NAME = "device";
     private static final String ADDRESS_TAG_NAME = "address";
     private static final String INTERRUPT_TAG_NAME = "interrupt";
@@ -46,16 +39,6 @@ public abstract class AbstractNetworkInterfaceDevice extends IdentityProxy<ItemS
     }
 
     ///////////////////////////////////////////////////////////////
-
-    @Nonnull
-    @Override
-    public <T> LazyOptional<T> getCapability(final Capability<T> cap, @Nullable final Direction side) {
-        if (cap == Capabilities.networkInterface()) {
-            return LazyOptional.of(() -> networkInterface).cast();
-        }
-
-        return LazyOptional.empty();
-    }
 
     @Override
     public VMDeviceLoadResult mount(final VMContext context) {
@@ -95,7 +78,7 @@ public abstract class AbstractNetworkInterfaceDevice extends IdentityProxy<ItemS
     }
 
     @Override
-    public CompoundTag serializeNBT() {
+    public CompoundTag serializeNBT(HolderLookup.Provider provider) {
         final CompoundTag tag = new CompoundTag();
 
         if (device != null) {
@@ -115,7 +98,7 @@ public abstract class AbstractNetworkInterfaceDevice extends IdentityProxy<ItemS
     }
 
     @Override
-    public void deserializeNBT(final CompoundTag tag) {
+    public void deserializeNBT(HolderLookup.Provider provider, final CompoundTag tag) {
         if (tag.contains(DEVICE_TAG_NAME, NBTTagIds.TAG_COMPOUND)) {
             deviceTag = tag.getCompound(DEVICE_TAG_NAME);
         }

@@ -2,12 +2,18 @@
 
 package li.cil.oc2.common.util;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.items.ItemStackHandler;
+import net.minecraft.world.item.component.CustomData;
+import net.neoforged.neoforge.items.ItemStackHandler;
 
 import javax.annotation.Nullable;
+import java.util.Optional;
 
 public final class NBTUtils {
     public static <T extends Enum<T>> void putEnum(final CompoundTag compound, final String key, @Nullable final Enum<T> value) {
@@ -28,6 +34,22 @@ public final class NBTUtils {
         } catch (final IndexOutOfBoundsException ignored) {
             return null;
         }
+    }
+
+    public static CompoundTag getChildTag(@Nullable final ItemStack stack, final String... path) {
+        if (stack == null || !stack.has(DataComponents.CUSTOM_DATA)) {
+            return new CompoundTag();
+        }
+
+        return getChildTag(stack.get(DataComponents.CUSTOM_DATA), path);
+    }
+
+    public static CompoundTag getChildTag(@Nullable final CustomData nbt, final String... path) {
+        if (nbt == null) {
+            return new CompoundTag();
+        }
+
+        return getChildTag(nbt.copyTag(), path);
     }
 
     public static CompoundTag getChildTag(@Nullable final CompoundTag tag, final String... path) {
@@ -57,7 +79,19 @@ public final class NBTUtils {
         return childTag;
     }
 
-    public static CompoundTag makeInventoryTag(final ItemStack... items) {
-        return new ItemStackHandler(NonNullList.of(ItemStack.EMPTY, items)).serializeNBT();
+    public static CompoundTag makeInventoryTag(HolderLookup.Provider provider, final ItemStack... items) {
+        return new ItemStackHandler(NonNullList.of(ItemStack.EMPTY, items)).serializeNBT(provider);
+    }
+
+    /// Tries to read an older format read/writeBlockPos used to use
+    public static Optional<BlockPos> readBlockPosLegacy(CompoundTag tag)
+    {
+        if (!tag.contains("X", 99) ||
+            !tag.contains("Y", 99) ||
+            !tag.contains("Z", 99)
+        ) {
+            return Optional.empty();
+        }
+        return Optional.of(new BlockPos(tag.getInt("X"), tag.getInt("Y"), tag.getInt("Z")));
     }
 }

@@ -6,6 +6,7 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import li.cil.oc2.api.bus.device.DeviceType;
 import li.cil.oc2.api.bus.device.provider.ItemDeviceQuery;
+import li.cil.oc2.common.components.RestrictedContainer;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.Constants;
 import li.cil.oc2.common.block.EnergyConsumingBlock;
@@ -22,21 +23,18 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.locale.Language;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.chat.*;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.client.ForgeHooksClient;
-import net.minecraftforge.registries.ForgeRegistry;
-import net.minecraftforge.registries.RegistryManager;
+import net.neoforged.neoforge.client.ClientHooks;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
-import static li.cil.oc2.common.Constants.*;
 import static li.cil.oc2.common.util.TextFormatUtils.withFormat;
 
-@SuppressWarnings("UnstableApiUsage")
 public final class TooltipUtils {
     private static final MutableComponent DEVICE_NEEDS_REBOOT =
         Component.translatable(Constants.TOOLTIP_DEVICE_NEEDS_REBOOT)
@@ -64,7 +62,7 @@ public final class TooltipUtils {
 
         final int availableWidth = Math.max(x, screen.width - x);
         final int targetWidth = Math.min(availableWidth, widthHint);
-        final Font font = ForgeHooksClient.getTooltipFont(itemStack, minecraft.font);
+        final Font font = ClientHooks.getTooltipFont(itemStack, minecraft.font);
 
         final boolean needsWrapping = tooltip.stream().anyMatch(line -> font.width(line) > targetWidth);
         if (!needsWrapping) {
@@ -119,53 +117,55 @@ public final class TooltipUtils {
         }
     }
 
-    public static void addBlockEntityInventoryInformation(final ItemStack stack, final List<Component> tooltip) {
-        addInventoryInformation(NBTUtils.getChildTag(stack.getTag(), BLOCK_ENTITY_TAG_NAME_IN_ITEM, ITEMS_TAG_NAME), tooltip);
+    public static void addInventoryInformation(final ItemStack stack, final List<Component> tooltip) {
+        var container = stack.getOrDefault(li.cil.oc2.common.components.DataComponents.RESTRICTED_CONTAINER, new RestrictedContainer());
+        addInventoryInformation(container, tooltip);
     }
 
-    public static void addEntityInventoryInformation(final ItemStack stack, final List<Component> tooltip) {
-        addInventoryInformation(NBTUtils.getChildTag(stack.getTag(), MOD_TAG_NAME, ITEMS_TAG_NAME), tooltip);
-    }
-
-    public static void addInventoryInformation(final CompoundTag itemsTag, final List<Component> tooltip) {
-        addInventoryInformation(itemsTag, tooltip, getDeviceTypeNames());
-    }
-
-    public static void addInventoryInformation(final CompoundTag itemsTag, final List<Component> tooltip, final String... subInventoryNames) {
+    public static void addInventoryInformation(final RestrictedContainer container, final List<Component> tooltip, final String... subInventoryNames) {
         final List<ItemStack> itemStacks = ITEM_STACKS.get();
         itemStacks.clear();
-        final IntList itemStackSizes = ITEM_STACKS_SIZES.get();
-        itemStackSizes.clear();
 
-        collectItemStacks(itemsTag, itemStacks, itemStackSizes);
+        for (final var typed_stacks : container.items().values()) {
+            for (final var x : typed_stacks) {
+                if (x.getCount() == 0) continue;
 
-        for (final String subInventoryName : subInventoryNames) {
-            if (itemsTag.contains(subInventoryName, NBTTagIds.TAG_COMPOUND)) {
-                collectItemStacks(itemsTag.getCompound(subInventoryName), itemStacks, itemStackSizes);
+                var item = x.getItem();
+                var found = false;
+                for (final var y : itemStacks) {
+                    if (y.getItem() == item) {
+                        y.setCount(y.getCount()+1);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    itemStacks.add(x.copy());
+                }
             }
         }
 
-        for (int i = 0; i < itemStacks.size(); i++) {
-            final ItemStack itemStack = itemStacks.get(i);
+        for (final ItemStack stack : itemStacks) {
             tooltip.add(Component.literal("- ")
-                .append(itemStack.getDisplayName())
+                .append(stack.getDisplayName())
                 .withStyle(style -> style.withColor(TextColor.fromLegacyFormat(ChatFormatting.GRAY)))
                 .append(Component.literal(" x")
-                    .append(String.valueOf(itemStackSizes.getInt(i)))
+                    .append(String.valueOf(stack.getCount()))
                     .withStyle(style -> style.withColor(TextColor.fromLegacyFormat(ChatFormatting.DARK_GRAY))))
             );
         }
     }
 
     public static void addEntityEnergyInformation(final ItemStack stack, final List<Component> tooltip) {
-        stack.getCapability(Capabilities.energyStorage()).ifPresent(energy -> {
+        var energy = stack.getCapability(Capabilities.EnergyStorage.ITEM);
+        if (energy != null) {
             if (energy.getEnergyStored() == 0) {
                 return;
             }
 
             final MutableComponent value = withFormat(energy.getEnergyStored() + "/" + energy.getMaxEnergyStored(), ChatFormatting.GREEN);
             tooltip.add(withFormat(Component.translatable(Constants.TOOLTIP_ENERGY, value), ChatFormatting.GRAY));
-        });
+        }
     }
 
     public static void addEnergyConsumption(final double value, final List<Component> tooltip) {
@@ -177,19 +177,15 @@ public final class TooltipUtils {
     ///////////////////////////////////////////////////////////////////
 
     private static String[] getDeviceTypeNames() {
-        final ForgeRegistry<DeviceType> registry = RegistryManager.ACTIVE.getRegistry(DeviceType.REGISTRY);
-        if (registry != null) {
-            return registry.getValues().stream().map(RegistryUtils::key).toArray(String[]::new);
-        } else {
-            return new String[0];
-        }
+        return DeviceType.REGISTRY.stream().map(RegistryUtils::key).toArray(String[]::new);
     }
 
     private static void collectItemStacks(final CompoundTag tag, final List<ItemStack> stacks, final IntList stackSizes) {
         final ListTag itemsTag = tag.getList("Items", NBTTagIds.TAG_COMPOUND);
         for (int i = 0; i < itemsTag.size(); i++) {
             final CompoundTag itemTag = itemsTag.getCompound(i);
-            final ItemStack itemStack = ItemStack.of(itemTag);
+            final var itemStackParsed = ItemStack.CODEC.parse(NbtOps.INSTANCE, itemTag);
+            final ItemStack itemStack = itemStackParsed.getOrThrow();
 
             boolean didMerge = false;
             for (int j = 0; j < stacks.size(); j++) {

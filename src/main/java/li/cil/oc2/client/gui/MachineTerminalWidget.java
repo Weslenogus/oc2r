@@ -3,11 +3,9 @@
 package li.cil.oc2.client.gui;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
 import li.cil.oc2.common.vm.terminal.modes.MouseMode;
 import li.cil.oc2.common.vm.terminal.modes.PrivateMode;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.MultiBufferSource;
 import org.joml.Matrix4f;
 import li.cil.oc2.client.gui.terminal.TerminalInput;
 import li.cil.oc2.common.container.AbstractMachineTerminalContainer;
@@ -15,8 +13,8 @@ import li.cil.oc2.common.vm.terminal.Terminal;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.network.chat.Component;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 import org.joml.Vector2i;
 import org.lwjgl.glfw.GLFW;
 
@@ -76,7 +74,7 @@ public final class MachineTerminalWidget {
 
             //final Matrix4f projectionMatrix = orthographic(0, parent.width, 0, parent.height, -10, 10f);
             final Matrix4f projectionMatrix = (new Matrix4f()).setOrtho(0, parent.width, parent.height, 0, -10f, 10f);
-            rendererView.render(terminalStack, projectionMatrix);
+            rendererView.render(terminalStack, projectionMatrix, false);
         } else {
             final Font font = getClient().font;
             if (error != null) {
@@ -95,7 +93,7 @@ public final class MachineTerminalWidget {
     }
 
     private void drawShadow(Font font, GuiGraphics graphics, Component text, float x, float y) {
-        var batch = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
+        var batch = graphics.bufferSource();
         font.drawInBatch(text, x, y, 15610658, true, graphics.pose().last().pose(), batch, Font.DisplayMode.NORMAL, 0, 15728880);
         batch.endBatch();
     }

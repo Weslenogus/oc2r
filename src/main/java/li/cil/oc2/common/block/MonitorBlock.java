@@ -2,6 +2,7 @@
 
 package li.cil.oc2.common.block;
 
+import com.mojang.serialization.MapCodec;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.blockentity.BlockEntities;
 import li.cil.oc2.common.blockentity.MonitorBlockEntity;
@@ -16,7 +17,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -38,8 +41,8 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -73,12 +76,17 @@ public final class MonitorBlock extends HorizontalDirectionalBlock implements En
             .setValue(LIT, false));
     }
 
+    @Override
+    protected MapCodec<MonitorBlock> codec() {
+        return BlockCodecs.MONITOR.get();
+    }
+
     ///////////////////////////////////////////////////////////////////
 
     @OnlyIn(Dist.CLIENT)
     @Override
-    public void appendHoverText(final ItemStack stack, @Nullable final BlockGetter level, final List<Component> tooltip, final TooltipFlag advanced) {
-        super.appendHoverText(stack, level, tooltip, advanced);
+    public void appendHoverText(final ItemStack stack, final Item.TooltipContext context, final List<Component> tooltip, final TooltipFlag advanced) {
+        super.appendHoverText(stack, context, tooltip, advanced);
     }
 
     @SuppressWarnings("deprecation")
@@ -92,28 +100,22 @@ public final class MonitorBlock extends HorizontalDirectionalBlock implements En
         };
     }
 
-    @SuppressWarnings("deprecation")
     @Override
-    public InteractionResult use(final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hit) {
+    protected InteractionResult useWithoutItem(final BlockState state, final Level level, final BlockPos pos, final Player player, final BlockHitResult hitResult) {
         final BlockEntity blockEntity = level.getBlockEntity(pos);
         if (!(blockEntity instanceof final MonitorBlockEntity monitor)) {
-            return super.use(state, level, pos, player, hand, hit);
+            return super.useWithoutItem(state, level, pos, player, hitResult);
         }
 
-        final ItemStack heldItem = player.getItemInHand(hand);
-        if (!Wrenches.isWrench(heldItem)) {
-            if (!level.isClientSide()) {
-                if (player.isShiftKeyDown()) {
-                    monitor.start();
-                    Network.sendToClientsTrackingBlockEntity(new MonitorPowerMessageForwarded(monitor, true), monitor);
-                } else if (player instanceof final ServerPlayer serverPlayer) {
-                    monitor.openTerminalScreen(serverPlayer);
-                }
+        if (!level.isClientSide()) {
+            if (player.isShiftKeyDown()) {
+                monitor.start();
+                Network.sendToClientsTrackingBlockEntity(new MonitorPowerMessageForwarded(monitor, true), monitor);
+            } else if (player instanceof final ServerPlayer serverPlayer) {
+                monitor.openTerminalScreen(serverPlayer);
             }
-            return InteractionResult.sidedSuccess(level.isClientSide());
         }
-
-        return super.use(state, level, pos, player, hand, hit);
+        return InteractionResult.sidedSuccess(level.isClientSide());
     }
 
     @Override

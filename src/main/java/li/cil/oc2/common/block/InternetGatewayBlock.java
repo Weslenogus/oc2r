@@ -1,5 +1,6 @@
 package li.cil.oc2.common.block;
 
+import com.mojang.serialization.MapCodec;
 import li.cil.oc2.common.blockentity.BlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.EntityBlock;
@@ -13,6 +14,11 @@ public class InternetGatewayBlock extends HalfTransparentBlock implements Entity
 
     public InternetGatewayBlock() {
         super(Properties.of().mapColor(MapColor.METAL).sound(SoundType.METAL).strength(1.5f, 6.0f));
+    }
+
+    @Override
+    protected MapCodec<InternetGatewayBlock> codec() {
+        return BlockCodecs.INTERNET_GATEWAY.get();
     }
 
     @Override

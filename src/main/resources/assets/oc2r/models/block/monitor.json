@@ -1,6 +1,6 @@
 {
   "parent": "block/block",
-  "loader": "forge:obj",
+  "loader": "neoforge:obj",
   "flip_v": true,
   "model": "oc2r:models/block/monitor.obj",
   "textures": {

@@ -2,6 +2,7 @@
 
 package li.cil.oc2.common.block;
 
+import com.mojang.serialization.MapCodec;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.blockentity.BlockEntities;
 import li.cil.oc2.common.blockentity.TickableBlockEntity;
@@ -53,6 +54,11 @@ public final class ProjectorBlock extends HorizontalDirectionalBlock implements 
         registerDefaultState(getStateDefinition().any()
             .setValue(FACING, Direction.NORTH)
             .setValue(LIT, false));
+    }
+
+    @Override
+    protected MapCodec<ProjectorBlock> codec() {
+        return BlockCodecs.PROJECTOR.get();
     }
 
     ///////////////////////////////////////////////////////////////////

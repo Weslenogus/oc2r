@@ -13,6 +13,7 @@ import li.cil.oc2.common.serialization.BlobStorage;
 import li.cil.oc2.common.util.NBTTagIds;
 import li.cil.oc2.common.vm.device.SimpleFramebufferDevice;
 import li.cil.oc2.jcodec.common.model.Picture;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
@@ -93,7 +94,7 @@ public final class MonitorDevice extends IdentityProxy<BlockEntity> implements V
     @Override
     public void dispose() {
         if (blobHandle != null) {
-            BlobStorage.delete(blobHandle);
+            BlobStorage.deleteAsync(blobHandle);
             blobHandle = null;
         }
 
@@ -101,7 +102,7 @@ public final class MonitorDevice extends IdentityProxy<BlockEntity> implements V
     }
 
     @Override
-    public CompoundTag serializeNBT() {
+    public CompoundTag serializeNBT(HolderLookup.Provider provider) {
         final CompoundTag tag = new CompoundTag();
 
         if (blobHandle != null) {
@@ -115,7 +116,7 @@ public final class MonitorDevice extends IdentityProxy<BlockEntity> implements V
     }
 
     @Override
-    public void deserializeNBT(final CompoundTag tag) {
+    public void deserializeNBT(HolderLookup.Provider provider, final CompoundTag tag) {
         if (tag.hasUUID(BLOB_HANDLE_TAG_NAME)) {
             blobHandle = tag.getUUID(BLOB_HANDLE_TAG_NAME);
         }

@@ -124,9 +124,6 @@ public final class FileChooserScreen extends Screen {
 
     @Override
     public void render(final GuiGraphics graphics, final int mouseX, final int mouseY, final float partialTicks) {
-        super.renderBackground(graphics);
-        fileList.render(graphics, mouseX, mouseY, partialTicks);
-        fileNameTextField.render(graphics, mouseX, mouseY, partialTicks);
         super.render(graphics, mouseX, mouseY, partialTicks);
     }
 
@@ -145,7 +142,7 @@ public final class FileChooserScreen extends Screen {
         final int widgetsWidth = width - MARGIN * 2;
         final int listHeight = height - MARGIN - WIDGET_SPACING - TEXT_FIELD_HEIGHT - WIDGET_SPACING - BUTTON_HEIGHT - MARGIN;
         fileList = new FileList(MARGIN, listHeight, LIST_ENTRY_HEIGHT);
-        addWidget(fileList);
+        addRenderableWidget(fileList);
 
         final int fileNameTop = MARGIN + listHeight + WIDGET_SPACING;
         fileNameTextField = new EditBox(font, MARGIN, fileNameTop, widgetsWidth, TEXT_FIELD_HEIGHT, FILE_NAME_TEXT);
@@ -154,13 +151,23 @@ public final class FileChooserScreen extends Screen {
             updateButtons();
         });
         fileNameTextField.setMaxLength(1024);
-        addWidget(fileNameTextField);
+        addRenderableWidget(fileNameTextField);
 
         final int buttonTop = fileNameTop + TEXT_FIELD_HEIGHT + WIDGET_SPACING;
         final int buttonCount = 2;
         final int buttonWidth = widgetsWidth / buttonCount - WIDGET_SPACING;
-        okButton = addRenderableWidget(new Button(MARGIN, buttonTop, buttonWidth, BUTTON_HEIGHT, Component.empty(), this::handleOkPressed, Supplier::get));
-        addRenderableWidget(new Button(MARGIN + buttonWidth + WIDGET_SPACING, buttonTop, buttonWidth, BUTTON_HEIGHT, CANCEL_TEXT, this::handleCancelPressed, Supplier::get));
+        okButton = addRenderableWidget(
+            Button.builder(Component.empty(), this::handleOkPressed)
+                .bounds(MARGIN, buttonTop, buttonWidth, BUTTON_HEIGHT)
+                .createNarration(Supplier::get)
+                .build()
+        );
+        addRenderableWidget(
+            Button.builder(CANCEL_TEXT, this::handleCancelPressed)
+                .bounds(MARGIN + buttonWidth + WIDGET_SPACING, buttonTop, buttonWidth, BUTTON_HEIGHT)
+                .createNarration(Supplier::get)
+                .build()
+        );
 
         fileList.refreshFiles(directory);
 
@@ -280,7 +287,7 @@ public final class FileChooserScreen extends Screen {
 
     private final class FileList extends ObjectSelectionList<FileList.FileEntry> {
         public FileList(final int y, final int height, final int slotHeight) {
-            super(FileChooserScreen.this.getMinecraft(), FileChooserScreen.this.width, FileChooserScreen.this.height, y, y + height, slotHeight);
+            super(FileChooserScreen.this.getMinecraft(), FileChooserScreen.this.width, height, y, slotHeight);
         }
 
         public void refreshFiles(@Nullable final Path directory) {
@@ -382,7 +389,7 @@ public final class FileChooserScreen extends Screen {
             }
 
             private void drawShadow(Font font, GuiGraphics graphics, Component text, float x, float y, int color) {
-                var batch = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
+                var batch = graphics.bufferSource();
                 font.drawInBatch(text, x, y, color, true, graphics.pose().last().pose(), batch, Font.DisplayMode.NORMAL, 0, 15728880);
                 batch.endBatch();
             }
@@ -413,8 +420,7 @@ public final class FileChooserScreen extends Screen {
                 } else {
                     return;
                 }
-                fileNameTextField.moveCursorToStart();
-                fileNameTextField.setHighlightPos(0);
+                fileNameTextField.moveCursorToStart(true);
                 setSelected(this);
             }
 

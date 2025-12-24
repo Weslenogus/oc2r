@@ -5,10 +5,12 @@ package li.cil.oc2.client.item;
 import li.cil.oc2.common.item.Items;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.color.item.ItemColors;
+import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.item.DyeableLeatherItem;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.DyedItemColor;
+
+import static net.minecraft.core.component.DataComponents.DYED_COLOR;
 
 @SuppressWarnings("unused")
 public final class CustomItemColors {
@@ -70,11 +72,7 @@ public final class CustomItemColors {
     }
 
     public static int getColor(final ItemStack stack) {
-        final Item item = stack.getItem();
-        if (item instanceof final DyeableLeatherItem coloredItem) {
-            return coloredItem.getColor(stack);
-        }
-        return GREY;
+        return DyedItemColor.getOrDefault(stack, GREY);
     }
 
     public static ItemStack withColor(final ItemStack stack, final DyeColor color) {
@@ -82,10 +80,11 @@ public final class CustomItemColors {
     }
 
     public static ItemStack withColor(final ItemStack stack, final int color) {
-        final Item item = stack.getItem();
-        if (item instanceof final DyeableLeatherItem coloredItem) {
-            coloredItem.setColor(stack, color);
-        }
+        stack.applyComponents(
+            DataComponentPatch.builder()
+            .set(DYED_COLOR, new DyedItemColor(color, true))
+            .build()
+        );
         return stack;
     }
 }

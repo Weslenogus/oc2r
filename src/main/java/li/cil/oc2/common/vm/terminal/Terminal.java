@@ -19,8 +19,8 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.world.level.block.state.properties.NoteBlockInstrument;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 import org.joml.Matrix4f;
 
 import javax.annotation.Nullable;
@@ -107,8 +107,6 @@ public class Terminal {
 
     // Related Enums
     public enum ColorMode {
-        @SerializedName("4")
-        DEFAULT_BACKGROUND,
         @SerializedName("0")
         SIXTEEN_COLOR,
         @SerializedName("1")
@@ -116,7 +114,9 @@ public class Terminal {
         @SerializedName("2")
         TRUE_COLOR,
         @SerializedName("3")
-        SIXTEEN_COLOR_BRIGHT
+        SIXTEEN_COLOR_BRIGHT,
+        @SerializedName("4")
+        DEFAULT_BACKGROUND,
     }
 
     public static final class CursorMode {
@@ -197,7 +197,7 @@ public class Terminal {
 
     // Nested interfaces
     public interface RendererView {
-        void render(final PoseStack stack, final Matrix4f projectionMatrix);
+        void render(final PoseStack stack, final Matrix4f projectionMatrix, boolean renderingToBlock);
     }
 
     public interface RendererModel {
@@ -865,10 +865,10 @@ public class Terminal {
         /// ////////////////////////////////////////////////////////////
 
         @Override
-        public void render(final PoseStack stack, final Matrix4f projectionMatrix) {
+        public void render(final PoseStack stack, final Matrix4f projectionMatrix, boolean renderingToBlock) {
             if (terminal.currentPrivateModeState.APPLICATION_SYNC) return;
             validateLineCache();
-            renderBuffer(stack, projectionMatrix);
+            renderBuffer(stack, projectionMatrix, renderingToBlock);
 
             boolean steady = switch (terminal.cursorMode) {
                 case CursorMode.STEADY_BLOCK, CursorMode.STEADY_UNDERLINE, CursorMode.STEADY_BAR_LINE -> true;
@@ -909,8 +909,8 @@ public class Terminal {
             return -1;
         }
 
-        public void renderBuffer(final PoseStack stack, final Matrix4f projectionMatrix) {
-            final ShaderInstance shader = GameRenderer.getPositionColorTexShader();
+        public void renderBuffer(final PoseStack stack, final Matrix4f projectionMatrix, boolean renderingToBlock) {
+            final ShaderInstance shader = GameRenderer.getPositionTexColorShader();
             if (shader == null) {
                 return;
             }
@@ -918,11 +918,16 @@ public class Terminal {
             RenderSystem.depthMask(false);
             RenderSystem.setShaderTexture(0, FontHandling.getAtlas());
 
+            var modelViewMatrix = stack.last().pose();
+            if (renderingToBlock) {
+                modelViewMatrix = new Matrix4f(RenderSystem.getModelViewMatrix()).mul(modelViewMatrix);
+            }
+
             for (final VertexBuffer line : lines) {
-                if (!line.isInvalid()) {
+                if (line != null && !line.isInvalid()) {
                     try {
                         line.bind();
-                        line.drawWithShader(stack.last().pose(), projectionMatrix, shader);
+                        line.drawWithShader(modelViewMatrix, projectionMatrix, shader);
                         VertexBuffer.unbind();
                     } catch (Exception e) {
                         System.out.println("ERROR: " + e.getMessage());
@@ -945,28 +950,31 @@ public class Terminal {
                 if ((mask & (1 << row)) == 0) {
                     continue;
                 }
-                BufferBuilder builder = Tesselator.getInstance().getBuilder();
+                BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
 
                 final Matrix4f matrix = new Matrix4f().translate(0, row * CHAR_HEIGHT, 0);
-
-                builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 
                 renderBackground(matrix, builder, row);
                 renderForeground(matrix, builder, row);
 
-                BufferBuilder.RenderedBuffer rb = builder.end();
+                MeshData rb = builder.build();
 
-                if (lines[row] == null) {
-                    lines[row] = new VertexBuffer(VertexBuffer.Usage.DYNAMIC);
+                if (rb != null) {
+                    if (lines[row] == null) {
+                        lines[row] = new VertexBuffer(VertexBuffer.Usage.DYNAMIC);
+                    } else if (lines[row] != null) {
+                        lines[row].close();
+                        lines[row] = new VertexBuffer(VertexBuffer.Usage.DYNAMIC);
+                    }
+
+                    if (!lines[row].isInvalid()) {
+                        lines[row].bind();
+                        lines[row].upload(rb);
+                        VertexBuffer.unbind();
+                    }
                 } else if (lines[row] != null) {
                     lines[row].close();
-                    lines[row] = new VertexBuffer(VertexBuffer.Usage.DYNAMIC);
-                }
-
-                if (!lines[row].isInvalid()) {
-                    lines[row].bind();
-                    lines[row].upload(rb);
-                    VertexBuffer.unbind();
+                    lines[row] = null;
                 }
             }
         }
@@ -1023,10 +1031,10 @@ public class Terminal {
             final float g = ((color >> 8) & 0xFF) / 255f;
             final float b = (color & 0xFF) / 255f;
 
-            buffer.vertex(matrix, x0, CHAR_HEIGHT, 0).color(r, g, b, 1).uv(0, 0).endVertex();
-            buffer.vertex(matrix, x1, CHAR_HEIGHT, 0).color(r, g, b, 1).uv(0, 0).endVertex();
-            buffer.vertex(matrix, x1, 0, 0).color(r, g, b, 1).uv(0, 0).endVertex();
-            buffer.vertex(matrix, x0, 0, 0).color(r, g, b, 1).uv(0, 0).endVertex();
+            buffer.addVertex(matrix, x0, CHAR_HEIGHT, 0).setColor(r, g, b, 1).setUv(0, 0);
+            buffer.addVertex(matrix, x1, CHAR_HEIGHT, 0).setColor(r, g, b, 1).setUv(0, 0);
+            buffer.addVertex(matrix, x1, 0, 0).setColor(r, g, b, 1).setUv(0, 0);
+            buffer.addVertex(matrix, x0, 0, 0).setColor(r, g, b, 1).setUv(0, 0);
         }
 
         public void renderForeground(final Matrix4f matrix, final BufferBuilder buffer, final int row) {
@@ -1067,25 +1075,25 @@ public class Terminal {
                 Glyph glyph = FontHandling.getGlyph(character, font);
 
                 if (font == FontHandling.FontStyle.ITALIC || font == FontHandling.FontStyle.BOLD_ITALIC) { // Italic
-                    buffer.vertex(matrix, offset, CHAR_HEIGHT, 0).color(r, g, b, 1).uv(glyph.uStart, glyph.vEnd).endVertex();
-                    buffer.vertex(matrix, offset + CHAR_WIDTH + 8, CHAR_HEIGHT, 0).color(r, g, b, 1).uv(glyph.uEnd, glyph.vEnd).endVertex();
-                    buffer.vertex(matrix, offset + CHAR_WIDTH + 8, 0, 0).color(r, g, b, 1).uv(glyph.uEnd, glyph.vStart).endVertex();
-                    buffer.vertex(matrix, offset, 0, 0).color(r, g, b, 1).uv(glyph.uStart, glyph.vStart).endVertex();
+                    buffer.addVertex(matrix, offset, CHAR_HEIGHT, 0).setColor(r, g, b, 1).setUv(glyph.uStart, glyph.vEnd);
+                    buffer.addVertex(matrix, offset + CHAR_WIDTH + 8, CHAR_HEIGHT, 0).setColor(r, g, b, 1).setUv(glyph.uEnd, glyph.vEnd);
+                    buffer.addVertex(matrix, offset + CHAR_WIDTH + 8, 0, 0).setColor(r, g, b, 1).setUv(glyph.uEnd, glyph.vStart);
+                    buffer.addVertex(matrix, offset, 0, 0).setColor(r, g, b, 1).setUv(glyph.uStart, glyph.vStart);
                 }
                 else
                 {
-                    buffer.vertex(matrix, offset, CHAR_HEIGHT, 0).color(r, g, b, 1).uv(glyph.uStart, glyph.vEnd).endVertex();
-                    buffer.vertex(matrix, offset + CHAR_WIDTH, CHAR_HEIGHT, 0).color(r, g, b, 1).uv(glyph.uEnd, glyph.vEnd).endVertex();
-                    buffer.vertex(matrix, offset + CHAR_WIDTH, 0, 0).color(r, g, b, 1).uv(glyph.uEnd, glyph.vStart).endVertex();
-                    buffer.vertex(matrix, offset, 0, 0).color(r, g, b, 1).uv(glyph.uStart, glyph.vStart).endVertex();
+                    buffer.addVertex(matrix, offset, CHAR_HEIGHT, 0).setColor(r, g, b, 1).setUv(glyph.uStart, glyph.vEnd);
+                    buffer.addVertex(matrix, offset + CHAR_WIDTH, CHAR_HEIGHT, 0).setColor(r, g, b, 1).setUv(glyph.uEnd, glyph.vEnd);
+                    buffer.addVertex(matrix, offset + CHAR_WIDTH, 0, 0).setColor(r, g, b, 1).setUv(glyph.uEnd, glyph.vStart);
+                    buffer.addVertex(matrix, offset, 0, 0).setColor(r, g, b, 1).setUv(glyph.uStart, glyph.vStart);
                 }
             }
 
             if ((style & STYLE_UNDERLINE_MASK) != 0) {
-                buffer.vertex(matrix, offset, CHAR_HEIGHT - 3, 0).color(r, g, b, 1).uv(0, 0).endVertex();
-                buffer.vertex(matrix, offset + CHAR_WIDTH, CHAR_HEIGHT - 3, 0).color(r, g, b, 1).uv(0, 0).endVertex();
-                buffer.vertex(matrix, offset + CHAR_WIDTH, CHAR_HEIGHT - 2, 0).color(r, g, b, 1).uv(0, 0).endVertex();
-                buffer.vertex(matrix, offset, CHAR_HEIGHT - 2, 0).color(r, g, b, 1).uv(0, 0).endVertex();
+                buffer.addVertex(matrix, offset, CHAR_HEIGHT - 3, 0).setColor(r, g, b, 1).setUv(0, 0);
+                buffer.addVertex(matrix, offset + CHAR_WIDTH, CHAR_HEIGHT - 3, 0).setColor(r, g, b, 1).setUv(0, 0);
+                buffer.addVertex(matrix, offset + CHAR_WIDTH, CHAR_HEIGHT - 2, 0).setColor(r, g, b, 1).setUv(0, 0);
+                buffer.addVertex(matrix, offset, CHAR_HEIGHT - 2, 0).setColor(r, g, b, 1).setUv(0, 0);
             }
         }
 
@@ -1122,8 +1130,7 @@ public class Terminal {
             stack.translate(terminal.x * CHAR_WIDTH, (useAltBuffer ? terminal.y : localY) * CHAR_HEIGHT, 0);
 
             final Matrix4f matrix = stack.last().pose();
-            final BufferBuilder buffer = Tesselator.getInstance().getBuilder();
-            buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+            final BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
 
             final int foreground = COLORS[Color.WHITE];
             final float r = ((foreground >> 16) & 0xFF) / 255f;
@@ -1132,26 +1139,26 @@ public class Terminal {
 
             switch (terminal.cursorMode) {
                 case CursorMode.DEFAULT, CursorMode.BLINK_BLOCK, CursorMode.STEADY_BLOCK: // BLOCK
-                    buffer.vertex(matrix, 0, CHAR_HEIGHT, 0).color(r, g, b, 1).endVertex();
-                    buffer.vertex(matrix, CHAR_WIDTH, CHAR_HEIGHT, 0).color(r, g, b, 1).endVertex();
-                    buffer.vertex(matrix, CHAR_WIDTH, 0, 0).color(r, g, b, 1).endVertex();
-                    buffer.vertex(matrix, 0, 0, 0).color(r, g, b, 1).endVertex();
+                    buffer.addVertex(matrix, 0, CHAR_HEIGHT, 0).setColor(r, g, b, 1);
+                    buffer.addVertex(matrix, CHAR_WIDTH, CHAR_HEIGHT, 0).setColor(r, g, b, 1);
+                    buffer.addVertex(matrix, CHAR_WIDTH, 0, 0).setColor(r, g, b, 1);
+                    buffer.addVertex(matrix, 0, 0, 0).setColor(r, g, b, 1);
                     break;
                 case CursorMode.BLINK_UNDERLINE, CursorMode.STEADY_UNDERLINE: // UNDERLINE
-                    buffer.vertex(matrix, 0, 1, 0).color(r, g, b, 1).endVertex();
-                    buffer.vertex(matrix, CHAR_WIDTH, 1, 0).color(r, g, b, 1).endVertex();
-                    buffer.vertex(matrix, CHAR_WIDTH, 0, 0).color(r, g, b, 1).endVertex();
-                    buffer.vertex(matrix, 0, 0, 0).color(r, g, b, 1).endVertex();
+                    buffer.addVertex(matrix, 0, 1, 0).setColor(r, g, b, 1);
+                    buffer.addVertex(matrix, CHAR_WIDTH, 1, 0).setColor(r, g, b, 1);
+                    buffer.addVertex(matrix, CHAR_WIDTH, 0, 0).setColor(r, g, b, 1);
+                    buffer.addVertex(matrix, 0, 0, 0).setColor(r, g, b, 1);
                     break;
                 case CursorMode.BLINKING_BAR_LINE, CursorMode.STEADY_BAR_LINE: // VERTICAL BAR LINE
-                    buffer.vertex(matrix, 0, CHAR_HEIGHT, 0).color(r, g, b, 1).endVertex();
-                    buffer.vertex(matrix, 1, CHAR_HEIGHT, 0).color(r, g, b, 1).endVertex();
-                    buffer.vertex(matrix, 1, 0, 0).color(r, g, b, 1).endVertex();
-                    buffer.vertex(matrix, 0, 0, 0).color(r, g, b, 1).endVertex();
+                    buffer.addVertex(matrix, 0, CHAR_HEIGHT, 0).setColor(r, g, b, 1);
+                    buffer.addVertex(matrix, 1, CHAR_HEIGHT, 0).setColor(r, g, b, 1);
+                    buffer.addVertex(matrix, 1, 0, 0).setColor(r, g, b, 1);
+                    buffer.addVertex(matrix, 0, 0, 0).setColor(r, g, b, 1);
                     break;
             }
 
-            BufferBuilder.RenderedBuffer rb = buffer.end();
+            MeshData rb = buffer.buildOrThrow();
             BufferUploader.drawWithShader(rb);
 
             stack.popPose();

@@ -1,20 +1,20 @@
 package li.cil.oc2.common.config.common;
 
 import li.cil.oc2.common.config.Config;
-import net.minecraftforge.common.ForgeConfigSpec;
+import net.neoforged.neoforge.common.ModConfigSpec;
 
 import java.util.UUID;
 
 public class AdminSpec {
     // ROOT //
-    public final ForgeConfigSpec.ConfigValue<String> fakePlayerUUID;
+    public final ModConfigSpec.ConfigValue<String> fakePlayerUUID;
     // NETWORK //
-    public final ForgeConfigSpec.IntValue projectorAverageMaxBytesPerSecond;
+    public final ModConfigSpec.IntValue projectorAverageMaxBytesPerSecond;
     // VIRTUAL NETWORK //
-    public final ForgeConfigSpec.IntValue ethernetFrameTimeToLive;
-    public final ForgeConfigSpec.IntValue hubEthernetFrameTimeToLive;
+    public final ModConfigSpec.IntValue ethernetFrameTimeToLive;
+    public final ModConfigSpec.IntValue hubEthernetFrameTimeToLive;
 
-    AdminSpec(ForgeConfigSpec.Builder builder) {
+    AdminSpec(ModConfigSpec.Builder builder) {
         fakePlayerUUID = builder.comment("The UUID that the mod will use for it's fake player")
             .define("fakePlayerUUID", "e39dd9a7-514f-4a2d-aa5e-b6030621416d");
 

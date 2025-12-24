@@ -7,6 +7,7 @@ import li.cil.oc2.common.Constants;
 import li.cil.oc2.common.inet.InternetAdapter;
 import li.cil.oc2.common.inet.InternetConnection;
 import li.cil.oc2.common.inet.InternetManagerImpl;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
@@ -50,14 +51,14 @@ public final class InternetCardDevice extends AbstractNetworkInterfaceDevice {
     private Tag internetAdapterState = null;
 
     @Override
-    public void deserializeNBT(final CompoundTag tag) {
-        super.deserializeNBT(tag);
+    public void deserializeNBT(HolderLookup.Provider provider, final CompoundTag tag) {
+        super.deserializeNBT(provider, tag);
         internetAdapterState = tag.get(Constants.INTERNET_ADAPTER_TAG_NAME);
     }
 
     @Override
-    public CompoundTag serializeNBT() {
-        final CompoundTag tag = super.serializeNBT();
+    public CompoundTag serializeNBT(HolderLookup.Provider provider) {
+        final CompoundTag tag = super.serializeNBT(provider);
         final InternetConnection internetConnection = this.internetConnection;
         if (internetConnection != null) {
             internetConnection.saveAdapterState()

@@ -1,26 +1,26 @@
 package li.cil.oc2.common.config.common;
 
 import li.cil.oc2.common.config.Config;
-import net.minecraftforge.common.ForgeConfigSpec;
+import net.neoforged.neoforge.common.ModConfigSpec;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class InternetCardSpec {
-    public final ForgeConfigSpec.BooleanValue internetCardEnabled;
-    public final ForgeConfigSpec.IntValue defaultSessionLifetimeMs;
-    public final ForgeConfigSpec.IntValue defaultSessionsNumberPerCardLimit;
-    public final ForgeConfigSpec.IntValue defaultSessionsNumberLimit;
-    public final ForgeConfigSpec.IntValue defaultEchoRequestTimeoutMs;
-    public final ForgeConfigSpec.ConfigValue<List<? extends String>> deniedHosts;
-    public final ForgeConfigSpec.ConfigValue<List<? extends String>> allowedHosts;
-    public final ForgeConfigSpec.ConfigValue<String> defaultNameServer;
-    public final ForgeConfigSpec.BooleanValue useSynchronisedNAT;
-    public final ForgeConfigSpec.IntValue streamBufferSize;
-    public final ForgeConfigSpec.IntValue tcpRetransmissionTimeoutMs;
+    public final ModConfigSpec.BooleanValue internetCardEnabled;
+    public final ModConfigSpec.IntValue defaultSessionLifetimeMs;
+    public final ModConfigSpec.IntValue defaultSessionsNumberPerCardLimit;
+    public final ModConfigSpec.IntValue defaultSessionsNumberLimit;
+    public final ModConfigSpec.IntValue defaultEchoRequestTimeoutMs;
+    public final ModConfigSpec.ConfigValue<List<? extends String>> deniedHosts;
+    public final ModConfigSpec.ConfigValue<List<? extends String>> allowedHosts;
+    public final ModConfigSpec.ConfigValue<String> defaultNameServer;
+    public final ModConfigSpec.BooleanValue useSynchronisedNAT;
+    public final ModConfigSpec.IntValue streamBufferSize;
+    public final ModConfigSpec.IntValue tcpRetransmissionTimeoutMs;
 
-    InternetCardSpec(ForgeConfigSpec.Builder builder) {
+    InternetCardSpec(ModConfigSpec.Builder builder) {
         internetCardEnabled = builder.comment("Whether to enable to internet card, VXLAN must also be enabled")
             .define("internetCardEnabled", false);
 

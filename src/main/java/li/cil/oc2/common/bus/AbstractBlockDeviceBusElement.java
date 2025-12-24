@@ -7,7 +7,6 @@ import li.cil.oc2.api.bus.DeviceBusElement;
 import li.cil.oc2.api.bus.device.Device;
 import li.cil.oc2.api.bus.device.provider.BlockDeviceProvider;
 import li.cil.oc2.api.bus.device.provider.BlockDeviceQuery;
-import li.cil.oc2.api.util.Invalidatable;
 import li.cil.oc2.common.Constants;
 import li.cil.oc2.common.bus.device.provider.Providers;
 import li.cil.oc2.common.bus.device.rpc.TypeNameRPCDevice;
@@ -17,15 +16,16 @@ import li.cil.oc2.common.capabilities.Capabilities;
 import li.cil.oc2.common.util.LevelUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Registry;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.registries.IForgeRegistry;
+import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.util.*;
 
 import static li.cil.oc2.common.util.RegistryUtils.optionalKey;
@@ -39,13 +39,14 @@ public abstract class AbstractBlockDeviceBusElement extends AbstractGroupingDevi
     // DeviceBusElement
 
     @Override
-    public Optional<Collection<LazyOptional<DeviceBusElement>>> getNeighbors() {
-        final LevelAccessor level = getLevel();
-        if (level == null || level.isClientSide()) {
+    public Optional<Collection<DeviceBusElement>> getNeighbors() {
+        final Level common_level = getLevel();
+        if (common_level == null || common_level.isClientSide()) {
             return Optional.empty();
         }
+        final ServerLevel level = (ServerLevel) common_level;
 
-        final ArrayList<LazyOptional<DeviceBusElement>> neighbors = new ArrayList<>();
+        final ArrayList<DeviceBusElement> neighbors = new ArrayList<>();
         for (final Direction neighborDirection : Constants.DIRECTIONS) {
             if (!canScanContinueTowards(neighborDirection)) {
                 continue;
@@ -63,8 +64,14 @@ public abstract class AbstractBlockDeviceBusElement extends AbstractGroupingDevi
                 continue;
             }
 
-            final LazyOptional<DeviceBusElement> capability = blockEntity.getCapability(Capabilities.deviceBusElement(), neighborDirection.getOpposite());
-            if (capability.isPresent()) {
+            final DeviceBusElement capability =
+                level.getCapability(
+                    Capabilities.DeviceBusElement.BLOCK,
+                    neighborPos,
+                    neighborDirection.getOpposite()
+                );
+
+            if (capability != null) {
                 neighbors.add(capability);
             }
         }
@@ -79,11 +86,12 @@ public abstract class AbstractBlockDeviceBusElement extends AbstractGroupingDevi
         if (level == null || level.isClientSide()) {
             return;
         }
+        final var registries = level.registryAccess();
 
         final int index = side.get3DDataValue();
         collectDevices(level, getPosition().relative(side), side).ifPresentOrElse(
-            queryResult -> setEntriesForGroup(index, queryResult),
-            () -> setEntriesForGroupUnloaded(index)
+            queryResult -> setEntriesForGroup(registries, index, queryResult),
+            () -> setEntriesForGroupUnloaded(registries, index)
         );
     }
 
@@ -92,12 +100,13 @@ public abstract class AbstractBlockDeviceBusElement extends AbstractGroupingDevi
         if (level == null || level.isClientSide()) {
             return;
         }
+        final var registries = level.registryAccess();
 
         for (final Direction side : Direction.values()) {
             final int index = side.get3DDataValue();
             final BlockPos pos = getPosition().relative(side);
             final BlockDeviceQuery query = Devices.makeQuery(level, pos, side.getOpposite());
-            setEntriesForGroup(index, new BlockQueryResult(query, Collections.emptySet()));
+            setEntriesForGroup(registries, index, new BlockQueryResult(query, Collections.emptySet()));
         }
 
         scheduleScan();
@@ -118,12 +127,10 @@ public abstract class AbstractBlockDeviceBusElement extends AbstractGroupingDevi
         final HashSet<BlockEntry> entries = new HashSet<>();
 
         if (canDetectDevicesTowards(side)) {
-            final Optional<List<Invalidatable<BlockDeviceInfo>>> loadedDevices = Devices.getDevices(query);
+            final Optional<List<BlockDeviceInfo>> loadedDevices = Devices.getDevices(query);
             if (loadedDevices.isPresent()) {
-                for (final Invalidatable<BlockDeviceInfo> deviceInfo : loadedDevices.get()) {
-                    if (deviceInfo.isPresent()) {
-                        entries.add(new BlockEntry(deviceInfo, side));
-                    }
+                for (final BlockDeviceInfo blockDeviceInfo : loadedDevices.get()) {
+                    entries.add(new BlockEntry(blockDeviceInfo, side));
                 }
             } else {
                 return Optional.empty();
@@ -147,23 +154,11 @@ public abstract class AbstractBlockDeviceBusElement extends AbstractGroupingDevi
     }
 
     @Override
-    protected void onEntryAdded(final BlockEntry entry) {
-        super.onEntryAdded(entry);
-        entry.addListener();
-    }
-
-    @Override
-    protected void onEntryRemoved(final BlockEntry entry) {
-        super.onEntryRemoved(entry);
-        entry.removeListener();
-    }
-
-    @Override
     protected void onEntryRemoved(final String dataKey, final CompoundTag tag, @Nullable final BlockDeviceQuery query) {
         super.onEntryRemoved(dataKey, tag, query);
         assert query != null : "Passed null query for block device bus element.";
-        final IForgeRegistry<BlockDeviceProvider> registry = Providers.blockDeviceProviderRegistry();
-        final BlockDeviceProvider provider = registry.getValue(ResourceLocation.parse(dataKey));
+        final Registry<BlockDeviceProvider> registry = Providers.blockDeviceProviderRegistry();
+        final BlockDeviceProvider provider = registry.get(ResourceLocation.parse(dataKey));
         if (provider != null) {
             provider.unmount(query, tag);
         }
@@ -190,25 +185,20 @@ public abstract class AbstractBlockDeviceBusElement extends AbstractGroupingDevi
         }
     }
 
-    protected final class BlockEntry implements Entry {
-        private final Invalidatable<BlockDeviceInfo> deviceInfo;
+    protected static final class BlockEntry implements Entry {
+        private final BlockDeviceInfo deviceInfo;
         @Nullable private final String dataKey;
         private final Device device;
         @Nullable private final Direction side;
-        private Invalidatable.ListenerToken token;
 
-        public BlockEntry(final Invalidatable<BlockDeviceInfo> deviceInfo, @Nullable final Direction side) {
+        public BlockEntry(final BlockDeviceInfo deviceInfo, @Nullable final Direction side) {
             this.deviceInfo = deviceInfo;
             this.side = side;
 
             // Grab these while the device info has not yet been invalidated. We still need to access
             // these even after the device has been invalidated to clean up.
-            this.dataKey = optionalKey(deviceInfo.get().provider).orElse(null);
-            this.device = deviceInfo.get().device;
-        }
-
-        public BlockEntry(final BlockDeviceInfo deviceInfo, @Nullable final Direction side) {
-            this(Invalidatable.of(deviceInfo), side);
+            this.dataKey = optionalKey(deviceInfo.provider).orElse(null);
+            this.device = deviceInfo.device;
         }
 
         @Override
@@ -217,29 +207,13 @@ public abstract class AbstractBlockDeviceBusElement extends AbstractGroupingDevi
         }
 
         @Override
-        public OptionalInt getDeviceEnergyConsumption() {
-            return deviceInfo.isPresent() ? OptionalInt.of(deviceInfo.get().getEnergyConsumption()) : OptionalInt.empty();
+        public int getDeviceEnergyConsumption() {
+            return deviceInfo.getEnergyConsumption();
         }
 
         @Override
         public Device getDevice() {
             return device;
-        }
-
-        public void addListener() {
-            // Side can be null for the block that owns the bus element, e.g. in the computer, where the
-            // block adds itself. In this case, we can skip the listener, since the bus element's existence
-            // and validity is tightly coupled to the device source anyway.
-            if (token == null && side != null) {
-                token = deviceInfo.addListener(unused -> updateDevicesForNeighbor(side));
-            }
-        }
-
-        public void removeListener() {
-            if (token != null) {
-                token.removeListener();
-                token = null;
-            }
         }
 
         @Override

@@ -6,6 +6,7 @@ import li.cil.oc2.api.inet.session.DatagramSession;
 import li.cil.oc2.api.inet.session.EchoSession;
 import li.cil.oc2.api.inet.session.Session;
 import li.cil.oc2.api.inet.session.StreamSession;
+import li.cil.oc2.common.Main;
 import li.cil.oc2.common.config.Config;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -131,7 +132,7 @@ public final class DefaultSessionLayer implements SessionLayer {
         });
     }
 
-    public native byte[] sendICMP(byte[] ip, byte[] data, int size, int timeout);
+    public static native byte @Nullable [] sendICMP(byte[] ip, byte[] data, int size, int timeout);
 
     @Override
     public void sendSession(final Session session, @Nullable final ByteBuffer data) {
@@ -143,20 +144,25 @@ public final class DefaultSessionLayer implements SessionLayer {
             byte[] payload = new byte[data.remaining()];
             int size = data.remaining();
             data.get(payload);
-            byte[] responseData = sendICMP(address.getAddress(), payload, size, Config.defaultEchoRequestTimeoutMs);
-            if (responseData != null) {
-                final EchoResponse response = new EchoResponse(ByteBuffer.wrap(responseData), echoSession);
-                echoResponse.set(response);
-            }
-            /*executor.execute(() -> {
-                try {
-                    if (address.isReachable(null, echoSession.getTtl(), Config.defaultEchoRequestTimeoutMs)) {
-                        echoResponse.set(response);
-                    }
-                } catch (IOException e) {
-                    LOGGER.error("Failed to get echo response", e);
+            if (Main.LoadedLibrary) {
+                byte[] responseData = sendICMP(address.getAddress(), payload, size, Config.defaultEchoRequestTimeoutMs);
+                if (responseData != null) {
+                    final EchoResponse response = new EchoResponse(ByteBuffer.wrap(responseData), echoSession);
+                    echoResponse.set(response);
                 }
-            });*/
+            }
+            else {
+                executor.execute(() -> {
+                    try {
+                        final EchoResponse response = new EchoResponse(data, echoSession);
+                        if (address.isReachable(null, echoSession.getTtl(), Config.defaultEchoRequestTimeoutMs)) {
+                            echoResponse.set(response);
+                        }
+                    } catch (IOException e) {
+                        LOGGER.error("Failed to get echo response", e);
+                    }
+                });
+            }
         } else if (session instanceof DatagramSession datagramSession) {
             try {
                 switch (session.getState()) {

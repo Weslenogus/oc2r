@@ -16,8 +16,8 @@ import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -90,9 +90,9 @@ public abstract class AbstractMachineTerminalScreen<T extends AbstractMachineTer
     }
 
     @Override
-    public boolean mouseScrolled(double p_94686_, double p_94687_, double p_94688_)
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY)
     {
-        return terminalWidget.mouseScrolled(p_94688_);
+        return terminalWidget.mouseScrolled(scrollY);
     }
 
     @Override

@@ -3,19 +3,24 @@
 package li.cil.oc2.common.container;
 
 import li.cil.oc2.common.bus.AbstractItemDeviceBusElement;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 
 import javax.annotation.Nonnull;
+import java.util.function.Supplier;
 
 public abstract class AbstractDeviceItemStackHandler extends FixedSizeItemStackHandler {
-    public AbstractDeviceItemStackHandler(final int size) {
-        this(NonNullList.withSize(size, ItemStack.EMPTY));
+    private final Supplier<HolderLookup.Provider> providerSupplier;
+
+    public AbstractDeviceItemStackHandler(Supplier<HolderLookup.Provider> providerSupplier, final int size) {
+        this(providerSupplier, NonNullList.withSize(size, ItemStack.EMPTY));
     }
 
-    public AbstractDeviceItemStackHandler(final NonNullList<ItemStack> stacks) {
+    public AbstractDeviceItemStackHandler(Supplier<HolderLookup.Provider> providerSupplier, final NonNullList<ItemStack> stacks) {
         super(stacks);
+        this.providerSupplier = providerSupplier;
     }
 
     ///////////////////////////////////////////////////////////////////
@@ -29,32 +34,32 @@ public abstract class AbstractDeviceItemStackHandler extends FixedSizeItemStackH
     }
 
     @Override
-    public final CompoundTag serializeNBT() {
+    public final CompoundTag serializeNBT(HolderLookup.Provider provider) {
         throw new UnsupportedOperationException("Use saveItems and saveDevices instead.");
     }
 
     @Override
-    public final void deserializeNBT(final CompoundTag tag) {
+    public final void deserializeNBT(HolderLookup.Provider provider, final CompoundTag tag) {
         throw new UnsupportedOperationException("Use loadItems and loadDevices instead.");
     }
 
-    public CompoundTag saveItems() {
-        return super.serializeNBT();
+    public CompoundTag saveItems(HolderLookup.Provider provider) {
+        return super.serializeNBT(provider);
     }
 
-    public CompoundTag saveDevices() {
-        return getBusElement().save();
+    public CompoundTag saveDevices(HolderLookup.Provider provider) {
+        return getBusElement().save(provider);
     }
 
-    public void loadItems(final CompoundTag tag) {
-        super.deserializeNBT(tag);
+    public void loadItems(HolderLookup.Provider provider, final CompoundTag tag) {
+        super.deserializeNBT(provider, tag);
         for (int slot = 0; slot < getSlots(); slot++) {
-            getBusElement().handleSlotContentsChanged(slot, getStackInSlot(slot));
+            getBusElement().handleSlotContentsChanged(provider, slot, getStackInSlot(slot));
         }
     }
 
-    public void loadDevices(final CompoundTag tag) {
-        getBusElement().load(tag);
+    public void loadDevices(HolderLookup.Provider provider, final CompoundTag tag) {
+        getBusElement().loadAdditional(tag, provider);
     }
 
     @Override
@@ -85,6 +90,7 @@ public abstract class AbstractDeviceItemStackHandler extends FixedSizeItemStackH
     @Override
     protected void onContentsChanged(final int slot) {
         super.onContentsChanged(slot);
-        getBusElement().handleSlotContentsChanged(slot, getStackInSlot(slot));
+
+        getBusElement().handleSlotContentsChanged(providerSupplier.get(), slot, getStackInSlot(slot));
     }
 }

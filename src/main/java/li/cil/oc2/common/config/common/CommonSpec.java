@@ -1,9 +1,9 @@
 package li.cil.oc2.common.config.common;
 
-import net.minecraftforge.common.ForgeConfigSpec;
+import net.neoforged.neoforge.common.ModConfigSpec;
 
 public class CommonSpec {
-    public static final ForgeConfigSpec CONFIG_SPEC;
+    public static final ModConfigSpec CONFIG_SPEC;
     private static final VMSpec vmSpec;
     private static final EnergySpec energySpec;
     private static final GameplaySpec gameplaySpec;
@@ -12,7 +12,7 @@ public class CommonSpec {
     private static final InternetCardSpec internetCardSpec;
 
     static {
-        final ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
+        final ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
 
         // VM CONFIGURATION //
         builder.push("vm");

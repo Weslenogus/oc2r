@@ -5,8 +5,9 @@ package li.cil.oc2.api.bus.device.provider;
 import li.cil.oc2.api.bus.device.Device;
 import li.cil.oc2.api.bus.device.rpc.RPCDevice;
 import li.cil.oc2.api.bus.device.vm.VMDevice;
-import li.cil.oc2.api.util.Invalidatable;
 import net.minecraft.nbt.CompoundTag;
+
+import java.util.Optional;
 
 /**
  * This is used to query for devices given a block face.
@@ -51,7 +52,7 @@ public interface BlockDeviceProvider {
      * @param query the query describing the object to get a {@link Device} for.
      * @return a device for the specified query, if available.
      */
-    Invalidatable<Device> getDevice(BlockDeviceQuery query);
+    Optional<Device> getDevice(BlockDeviceQuery query);
 
     /**
      * Last-resort cleanup method for devices provided by this provider.

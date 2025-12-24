@@ -18,11 +18,11 @@ import li.cil.oc2.common.item.Items;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.registries.DeferredHolder;
+import net.neoforged.neoforge.registries.DeferredRegister;
 
 @OnlyIn(Dist.CLIENT)
 public final class Manuals {
@@ -33,16 +33,16 @@ public final class Manuals {
 
     ///////////////////////////////////////////////////////////////////
 
-    public static final RegistryObject<ManualModel> MANUAL = MANUALS.register("manual", Manual::new);
+    public static final DeferredHolder<ManualModel, Manual> MANUAL = MANUALS.register("manual", Manual::new);
 
     ///////////////////////////////////////////////////////////////////
 
-    public static void initialize(FMLJavaModLoadingContext context) {
-        MANUALS.register(context.getModEventBus());
+    public static void initialize(IEventBus modBus) {
+        MANUALS.register(modBus);
 
-        PATH_PROVIDERS.register(context.getModEventBus());
-        CONTENT_PROVIDERS.register(context.getModEventBus());
-        TABS.register(context.getModEventBus());
+        PATH_PROVIDERS.register(modBus);
+        CONTENT_PROVIDERS.register(modBus);
+        TABS.register(modBus);
 
         PATH_PROVIDERS.register("path_provider", () -> new NamespacePathProvider(API.MOD_ID));
         CONTENT_PROVIDERS.register("content_provider", () -> new NamespaceDocumentProvider(API.MOD_ID, "doc"));

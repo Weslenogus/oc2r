@@ -1,40 +1,40 @@
 package li.cil.oc2.common.config.common;
 
 import li.cil.oc2.common.config.Config;
-import net.minecraftforge.common.ForgeConfigSpec;
+import net.neoforged.neoforge.common.ModConfigSpec;
 
 public class EnergySpec {
     // BLOCKS //
-    public final ForgeConfigSpec.DoubleValue busCableEnergyPerTick;
-    public final ForgeConfigSpec.DoubleValue busInterfaceEnergyPerTick;
-    public final ForgeConfigSpec.IntValue computerEnergyPerTick;
-    public final ForgeConfigSpec.IntValue computerEnergyStorage;
-    public final ForgeConfigSpec.IntValue chargerEnergyPerTick;
-    public final ForgeConfigSpec.IntValue chargerEnergyStorage;
-    public final ForgeConfigSpec.IntValue projectorEnergyPerTick;
-    public final ForgeConfigSpec.IntValue projectorEnergyStorage;
-    public final ForgeConfigSpec.IntValue monitorEnergyPerTick;
-    public final ForgeConfigSpec.IntValue monitorEnergyStorage;
-    public final ForgeConfigSpec.IntValue cardCageEnergyPerTick;
-    public final ForgeConfigSpec.IntValue cardCageEnergyStorage;
-    public final ForgeConfigSpec.IntValue gatewayEnergyPerPacket;
-    public final ForgeConfigSpec.IntValue gatewayEnergyStorage;
+    public final ModConfigSpec.DoubleValue busCableEnergyPerTick;
+    public final ModConfigSpec.DoubleValue busInterfaceEnergyPerTick;
+    public final ModConfigSpec.IntValue computerEnergyPerTick;
+    public final ModConfigSpec.IntValue computerEnergyStorage;
+    public final ModConfigSpec.IntValue chargerEnergyPerTick;
+    public final ModConfigSpec.IntValue chargerEnergyStorage;
+    public final ModConfigSpec.IntValue projectorEnergyPerTick;
+    public final ModConfigSpec.IntValue projectorEnergyStorage;
+    public final ModConfigSpec.IntValue monitorEnergyPerTick;
+    public final ModConfigSpec.IntValue monitorEnergyStorage;
+    public final ModConfigSpec.IntValue cardCageEnergyPerTick;
+    public final ModConfigSpec.IntValue cardCageEnergyStorage;
+    public final ModConfigSpec.IntValue gatewayEnergyPerPacket;
+    public final ModConfigSpec.IntValue gatewayEnergyStorage;
     // ENTITIES //
-    public final ForgeConfigSpec.IntValue robotEnergyPerTick;
-    public final ForgeConfigSpec.IntValue robotEnergyStorage;
+    public final ModConfigSpec.IntValue robotEnergyPerTick;
+    public final ModConfigSpec.IntValue robotEnergyStorage;
     // ITEMS //
-    public final ForgeConfigSpec.DoubleValue memoryEnergyPerMegabytePerTick;
-    public final ForgeConfigSpec.DoubleValue hardDriveEnergyPerMegabytePerTick;
-    public final ForgeConfigSpec.DoubleValue cpuEnergyPerMegahertzPerTick;
-    public final ForgeConfigSpec.IntValue redstoneInterfaceCardEnergyPerTick;
-    public final ForgeConfigSpec.IntValue networkInterfaceEnergyPerTick;
-    public final ForgeConfigSpec.IntValue fileImportExportCardEnergyPerTick;
-    public final ForgeConfigSpec.IntValue soundCardEnergyPerTick;
-    public final ForgeConfigSpec.IntValue blockOperationsModuleEnergyPerTick;
-    public final ForgeConfigSpec.IntValue inventoryOperationsModuleEnergyPerTick;
-    public final ForgeConfigSpec.IntValue networkTunnelEnergyPerTick;
+    public final ModConfigSpec.DoubleValue memoryEnergyPerMegabytePerTick;
+    public final ModConfigSpec.DoubleValue hardDriveEnergyPerMegabytePerTick;
+    public final ModConfigSpec.DoubleValue cpuEnergyPerMegahertzPerTick;
+    public final ModConfigSpec.IntValue redstoneInterfaceCardEnergyPerTick;
+    public final ModConfigSpec.IntValue networkInterfaceEnergyPerTick;
+    public final ModConfigSpec.IntValue fileImportExportCardEnergyPerTick;
+    public final ModConfigSpec.IntValue soundCardEnergyPerTick;
+    public final ModConfigSpec.IntValue blockOperationsModuleEnergyPerTick;
+    public final ModConfigSpec.IntValue inventoryOperationsModuleEnergyPerTick;
+    public final ModConfigSpec.IntValue networkTunnelEnergyPerTick;
 
-    EnergySpec(ForgeConfigSpec.Builder builder) {
+    EnergySpec(ModConfigSpec.Builder builder) {
         builder.push("blocks");
 
         busCableEnergyPerTick = builder.comment("The amount of energy consumed per tick by a bus cable")

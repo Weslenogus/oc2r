@@ -3,22 +3,22 @@
 package li.cil.oc2.common.item.crafting;
 
 import li.cil.oc2.api.API;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.neoforge.registries.DeferredHolder;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.bus.api.IEventBus;
 
 public final class RecipeSerializers {
-    private static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS = DeferredRegister.create(ForgeRegistries.RECIPE_SERIALIZERS, API.MOD_ID);
+    private static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS = DeferredRegister.create(BuiltInRegistries.RECIPE_SERIALIZER, API.MOD_ID);
 
     ///////////////////////////////////////////////////////////////////
 
-    public static final RegistryObject<WrenchRecipe.Serializer> WRENCH = RECIPE_SERIALIZERS.register("wrench", () -> WrenchRecipe.Serializer.INSTANCE);
+    public static final DeferredHolder<RecipeSerializer<?>, WrenchRecipe.Serializer> WRENCH = RECIPE_SERIALIZERS.register("wrench", () -> WrenchRecipe.Serializer.INSTANCE);
 
     ///////////////////////////////////////////////////////////////////
 
-    public static void initialize(FMLJavaModLoadingContext context) {
-        RECIPE_SERIALIZERS.register(context.getModEventBus());
+    public static void initialize(IEventBus modBus) {
+        RECIPE_SERIALIZERS.register(modBus);
     }
 }

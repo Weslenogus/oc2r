@@ -9,7 +9,14 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraftforge.network.NetworkEvent;
+
+import io.netty.buffer.ByteBuf;
+import li.cil.oc2.api.API;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -19,40 +26,28 @@ import java.nio.file.Path;
 
 import static li.cil.oc2.common.util.TranslationUtils.text;
 
-public final class RequestImportedFileMessage extends AbstractMessage {
+public record RequestImportedFileMessage(int id) implements AbstractMessage {
     private static final Logger LOGGER = LogManager.getLogger();
     private static final MutableComponent FILE_TOO_LARGE_TEXT = text("message.{mod}.import_file.file_too_large");
 
     ///////////////////////////////////////////////////////////////////
 
-    private int id;
+    public static final StreamCodec<ByteBuf, RequestImportedFileMessage> STREAM_CODEC = StreamCodec.composite(
+        ByteBufCodecs.INT,
+        RequestImportedFileMessage::id,
+        RequestImportedFileMessage::new
+    );
 
-    ///////////////////////////////////////////////////////////////////
-
-    public RequestImportedFileMessage(final int id) {
-        this.id = id;
-    }
-
-    public RequestImportedFileMessage(final FriendlyByteBuf buffer) {
-        super(buffer);
-    }
-
-    ///////////////////////////////////////////////////////////////////
+    public static final CustomPacketPayload.Type<RequestImportedFileMessage> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "request_imported_file_message"));
 
     @Override
-    public void fromBytes(final FriendlyByteBuf buffer) {
-        id = buffer.readVarInt();
-    }
-
-    @Override
-    public void toBytes(final FriendlyByteBuf buffer) {
-        buffer.writeVarInt(id);
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 
     ///////////////////////////////////////////////////////////////////
 
-    @Override
-    protected void handleMessage(final NetworkEvent.Context context) {
+    public void handleMessage(IPayloadContext context) {
         FileChooserScreen.openFileChooserForLoad(new FileChooserScreen.FileChooserCallback() {
             @Override
             public void onFileSelected(final Path path) {

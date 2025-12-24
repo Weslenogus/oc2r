@@ -24,8 +24,13 @@ public class UnicodeFontRenderer {
         }
     }
 
+    // Sanitizes any invalid Unicode codepoints to the Unicode replacement character.
+    private static int sanitizeCharacter(int character) {
+        return Character.isValidCodePoint(character) ? character : 0xFFFD;
+    }
+
     public Glyph getGlyph(int character) {
-        return glyphCache.computeIfAbsent(character, this::rasterizeGlyph);
+        return glyphCache.computeIfAbsent(sanitizeCharacter(character), this::rasterizeGlyph);
     }
 
     private Glyph rasterizeGlyph(int character) {

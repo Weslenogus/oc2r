@@ -6,41 +6,33 @@ import li.cil.oc2.common.container.NetworkTunnelContainer;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraftforge.network.NetworkEvent;
 
-public final class NetworkTunnelLinkMessage extends AbstractMessage {
-    private int containerId;
+import io.netty.buffer.ByteBuf;
+import li.cil.oc2.api.API;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-    ///////////////////////////////////////////////////////////////////
+public record NetworkTunnelLinkMessage(int containerId) implements AbstractMessage {
+    public static final StreamCodec<ByteBuf, NetworkTunnelLinkMessage> STREAM_CODEC = StreamCodec.composite(
+        ByteBufCodecs.INT,
+        NetworkTunnelLinkMessage::containerId,
+        NetworkTunnelLinkMessage::new
+    );
 
-    public NetworkTunnelLinkMessage(final int containerId) {
-        this.containerId = containerId;
-    }
-
-    public NetworkTunnelLinkMessage(final FriendlyByteBuf buffer) {
-        super(buffer);
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-    @Override
-    public void fromBytes(final FriendlyByteBuf buffer) {
-        containerId = buffer.readVarInt();
-    }
+    public static final CustomPacketPayload.Type<NetworkTunnelLinkMessage> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "network_tunnel_link_message"));
 
     @Override
-    public void toBytes(final FriendlyByteBuf buffer) {
-        buffer.writeVarInt(containerId);
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 
     ///////////////////////////////////////////////////////////////////
 
-    @Override
-    protected void handleMessage(final NetworkEvent.Context context) {
-        final ServerPlayer player = context.getSender();
-        if (player == null) {
-            return;
-        }
+    public void handleMessage(IPayloadContext context) {
+        final ServerPlayer player = (ServerPlayer) context.player();
 
         final AbstractContainerMenu container = player.containerMenu;
         if (container.containerId != containerId) {

@@ -9,16 +9,18 @@ import li.cil.oc2.api.bus.device.provider.ItemDeviceQuery;
 import li.cil.oc2.api.bus.device.vm.VMDevice;
 import li.cil.oc2.common.bus.AbstractDeviceBusElement;
 import li.cil.oc2.common.bus.AbstractItemDeviceBusElement;
+import li.cil.oc2.common.components.RestrictedContainer;
 import li.cil.oc2.common.container.AbstractDeviceItemStackHandler;
 import li.cil.oc2.common.container.AbstractTypedDeviceItemStackHandler;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.IItemHandlerModifiable;
-import net.minecraftforge.items.wrapper.CombinedInvWrapper;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.IItemHandlerModifiable;
+import net.neoforged.neoforge.items.wrapper.CombinedInvWrapper;
 
 import java.util.*;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public abstract class AbstractVMItemStackHandlers implements VMItemStackHandlers {
@@ -36,15 +38,15 @@ public abstract class AbstractVMItemStackHandlers implements VMItemStackHandlers
 
     // NB: linked hash map such that order of parameters in constructor is retained.
     //     This is relevant when assigning default addresses for devices.
-    private final LinkedHashMap<DeviceType, AbstractDeviceItemStackHandler> itemHandlers = new LinkedHashMap<>();
+    private final LinkedHashMap<DeviceType, AbstractTypedDeviceItemStackHandler> itemHandlers = new LinkedHashMap<>();
 
     public final IItemHandler combinedItemHandlers;
 
     ///////////////////////////////////////////////////////////////////
 
-    public AbstractVMItemStackHandlers(final GroupDefinition... groups) {
+    public AbstractVMItemStackHandlers(Supplier<HolderLookup.Provider> providerSupplier, final GroupDefinition... groups) {
         for (final GroupDefinition group : groups) {
-            itemHandlers.put(group.deviceType, new VMItemHandler(group.count, group.deviceType));
+            itemHandlers.put(group.deviceType, new VMItemHandler(providerSupplier, group.count, group.deviceType));
         }
 
         combinedItemHandlers = new CombinedInvWrapper(itemHandlers.values().toArray(new IItemHandlerModifiable[0]));
@@ -70,7 +72,7 @@ public abstract class AbstractVMItemStackHandlers implements VMItemStackHandlers
     public OptionalLong getDeviceAddressBase(final VMDevice wrapper) {
         long address = ITEM_DEVICE_BASE_ADDRESS;
 
-        for (final Map.Entry<DeviceType, AbstractDeviceItemStackHandler> entry : itemHandlers.entrySet()) {
+        for (final Map.Entry<DeviceType, AbstractTypedDeviceItemStackHandler> entry : itemHandlers.entrySet()) {
             final DeviceType deviceType = entry.getKey();
             final AbstractDeviceItemStackHandler handler = entry.getValue();
 
@@ -100,39 +102,51 @@ public abstract class AbstractVMItemStackHandlers implements VMItemStackHandlers
         }
     }
 
-    public void saveItems(final CompoundTag tag) {
+    public void saveItems(RestrictedContainer container) {
+        itemHandlers.forEach((deviceType, handler) -> {
+            handler.saveItems(container);
+        });
+    }
+
+    public void saveItems(HolderLookup.Provider provider, final CompoundTag tag) {
         itemHandlers.forEach((deviceType, handler) -> {
             if (!handler.isEmpty()) {
-                tag.put(deviceType.getName().toString(), handler.saveItems());
+                tag.put(deviceType.getName().toString(), handler.saveItems(provider));
             }
         });
     }
 
-    public CompoundTag saveItems() {
+    public CompoundTag saveItems(HolderLookup.Provider provider) {
         final CompoundTag tag = new CompoundTag();
-        saveItems(tag);
+        saveItems(provider, tag);
         return tag;
     }
 
-    public void loadItems(final CompoundTag tag) {
-        itemHandlers.forEach((deviceType, handler) ->
-            handler.loadItems(tag.getCompound(deviceType.getName().toString())));
+    public void loadItems(HolderLookup.Provider provider, RestrictedContainer container) {
+        itemHandlers.forEach((deviceType, handler) -> {
+            handler.loadItems(provider, container);
+        });
     }
 
-    public void saveDevices(final CompoundTag tag) {
+    public void loadItems(HolderLookup.Provider provider, final CompoundTag tag) {
         itemHandlers.forEach((deviceType, handler) ->
-            tag.put(deviceType.getName().toString(), handler.saveDevices()));
+            handler.loadItems(provider, tag.getCompound(deviceType.getName().toString())));
     }
 
-    public CompoundTag saveDevices() {
+    public void saveDevices(HolderLookup.Provider registries, final CompoundTag tag) {
+        itemHandlers.forEach((deviceType, handler) ->
+            tag.put(deviceType.getName().toString(), handler.saveDevices(registries)));
+    }
+
+    public CompoundTag saveDevices(HolderLookup.Provider registries) {
         final CompoundTag tag = new CompoundTag();
-        saveDevices(tag);
+        saveDevices(registries, tag);
         return tag;
     }
 
-    public void loadDevices(final CompoundTag tag) {
+    public void loadDevices(HolderLookup.Provider registries, final CompoundTag tag) {
         itemHandlers.forEach((deviceType, handler) ->
-            handler.loadDevices(tag.getCompound(deviceType.getName().toString())));
+            handler.loadDevices(registries, tag.getCompound(deviceType.getName().toString())));
     }
 
     ///////////////////////////////////////////////////////////////////
@@ -147,8 +161,8 @@ public abstract class AbstractVMItemStackHandlers implements VMItemStackHandlers
     private final class VMItemHandler extends AbstractTypedDeviceItemStackHandler {
         private final VMItemBusElement busElement;
 
-        public VMItemHandler(final int size, final DeviceType deviceType) {
-            super(size, deviceType);
+        public VMItemHandler(Supplier<HolderLookup.Provider> providerSupplier, final int size, final DeviceType deviceType) {
+            super(providerSupplier, size, deviceType);
             this.busElement = new VMItemBusElement(getSlots());
         }
 
@@ -177,9 +191,9 @@ public abstract class AbstractVMItemStackHandlers implements VMItemStackHandlers
 
     private final class VMBusElement extends AbstractDeviceBusElement {
         @Override
-        public Optional<Collection<LazyOptional<DeviceBusElement>>> getNeighbors() {
+        public Optional<Collection<DeviceBusElement>> getNeighbors() {
             return Optional.of(itemHandlers.values().stream()
-                .map(handler -> LazyOptional.of(() -> (DeviceBusElement) handler.getBusElement()))
+                .map(AbstractDeviceItemStackHandler::getBusElement)
                 .collect(Collectors.toList()));
         }
     }

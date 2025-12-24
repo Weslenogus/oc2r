@@ -6,110 +6,100 @@ import li.cil.oc2.api.API;
 import li.cil.oc2.common.network.message.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraftforge.network.NetworkDirection;
-import net.minecraftforge.network.NetworkRegistry;
-import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.simple.SimpleChannel;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.handling.DirectionalPayloadHandler;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
-import java.util.function.Function;
-
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class Network {
     private static final String PROTOCOL_VERSION = "1";
 
-    public static final SimpleChannel INSTANCE = NetworkRegistry.newSimpleChannel(
-        ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "main"),
-        () -> PROTOCOL_VERSION,
-        PROTOCOL_VERSION::equals,
-        PROTOCOL_VERSION::equals
-    );
-
     ///////////////////////////////////////////////////////////////////
 
-    private static int nextPacketId = 1;
+    @SubscribeEvent
+    public static void registerPayloads(RegisterPayloadHandlersEvent event) {
+        final PayloadRegistrar registrar = event.registrar(PROTOCOL_VERSION);
 
-    ///////////////////////////////////////////////////////////////////
+        registrar.playToClient(ComputerTerminalOutputMessage.TYPE, ComputerTerminalOutputMessage.STREAM_CODEC, ComputerTerminalOutputMessage::handleMessage);
+        registrar.playToServer(ComputerTerminalInputMessage.TYPE, ComputerTerminalInputMessage.STREAM_CODEC, ComputerTerminalInputMessage::handleMessage);
+        registrar.playToClient(ComputerRunStateMessage.TYPE, ComputerRunStateMessage.STREAM_CODEC, ComputerRunStateMessage::handleMessage);
+        registrar.playToClient(ComputerBusStateMessage.TYPE, ComputerBusStateMessage.STREAM_CODEC, ComputerBusStateMessage::handleMessage);
+        registrar.playToClient(ComputerBootErrorMessage.TYPE, ComputerBootErrorMessage.STREAM_CODEC, ComputerBootErrorMessage::handleMessage);
+        registrar.playToServer(ComputerPowerMessage.TYPE, ComputerPowerMessage.STREAM_CODEC, ComputerPowerMessage::handleMessage);
+        registrar.playToServer(MonitorPowerMessage.TYPE, MonitorPowerMessage.STREAM_CODEC, MonitorPowerMessage::handleMessage);
+        registrar.playToClient(MonitorPowerMessageForwarded.TYPE, MonitorPowerMessageForwarded.STREAM_CODEC, MonitorPowerMessageForwarded::handleMessage);
+        registrar.playToServer(OpenComputerInventoryMessage.TYPE, OpenComputerInventoryMessage.STREAM_CODEC, OpenComputerInventoryMessage::handleMessage);
+        registrar.playToServer(OpenComputerTerminalMessage.TYPE, OpenComputerTerminalMessage.STREAM_CODEC, OpenComputerTerminalMessage::handleMessage);
 
-    public static void initialize() {
-        registerMessage(ComputerTerminalOutputMessage.class, ComputerTerminalOutputMessage::new, NetworkDirection.PLAY_TO_CLIENT);
-        registerMessage(ComputerTerminalInputMessage.class, ComputerTerminalInputMessage::new, NetworkDirection.PLAY_TO_SERVER);
-        registerMessage(ComputerRunStateMessage.class, ComputerRunStateMessage::new, NetworkDirection.PLAY_TO_CLIENT);
-        registerMessage(ComputerBusStateMessage.class, ComputerBusStateMessage::new, NetworkDirection.PLAY_TO_CLIENT);
-        registerMessage(ComputerBootErrorMessage.class, ComputerBootErrorMessage::new, NetworkDirection.PLAY_TO_CLIENT);
-        registerMessage(ComputerPowerMessage.class, ComputerPowerMessage::new, NetworkDirection.PLAY_TO_SERVER);
-        registerMessage(MonitorPowerMessage.class, MonitorPowerMessage::new, NetworkDirection.PLAY_TO_SERVER);
-        registerMessage(MonitorPowerMessageForwarded.class, MonitorPowerMessageForwarded::new, NetworkDirection.PLAY_TO_CLIENT);
-        registerMessage(OpenComputerInventoryMessage.class, OpenComputerInventoryMessage::new, NetworkDirection.PLAY_TO_SERVER);
-        registerMessage(OpenComputerTerminalMessage.class, OpenComputerTerminalMessage::new, NetworkDirection.PLAY_TO_SERVER);
+        registrar.playToClient(NetworkConnectorConnectionsMessage.TYPE, NetworkConnectorConnectionsMessage.STREAM_CODEC, NetworkConnectorConnectionsMessage::handleMessage);
 
-        registerMessage(NetworkConnectorConnectionsMessage.class, NetworkConnectorConnectionsMessage::new, NetworkDirection.PLAY_TO_CLIENT);
+        registrar.playToClient(RobotTerminalOutputMessage.TYPE, RobotTerminalOutputMessage.STREAM_CODEC, RobotTerminalOutputMessage::handleMessage);
+        registrar.playToServer(RobotTerminalInputMessage.TYPE, RobotTerminalInputMessage.STREAM_CODEC, RobotTerminalInputMessage::handleMessage);
+        registrar.playToClient(RobotRunStateMessage.TYPE, RobotRunStateMessage.STREAM_CODEC, RobotRunStateMessage::handleMessage);
+        registrar.playToClient(RobotBusStateMessage.TYPE, RobotBusStateMessage.STREAM_CODEC, RobotBusStateMessage::handleMessage);
+        registrar.playToClient(RobotBootErrorMessage.TYPE, RobotBootErrorMessage.STREAM_CODEC, RobotBootErrorMessage::handleMessage);
+        registrar.playToServer(RobotPowerMessage.TYPE, RobotPowerMessage.STREAM_CODEC, RobotPowerMessage::handleMessage);
+        registrar.playToServer(RobotInitializationRequestMessage.TYPE, RobotInitializationRequestMessage.STREAM_CODEC, RobotInitializationRequestMessage::handleMessage);
+        registrar.playToClient(RobotInitializationMessage.TYPE, RobotInitializationMessage.STREAM_CODEC, RobotInitializationMessage::handleMessage);
+        registrar.playToServer(OpenRobotInventoryMessage.TYPE, OpenRobotInventoryMessage.STREAM_CODEC, OpenRobotInventoryMessage::handleMessage);
+        registrar.playToServer(OpenRobotTerminalMessage.TYPE, OpenRobotTerminalMessage.STREAM_CODEC, OpenRobotTerminalMessage::handleMessage);
 
-        registerMessage(RobotTerminalOutputMessage.class, RobotTerminalOutputMessage::new, NetworkDirection.PLAY_TO_CLIENT);
-        registerMessage(RobotTerminalInputMessage.class, RobotTerminalInputMessage::new, NetworkDirection.PLAY_TO_SERVER);
-        registerMessage(RobotRunStateMessage.class, RobotRunStateMessage::new, NetworkDirection.PLAY_TO_CLIENT);
-        registerMessage(RobotBusStateMessage.class, RobotBusStateMessage::new, NetworkDirection.PLAY_TO_CLIENT);
-        registerMessage(RobotBootErrorMessage.class, RobotBootErrorMessage::new, NetworkDirection.PLAY_TO_CLIENT);
-        registerMessage(RobotPowerMessage.class, RobotPowerMessage::new, NetworkDirection.PLAY_TO_SERVER);
-        registerMessage(RobotInitializationRequestMessage.class, RobotInitializationRequestMessage::new, NetworkDirection.PLAY_TO_SERVER);
-        registerMessage(RobotInitializationMessage.class, RobotInitializationMessage::new, NetworkDirection.PLAY_TO_CLIENT);
-        registerMessage(OpenRobotInventoryMessage.class, OpenRobotInventoryMessage::new, NetworkDirection.PLAY_TO_SERVER);
-        registerMessage(OpenRobotTerminalMessage.class, OpenRobotTerminalMessage::new, NetworkDirection.PLAY_TO_SERVER);
+        registrar.playToClient(DiskDriveFloppyMessage.TYPE, DiskDriveFloppyMessage.STREAM_CODEC, DiskDriveFloppyMessage::handleMessage);
+        registrar.playToClient(FirmwareFlasherMessage.TYPE, FirmwareFlasherMessage.STREAM_CODEC, FirmwareFlasherMessage::handleMessage);
 
-        registerMessage(DiskDriveFloppyMessage.class, DiskDriveFloppyMessage::new, NetworkDirection.PLAY_TO_CLIENT);
-        registerMessage(FirmwareFlasherMessage.class, FirmwareFlasherMessage::new, NetworkDirection.PLAY_TO_CLIENT);
+        registrar.playBidirectional(BusInterfaceNameMessage.TYPE, BusInterfaceNameMessage.STREAM_CODEC, new DirectionalPayloadHandler<>(BusInterfaceNameMessage::handleClientMessage, BusInterfaceNameMessage::handleServerMessage));
 
+        registrar.playToClient(ExportedFileMessage.TYPE, ExportedFileMessage.STREAM_CODEC, ExportedFileMessage::handleMessage);
+        registrar.playToClient(RequestImportedFileMessage.TYPE, RequestImportedFileMessage.STREAM_CODEC, RequestImportedFileMessage::handleMessage);
+        registrar.playToServer(ImportedFileMessage.TYPE, ImportedFileMessage.STREAM_CODEC, ImportedFileMessage::handleMessage);
+        registrar.playToClient(ServerCanceledImportFileMessage.TYPE, ServerCanceledImportFileMessage.STREAM_CODEC, ServerCanceledImportFileMessage::handleMessage);
+        registrar.playToServer(ClientCanceledImportFileMessage.TYPE, ClientCanceledImportFileMessage.STREAM_CODEC, ClientCanceledImportFileMessage::handleMessage);
 
-        registerMessage(BusInterfaceNameMessage.ToClient.class, BusInterfaceNameMessage.ToClient::new, NetworkDirection.PLAY_TO_CLIENT);
-        registerMessage(BusInterfaceNameMessage.ToServer.class, BusInterfaceNameMessage.ToServer::new, NetworkDirection.PLAY_TO_SERVER);
+        registrar.playToClient(BusCableFacadeMessage.TYPE, BusCableFacadeMessage.STREAM_CODEC, BusCableFacadeMessage::handleMessage);
 
-        registerMessage(ExportedFileMessage.class, ExportedFileMessage::new, NetworkDirection.PLAY_TO_CLIENT);
-        registerMessage(RequestImportedFileMessage.class, RequestImportedFileMessage::new, NetworkDirection.PLAY_TO_CLIENT);
-        registerMessage(ImportedFileMessage.class, ImportedFileMessage::new, NetworkDirection.PLAY_TO_SERVER);
-        registerMessage(ServerCanceledImportFileMessage.class, ServerCanceledImportFileMessage::new, NetworkDirection.PLAY_TO_CLIENT);
-        registerMessage(ClientCanceledImportFileMessage.class, ClientCanceledImportFileMessage::new, NetworkDirection.PLAY_TO_SERVER);
+        registrar.playToServer(NetworkInterfaceCardConfigurationMessage.TYPE, NetworkInterfaceCardConfigurationMessage.STREAM_CODEC, NetworkInterfaceCardConfigurationMessage::handleMessage);
+        registrar.playToServer(NetworkTunnelLinkMessage.TYPE, NetworkTunnelLinkMessage.STREAM_CODEC, NetworkTunnelLinkMessage::handleMessage);
 
-        registerMessage(BusCableFacadeMessage.class, BusCableFacadeMessage::new, NetworkDirection.PLAY_TO_CLIENT);
+        registrar.playToServer(MonitorRequestFramebufferMessage.TYPE, MonitorRequestFramebufferMessage.STREAM_CODEC, MonitorRequestFramebufferMessage::handleMessage);
+        registrar.playToClient(MonitorFramebufferMessage.TYPE, MonitorFramebufferMessage.STREAM_CODEC, MonitorFramebufferMessage::handleMessage);
 
-        registerMessage(NetworkInterfaceCardConfigurationMessage.class, NetworkInterfaceCardConfigurationMessage::new, NetworkDirection.PLAY_TO_SERVER);
-        registerMessage(NetworkTunnelLinkMessage.class, NetworkTunnelLinkMessage::new, NetworkDirection.PLAY_TO_SERVER);
+        registrar.playToServer(ProjectorRequestFramebufferMessage.TYPE, ProjectorRequestFramebufferMessage.STREAM_CODEC, ProjectorRequestFramebufferMessage::handleMessage);
+        registrar.playToClient(ProjectorFramebufferMessage.TYPE, ProjectorFramebufferMessage.STREAM_CODEC, ProjectorFramebufferMessage::handleMessage);
+        registrar.playToClient(ProjectorStateMessage.TYPE, ProjectorStateMessage.STREAM_CODEC, ProjectorStateMessage::handleMessage);
+        registrar.playToClient(MonitorStateMessage.TYPE, MonitorStateMessage.STREAM_CODEC, MonitorStateMessage::handleMessage);
 
-        registerMessage(MonitorRequestFramebufferMessage.class, MonitorRequestFramebufferMessage::new, NetworkDirection.PLAY_TO_SERVER);
-        registerMessage(MonitorFramebufferMessage.class, MonitorFramebufferMessage::new, NetworkDirection.PLAY_TO_CLIENT);
+        registrar.playToServer(KeyboardInputMessage.TYPE, KeyboardInputMessage.STREAM_CODEC, KeyboardInputMessage::handleMessage);
 
-        registerMessage(ProjectorRequestFramebufferMessage.class, ProjectorRequestFramebufferMessage::new, NetworkDirection.PLAY_TO_SERVER);
-        registerMessage(ProjectorFramebufferMessage.class, ProjectorFramebufferMessage::new, NetworkDirection.PLAY_TO_CLIENT);
-        registerMessage(ProjectorStateMessage.class, ProjectorStateMessage::new, NetworkDirection.PLAY_TO_CLIENT);
-        registerMessage(MonitorStateMessage.class, MonitorStateMessage::new, NetworkDirection.PLAY_TO_CLIENT);
+        registrar.playToServer(MonitorInputMessage.TYPE, MonitorInputMessage.STREAM_CODEC, MonitorInputMessage::handleMessage);
 
-        registerMessage(KeyboardInputMessage.class, KeyboardInputMessage::new, NetworkDirection.PLAY_TO_SERVER);
-
-        registerMessage(MonitorInputMessage.class, MonitorInputMessage::new, NetworkDirection.PLAY_TO_SERVER);
-
-        registerMessage(MultipartMessage.class, MultipartMessage::new, NetworkDirection.PLAY_TO_SERVER);
-
-        MultipartMessage.registerMessage(ImportedFileMessage.class, ImportedFileMessage::new);
+        registrar.playToServer(MultipartMessage.TYPE, MultipartMessage.STREAM_CODEC, MultipartMessage::handleMessage);
+        MultipartMessage.registerMessage(ImportedFileMessage.class, ImportedFileMessage.STREAM_CODEC);
     }
 
-    public static <T> void sendToServer(final T message) {
-        Network.INSTANCE.sendToServer(message);
+    public static void sendToServer(final CustomPacketPayload message) {
+        PacketDistributor.sendToServer(message);
     }
 
-    public static <T> void sendToClient(final T message, final ServerPlayer player) {
-        Network.INSTANCE.send(PacketDistributor.PLAYER.with(() -> player), message);
+    public static void sendToClient(final CustomPacketPayload message, final ServerPlayer player) {
+        PacketDistributor.sendToPlayer(player, message);
     }
 
-    public static <T> void sendToClientsTrackingChunk(final T message, final LevelChunk chunk) {
-        Network.INSTANCE.send(PacketDistributor.TRACKING_CHUNK.with(() -> chunk), message);
+    public static void sendToClientsTrackingChunk(final CustomPacketPayload message, final LevelChunk chunk) {
+        PacketDistributor.sendToPlayersTrackingChunk((ServerLevel) chunk.getLevel(), chunk.getPos(), message);
     }
 
-    public static <T> void sendToClientsTrackingBlockEntity(final T message, final BlockEntity blockEntity) {
+    public static void sendToClientsTrackingBlockEntity(final CustomPacketPayload message, final BlockEntity blockEntity) {
         final Level level = blockEntity.getLevel();
         if (level == null) {
             return;
@@ -138,21 +128,7 @@ public final class Network {
         }
     }
 
-    public static <T> void sendToClientsTrackingEntity(final T message, final Entity entity) {
-        Network.INSTANCE.send(PacketDistributor.TRACKING_ENTITY.with(() -> entity), message);
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-    private static <T extends AbstractMessage> void registerMessage(final Class<T> type, final Function<FriendlyByteBuf, T> decoder, final NetworkDirection direction) {
-        INSTANCE.messageBuilder(type, getNextPacketId(), direction)
-            .encoder(AbstractMessage::toBytes)
-            .decoder(decoder)
-            .consumerNetworkThread(AbstractMessage::handleMessage)
-            .add();
-    }
-
-    private static int getNextPacketId() {
-        return nextPacketId++;
+    public static void sendToClientsTrackingEntity(final CustomPacketPayload message, final Entity entity) {
+        PacketDistributor.sendToPlayersTrackingEntity(entity, message);
     }
 }

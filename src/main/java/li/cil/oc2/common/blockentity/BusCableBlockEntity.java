@@ -2,8 +2,7 @@
 
 package li.cil.oc2.common.blockentity;
 
-import li.cil.oc2.api.bus.DeviceBus;
-import li.cil.oc2.api.bus.DeviceBusElement;
+import li.cil.oc2.api.API;
 import li.cil.oc2.client.model.BusCableBakedModel;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.Constants;
@@ -24,12 +23,14 @@ import net.minecraft.client.renderer.block.BlockModelShaper;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringTag;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.StringUtil;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Block;
@@ -39,8 +40,11 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
-import net.minecraftforge.client.model.data.ModelData;
-import net.minecraftforge.common.util.LazyOptional;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.ICapabilityInvalidationListener;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.neoforge.client.model.data.ModelData;
 
 import javax.annotation.Nullable;
 import java.util.HashSet;
@@ -49,6 +53,7 @@ import java.util.Objects;
 import static java.util.Objects.requireNonNull;
 import static li.cil.oc2.client.model.BusCableBakedModel.*;
 
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class BusCableBlockEntity extends ModBlockEntity {
     public enum FacadeType {
         NOT_A_BLOCK,
@@ -66,17 +71,14 @@ public final class BusCableBlockEntity extends ModBlockEntity {
 
     private final AbstractBlockDeviceBusElement busElement = new BusCableBusElement();
     private final String[] interfaceNames = new String[Constants.BLOCK_FACE_COUNT];
-    private final NeighborTracker[] neighborTrackers = new NeighborTracker[Constants.BLOCK_FACE_COUNT];
+    @SuppressWarnings("MismatchedReadAndWriteOfArray")
+    private final ICapabilityInvalidationListener[] neighborListeners = new NeighborListener[Constants.BLOCK_FACE_COUNT];
     private ItemStack facade = ItemStack.EMPTY;
 
     ///////////////////////////////////////////////////////////////////
 
     public BusCableBlockEntity(final BlockPos pos, final BlockState state) {
         super(BlockEntities.BUS_CABLE.get(), pos, state);
-
-        for (final Direction side : Direction.values()) {
-            neighborTrackers[side.get3DDataValue()] = new NeighborTracker(side);
-        }
 
         requestModelDataUpdate();
     }
@@ -102,7 +104,7 @@ public final class BusCableBlockEntity extends ModBlockEntity {
         setChanged();
 
         if (!level.isClientSide()) {
-            final BusInterfaceNameMessage message = new BusInterfaceNameMessage.ToClient(this, side, interfaceNames[side.get3DDataValue()]);
+            final BusInterfaceNameMessage message = BusInterfaceNameMessage.ToClient(this, side, interfaceNames[side.get3DDataValue()]);
             Network.sendToClientsTrackingBlockEntity(message, this);
             busElement.updateDevicesForNeighbor(side);
         }
@@ -180,14 +182,6 @@ public final class BusCableBlockEntity extends ModBlockEntity {
         requestModelDataUpdate();
     }
 
-    public void handleNeighborChanged(final BlockPos pos) {
-        final BlockPos toPos = pos.subtract(getBlockPos());
-        final Direction side = Direction.fromDelta(toPos.getX(), toPos.getY(), toPos.getZ());
-        if (side != null) {
-            busElement.updateDevicesForNeighbor(side);
-        }
-    }
-
     public void handleConfigurationChanged(@Nullable final Direction side, final boolean neighborConnectivityChanged) {
         if (side != null) {
             // Whenever the type changes we can clear it. Technically only needed
@@ -195,11 +189,8 @@ public final class BusCableBlockEntity extends ModBlockEntity {
             // we can just do this.
             setInterfaceName(side, "");
 
-            invalidateCapability(Capabilities.deviceBusElement(), side);
-
-            final NeighborTracker tracker = neighborTrackers[side.get3DDataValue()];
-            tracker.updateListener();
-            tracker.scheduleNeighborDeviceUpdate();
+            if (level != null)
+                level.invalidateCapabilities(getBlockPos());
         }
 
         if (neighborConnectivityChanged) {
@@ -258,59 +249,95 @@ public final class BusCableBlockEntity extends ModBlockEntity {
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
-        final CompoundTag tag = super.getUpdateTag();
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        final CompoundTag tag = super.getUpdateTag(registries);
 
         tag.put(INTERFACE_NAMES_TAG_NAME, serializeInterfaceNames());
-        tag.put(FACADE_TAG_NAME, facade.serializeNBT());
+        if (facade == ItemStack.EMPTY) {
+            tag.put(FACADE_TAG_NAME, new CompoundTag());
+        } else {
+            var facade_nbt = ItemStack.CODEC.encodeStart(NbtOps.INSTANCE, facade);
+            tag.put(FACADE_TAG_NAME, facade_nbt.getOrThrow());
+        }
 
         return tag;
     }
 
     @Override
-    public void handleUpdateTag(final CompoundTag tag) {
+    public void handleUpdateTag(final CompoundTag tag, HolderLookup.Provider registries) {
         deserializeInterfaceNames(tag.getList(INTERFACE_NAMES_TAG_NAME, NBTTagIds.TAG_STRING));
-        setFacade(ItemStack.of(tag.getCompound(FACADE_TAG_NAME)));
+
+        var facade_nbt = tag.getCompound(FACADE_TAG_NAME);
+        if (!facade_nbt.isEmpty()) {
+            var facade_parsed = ItemStack.CODEC.parse(NbtOps.INSTANCE, facade_nbt);
+            facade = facade_parsed.getOrThrow();
+        } else {
+            facade = ItemStack.EMPTY;
+        }
     }
 
     @Override
-    protected void saveAdditional(final CompoundTag tag) {
-        super.saveAdditional(tag);
+    protected void saveAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
 
-        tag.put(BUS_ELEMENT_TAG_NAME, busElement.save());
+        tag.put(BUS_ELEMENT_TAG_NAME, busElement.save(registries));
         tag.put(INTERFACE_NAMES_TAG_NAME, serializeInterfaceNames());
-        tag.put(FACADE_TAG_NAME, facade.serializeNBT());
+        var facade_nbt = ItemStack.OPTIONAL_CODEC.encodeStart(NbtOps.INSTANCE, facade);
+        tag.put(FACADE_TAG_NAME, facade_nbt.getOrThrow());
     }
 
     @Override
-    public void load(final CompoundTag tag) {
-        super.load(tag);
-        busElement.load(tag.getCompound(BUS_ELEMENT_TAG_NAME));
+    public void loadAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
+        busElement.loadAdditional(tag.getCompound(BUS_ELEMENT_TAG_NAME), registries);
         deserializeInterfaceNames(tag.getList(INTERFACE_NAMES_TAG_NAME, NBTTagIds.TAG_STRING));
-        facade = ItemStack.of(tag.getCompound(FACADE_TAG_NAME));
+        var facade_nbt = tag.getCompound(FACADE_TAG_NAME);
+        try {
+            facade = ItemStack.OPTIONAL_CODEC.parse(NbtOps.INSTANCE, facade_nbt).getOrThrow();
+        } catch (IllegalStateException e) {
+            // It was ok for older minecraft versions to serialize ItemStack.EMPTY literally
+            // Newer versions throw an error if they see a minecraft:air serialized
+            facade = ItemStack.EMPTY;
+        }
 
         requestModelDataUpdate();
     }
 
     ///////////////////////////////////////////////////////////////////
 
-    @Override
-    protected void collectCapabilities(final CapabilityCollector collector, @Nullable final Direction direction) {
-        if (BusCableBlock.getConnectionType(getBlockState(), direction) != BusCableBlock.ConnectionType.NONE) {
-            collector.offer(Capabilities.deviceBusElement(), busElement);
-        }
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerBlock(
+            Capabilities.DeviceBusElement.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (be instanceof final BusCableBlockEntity self) {
+                    if (BusCableBlock.getConnectionType(be.getBlockState(), side) != BusCableBlock.ConnectionType.NONE) {
+                        return self.busElement;
+                    }
+                }
+                return null;
+            },
+            li.cil.oc2.common.block.Blocks.BUS_CABLE.get()
+        );
     }
 
     @Override
     protected void loadServer() {
         super.loadServer();
+        assert level != null;
+        ServerLevel level = (ServerLevel) this.level;
 
-        for (final NeighborTracker tracker : neighborTrackers) {
-            tracker.updateListener();
-            tracker.scheduleNeighborDeviceUpdate();
+        for (var side : Direction.values()) {
+            var listener = new NeighborListener(level, busElement, side);
+            // We need to hold a reference to these listeners, as Neoforge will only maintain a weak reference
+            neighborListeners[side.ordinal()] = listener;
+            level.registerCapabilityListener(
+                getBlockPos().relative(side),
+                listener
+            );
         }
 
-        scheduleBusScanInAdjacentBusElements();
+        scheduleLateLoad();
 
         requestModelDataUpdate();
     }
@@ -321,10 +348,6 @@ public final class BusCableBlockEntity extends ModBlockEntity {
 
         if (isRemove) {
             busElement.setRemoved();
-        }
-
-        for (final NeighborTracker tracker : neighborTrackers) {
-            tracker.close();
         }
     }
 
@@ -350,7 +373,7 @@ public final class BusCableBlockEntity extends ModBlockEntity {
         return trimmed.length() > 32 ? trimmed.substring(0, 32) : trimmed;
     }
 
-    private void scheduleBusScanInAdjacentBusElements() {
+    private void scheduleLateLoad() {
         // This is called from onLoad, so we cannot access neighbors yet.
         assert level != null;
         ServerScheduler.schedule(level, () -> {
@@ -361,15 +384,18 @@ public final class BusCableBlockEntity extends ModBlockEntity {
             final Level level = requireNonNull(getLevel());
             final BlockPos pos = getBlockPos();
             for (final Direction direction : Constants.DIRECTIONS) {
+                busElement.updateDevicesForNeighbor(direction);
+
                 final BlockPos neighborPos = pos.relative(direction);
                 final BlockEntity blockEntity = LevelUtils.getBlockEntityIfChunkExists(level, neighborPos);
                 if (blockEntity == null) {
                     continue;
                 }
 
-                final LazyOptional<DeviceBusElement> capability = blockEntity
-                    .getCapability(Capabilities.deviceBusElement(), direction.getOpposite());
-                capability.ifPresent(DeviceBus::scheduleScan);
+                final var capability = level.getCapability(Capabilities.DeviceBusElement.BLOCK, neighborPos, null, blockEntity, direction.getOpposite());
+                if (capability != null) {
+                    capability.scheduleScan();
+                }
             }
         });
     }
@@ -379,7 +405,7 @@ public final class BusCableBlockEntity extends ModBlockEntity {
     private final class BusCableBusElement extends AbstractBlockDeviceBusElement {
         @Nullable
         @Override
-        public LevelAccessor getLevel() {
+        public Level getLevel() {
             return BusCableBlockEntity.this.getLevel();
         }
 
@@ -423,94 +449,26 @@ public final class BusCableBlockEntity extends ModBlockEntity {
         }
     }
 
-    /**
-     * Utility class to track neighboring blocks, per side.
-     * <p>
-     * Since we manage devices for blocks that may not even be aware of this, we need to actively
-     * track their presence and state. There are to major cases:
-     * <ul>
-     * <li>The neighboring block is in the same chunk as the cable. In this case, we only need to
-     * listen to neighbor block changes (via {@link #handleNeighborChanged(BlockPos)}).</li>
-     * <li>The neighboring block is in another chunk as the cable. In this case, we also need to
-     * track chunk load status, since we won't get any other event in case the block gets
-     * loaded or unloaded.</li>
-     * </ul>
-     * The second case is handled by this class.
-     * <p>
-     * To avoid unnecessary overhead, we only track neighbors which actually are in another chunk,
-     * and to which this cable has a Bus Interface. As such, configuration changes need to update
-     * listeners. This is done in {@link #handleConfigurationChanged(Direction, boolean)} by calling
-     * {@link #updateListener()}.
-     * <p>
-     * We initialize our state from {@link #loadServer()}, where all trackers are updated.
-     */
-    private final class NeighborTracker implements AutoCloseable {
-        private final Runnable onChunkLoadedStateChanged = this::handleChunkLoadOrUnload;
+    ///////////////////////////////////////////////////////////////////
 
-        final Direction side;
-        final EnumProperty<BusCableBlock.ConnectionType> connectionProperty;
-        private final ChunkPos chunkPos;
-        private final boolean isSameChunk;
-        private boolean hasRegisteredListener;
-        private boolean hasScheduledUpdate;
+    private static final class NeighborListener implements ICapabilityInvalidationListener {
+        ServerLevel level;
+        AbstractBlockDeviceBusElement busElement;
+        Direction side;
 
-        public NeighborTracker(final Direction side) {
+        public NeighborListener(ServerLevel level, AbstractBlockDeviceBusElement busElement, Direction side) {
+            this.level = level;
+            this.busElement = busElement;
             this.side = side;
-            connectionProperty = BusCableBlock.FACING_TO_CONNECTION_MAP.get(side);
-            chunkPos = new ChunkPos(getBlockPos().relative(side));
-            isSameChunk = Objects.equals(new ChunkPos(getBlockPos()), chunkPos);
         }
 
-        public void close() {
-            removeListener();
-        }
-
-        public void scheduleNeighborDeviceUpdate() {
-            if (level != null && !hasScheduledUpdate) {
-                ServerScheduler.schedule(level, this::updateNeighborDevices);
-                hasScheduledUpdate = true;
-            }
-        }
-
-        public void updateListener() {
-            if (isSameChunk) {
-                return;
-            }
-
-            final boolean needsListener = getBlockState().getValue(connectionProperty) == BusCableBlock.ConnectionType.INTERFACE;
-            if (needsListener && !hasRegisteredListener) {
-                addListener();
-            } else if (!needsListener && hasRegisteredListener) {
-                removeListener();
-            }
-        }
-
-        private void addListener() {
-            if (level != null && !hasRegisteredListener) {
-                ServerScheduler.subscribeOnLoad(level, chunkPos, onChunkLoadedStateChanged);
-                ServerScheduler.subscribeOnUnload(level, chunkPos, onChunkLoadedStateChanged);
-            }
-            hasRegisteredListener = true;
-        }
-
-        private void removeListener() {
-            if (level != null && hasRegisteredListener) {
-                ServerScheduler.unsubscribeOnLoad(level, chunkPos, onChunkLoadedStateChanged);
-                ServerScheduler.unsubscribeOnUnload(level, chunkPos, onChunkLoadedStateChanged);
-            }
-            hasRegisteredListener = false;
-        }
-
-        private void handleChunkLoadOrUnload() {
-            // Don't directly run a device update, as this may cause deadlocks.
-            scheduleNeighborDeviceUpdate();
-        }
-
-        private void updateNeighborDevices() {
-            if (isValid()) {
+        @Override
+        public boolean onInvalidate() {
+            // We can't touch the level during an invalidate, so schedule it
+            ServerScheduler.schedule(level, () -> {
                 busElement.updateDevicesForNeighbor(side);
-            }
-            hasScheduledUpdate = false;
+            });
+            return true;
         }
     }
 }

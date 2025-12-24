@@ -4,6 +4,7 @@ package li.cil.oc2.common.integration;
 
 import li.cil.oc2.common.tags.ItemTags;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 
 import javax.annotation.Nullable;
@@ -14,9 +15,11 @@ public final class Wrenches {
     }
 
     public static boolean isHoldingWrench(final Entity entity) {
-        for (final ItemStack stack : entity.getHandSlots()) {
-            if (isWrench(stack)) {
-                return true;
+        if (entity instanceof final LivingEntity livingEntity) {
+            for (final ItemStack stack : livingEntity.getHandSlots()) {
+                if (isWrench(stack)) {
+                    return true;
+                }
             }
         }
 

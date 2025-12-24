@@ -1,17 +1,21 @@
-import org.apache.commons.io.IOUtils
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "commons-io:commons-io:2.21.0"
+    }
+}
 
 plugins {
     id "idea"
     id "maven-publish"
-    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+    id 'net.neoforged.moddev' version '2.0.124'
     id "com.matthewprenger.cursegradle" version "1.4.0"
-    id 'org.spongepowered.mixin' version '0.7.+'
     id "com.modrinth.minotaur" version "2.+"
 }
 
-apply plugin: 'org.spongepowered.mixin'
-apply plugin: "java"
-jarJar.enable()
+import org.apache.commons.io.IOUtils
 
 gradle.projectsEvaluated {
     project.configurations.named("jarJar") {
@@ -25,28 +29,27 @@ gradle.projectsEvaluated {
             "windows/oc2rnet-x86_64.dll",
             "windows/oc2rnet-arm64.dll",
             "linux/liboc2rnet-linux-x86_64.so",
-            "linux/liboc2rnet-linux-arm64.so"
+            "linux/liboc2rnet-linux-arm64.so",
+            "android/liboc2rnet-android-arm64.so",
+            "android/liboc2rnet-android-x86_64.so"
         ]
 
-        targets.each { path ->
-            def file = new File(nativeLibsDir, path)
-            file.parentFile.mkdirs()
-            def fileName = path.tokenize('/')[-1]
-            def url = new URL("${nativeNetworkingBaseUrl}${fileName}")
-            println "Downloading ${url} → ${file}"
-            file.withOutputStream { out ->
-                url.openStream().withCloseable { IOUtils.copy(it, out) }
+        def version_file = new File(nativeLibsDir, ".version")
+        def old_version = version_file.isFile() ? version_file.withReader { it.readLine() } : ""
+        def new_version = "${network_lib_version}"
+        if (old_version != "${new_version}") {
+            targets.each { path ->
+                def file = new File(nativeLibsDir, path)
+                file.parentFile.mkdirs()
+                def fileName = path.tokenize('/')[-1]
+                def url = new URL("${nativeNetworkingBaseUrl}${fileName}")
+                println "Downloading ${url} → ${file}"
+                file.withOutputStream { out ->
+                    url.openStream().withCloseable { IOUtils.copy(it, out) }
+                }
             }
-        }
 
-        // senda
-        def sednaUrl = "https://github.com/${senda_repo}/releases/download/${minecraft_version}-${minecraft_sdk}/${sedna_version}/sedna-${minecraft_version}-${minecraft_sdk}-${sedna_version}+${sedna_version_commit_ref}.jar"
-        def sednaFile = new File('libs', 'sedna.jar')
-        sednaFile.parentFile.mkdirs()
-        def url = new URL("${sednaUrl}")
-        println "Downloading ${url} → ${sednaFile}"
-        sednaFile.withOutputStream { out ->
-            url.openStream().withCloseable { IOUtils.copy(it, out) }
+            version_file.withWriter { it.writeLine(new_version) }
         }
     }
 }
@@ -74,7 +77,7 @@ static def getGitRef() {
 version = System.getenv('RELEASE_TYPE') == "release" ? "${semver}" : "${semver}+${getGitRef()}"
 group = "li.cil.oc2"
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = "utf-8"
@@ -94,7 +97,7 @@ repositories {
         name = "Jared's maven"
         url = "https://maven.blamejared.com/"
     }
-    maven { url = "https://proxy-maven.covers1624.net/" }
+    maven { url = "https://maven.covers1624.net/" }
     if (hasGithubPackageCredentials) {
         final def GithubPackages = [
             ["fnuecke/ceres", "li.cil.ceres"],
@@ -118,57 +121,99 @@ repositories {
 
 }
 
+neoForge {
+    version = project.neo_version
+
+    parchment {
+        mappingsVersion = project.parchment_mappings_version
+        minecraftVersion = project.parchment_minecraft_version
+    }
+
+    runs {
+        client {
+            client()
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.modId
+        }
+
+        server {
+            server()
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.modId
+        }
+
+        gameTestServer {
+            type = "gameTestServer"
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.modId
+        }
+
+        data {
+            data()
+            programArguments.addAll '--mod', project.modId, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
+        }
+
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
 dependencies {
-    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     annotationProcessor "org.spongepowered:mixin:0.8.5:processor"
 
     // Specify the libs embedded in the library mod explicitly for local development, where
     // we can include these directly (and will have a local library mod using the local
     // versions). Can't get these to get properly resolved in the IDE otherwise (doesn't
     // pick them up via the library mod due to the embed configuration).
-    if (hasGithubPackageCredentials) {
-        compileOnly "li.cil.ceres:ceres:0.0.4"
-        compileOnly "li.cil.sedna:sedna:2.0.13"
-        compileOnly "li.cil.sedna:sedna-buildroot:0.0.40"
-    }
     implementation fileTree(dir: 'libs', include: '*.jar')
-//    implementation "curse.maven:sedna-511276:3885542"
-    minecraftLibrary "org.apache.commons:commons-collections4:${apache_commons_version}"
 
-    implementation fg.deobf("curse.maven:architectury-api-${architectury_project_id}:${architectury_file_id}")
-    implementation fg.deobf("curse.maven:markdownmanual-${markdownmanual_project_id}:${markdownmanual_file_id}")
+    jarJar(implementation('li.cil.ceres:ceres:0.0.4'))
+    jarJar(implementation('li.cil.sedna:sedna:2.0.13'))
+    jarJar(implementation('li.cil.sedna:sedna-buildroot:0.0.64'))
+    // TODO: These additionalRuntimeClasspaths might be removable when we reach minecraft version 1.21.9
+    //     They were necessary for using gradle runClient, gradle runServer, etc in prior versions
+    additionalRuntimeClasspath 'li.cil.ceres:ceres:0.0.4'
+    additionalRuntimeClasspath 'li.cil.sedna:sedna:2.0.13'
+    additionalRuntimeClasspath 'li.cil.sedna:sedna-buildroot:0.0.64'
 
-    compileOnly fg.deobf("mezz.jei:jei-${minecraft_version}-common-api:${jei_version}")
-    compileOnly fg.deobf("mezz.jei:jei-${minecraft_version}-${minecraft_sdk}-api:${jei_version}")
+    implementation "curse.maven:architectury-api-${architectury_project_id}:${architectury_file_id}"
+    // TODO: Change back to curse.maven dependency once markdown manual 1.21.1 is pushed to curseforge
+    //implementation "curse.maven:markdownmanual-${markdownmanual_project_id}:${markdownmanual_file_id}"
+    implementation "markdownmanual:markdown_manual-1.21.1-neoforge"
 
-    runtimeOnly fg.deobf("mezz.jei:jei-${minecraft_version}-${minecraft_sdk}:${jei_version}")
+    compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
+    compileOnly "mezz.jei:jei-${minecraft_version}-${minecraft_sdk}-api:${jei_version}"
 
-    compileOnly fg.deobf("mrtjp:ProjectRed:${minecraft_version}-${pr_version}:api")
-    runtimeOnly fg.deobf("io.codechicken:CodeChickenLib:${minecraft_version}-${ccl_version}:universal")
-    runtimeOnly fg.deobf("io.codechicken:CBMultipart:${minecraft_version}-${cbm_version}:universal")
-    runtimeOnly fg.deobf("mrtjp:ProjectRed:${minecraft_version}-${pr_version}:core")
-    runtimeOnly fg.deobf("mrtjp:ProjectRed:${minecraft_version}-${pr_version}:transmission")
+    runtimeOnly "mezz.jei:jei-${minecraft_version}-${minecraft_sdk}:${jei_version}"
+
+    compileOnly "mrtjp:ProjectRed:${minecraft_version}-${pr_version}:api"
+    runtimeOnly "io.codechicken:CodeChickenLib:${minecraft_version}-${ccl_version}"
+    runtimeOnly "io.codechicken:CBMultipart:${minecraft_version}-${cbm_version}"
+    runtimeOnly "mrtjp:ProjectRed:${minecraft_version}-${pr_version}:core"
+    runtimeOnly "mrtjp:ProjectRed:${minecraft_version}-${pr_version}:transmission"
 
     if (debug_embeddium.toBoolean())
     {
-        runtimeOnly fg.deobf("curse.maven:embeddium-${embeddium_project_id}:${embeddium_file_id}")
+        runtimeOnly "curse.maven:embeddium-${embeddium_project_id}:${embeddium_file_id}"
     }
 
     if (debug_embeddium_plus_plus.toBoolean())
     {
-        runtimeOnly fg.deobf("curse.maven:embeddiumplus-${embeddium_plus_plus_project_id}:${embeddium_plus_plus_file_id}")
+        runtimeOnly "curse.maven:embeddiumplus-${embeddium_plus_plus_project_id}:${embeddium_plus_plus_file_id}"
     }
 
     if (debug_oculus.toBoolean())
     {
-        runtimeOnly fg.deobf("curse.maven:oculus-${oculus_project_id}:${oculus_file_id}")
+        runtimeOnly "curse.maven:oculus-${oculus_project_id}:${oculus_file_id}"
     }
 
-    jarJar(group: 'libs', name: 'sedna', version: '[]') {
-        jarJar.pin(it, "")
-    }
-
-    // Test Dependencies
     testImplementation "org.mockito:mockito-inline:${mockito_version}"
     testImplementation "org.junit.jupiter:junit-jupiter-api:${jupiter_version}"
     testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:${jupiter_version}"
@@ -195,53 +240,6 @@ processResources.dependsOn(copyLicensesToResources)
 tasks.named('jarJar'){
 }
 
-minecraft {
-    mappings channel: "official", version: minecraft_version
-
-    accessTransformer = file("src/main/resources/META-INF/accesstransformer.cfg")
-
-    runs {
-        configureEach {
-            property "forge.logging.markers", "REGISTRIES"
-            property "forge.logging.console.level", "debug"
-
-            mods {
-                oc2 {
-                    source sourceSets.main
-                }
-            }
-        }
-
-        client {
-            workingDirectory project.file("runclient")
-            property "forge.enabledGameTestNamespaces", "oc2r"
-        }
-
-        server {
-            workingDirectory project.file("run")
-            property "forge.enabledGameTestNamespaces", "oc2r"
-            arg "--nogui"
-        }
-
-        gameTestServer {
-            workingDirectory project.file('run')
-            property "forge.enabledGameTestNamespaces", "oc2r"
-        }
-
-        data {
-            workingDirectory project.file("run")
-            args "--mod", "oc2r", "--all", "--output", file("src/generated/resources/"), "--existing", file("src/main/resources")
-        }
-    }
-}
-
-mixin {
-    add sourceSets.main, "mixins.oc2r.refmap.json"
-    config "mixins.oc2r.json"
-
-//    quiet
-}
-
 tasks.register('copyGeneratedResources', Copy) {
     from "src/generated"
     into "src/main"
@@ -249,8 +247,6 @@ tasks.register('copyGeneratedResources', Copy) {
 }
 
 jar {
-    finalizedBy "reobfJar"
-
     manifest {
         attributes([
             "FMLAT"                   : "accesstransformer.cfg",
@@ -307,6 +303,7 @@ curseforge {
         mainArtifact "build/libs/oc2r-${minecraft_version}-${minecraft_sdk}-${version}-all.jar"
         relations {
             requiredDependency "markdownmanual"
+            requiredDependency "packet-fixer"
         }
     }
 }
@@ -321,6 +318,7 @@ modrinth {
     changelog = System.getenv("CHANGELOG") ?: "Changelog not available."
     dependencies {
         required.project "markdownmanual"
+        required.project "packet-fixer"
     }
 }
 
@@ -330,12 +328,13 @@ idea {
             excludeDirs += file(exclude)
         }
     }
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
 }
 
 test {
     useJUnitPlatform()
 }
 
-compileJava {
-    options.encoding = "UTF-8"
-}

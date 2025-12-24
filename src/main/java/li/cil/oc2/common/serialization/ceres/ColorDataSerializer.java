@@ -9,10 +9,29 @@ import li.cil.oc2.common.vm.terminal.Terminal;
 import org.jetbrains.annotations.Nullable;
 
 public class ColorDataSerializer implements Serializer<Terminal.ColorData> {
+
+    public static int toInt(Terminal.ColorData colorData) {
+        var mode = Terminal.ColorMode.SIXTEEN_COLOR;
+        if (colorData.Mode != null)
+            mode = colorData.Mode;
+        return (mode.ordinal() << 24) |
+            (colorData.R << 16) |
+            (colorData.G << 8) |
+            colorData.B;
+    }
+    public static Terminal.ColorData toColorData(int value) {
+        final int mode = (value >> 24) & 0xFF;
+        final int red = (value >> 16) & 0xFF;
+        final int green = (value >> 8) & 0xFF;
+        final int blue = value & 0xFF;
+
+        return new Terminal.ColorData(red, green, blue, Terminal.ColorMode.values()[mode]);
+    }
+
     @Override
     public void serialize(final SerializationVisitor serializationVisitor, final Class<Terminal.ColorData> aClass, final Object o) throws SerializationException {
-        final String json = new Gson().toJson(o);
-        serializationVisitor.putObject("value", String.class, json);
+        Terminal.ColorData colorData = (Terminal.ColorData) o;
+        serializationVisitor.putInt("value", toInt(colorData));
     }
 
     @Override
@@ -21,11 +40,7 @@ public class ColorDataSerializer implements Serializer<Terminal.ColorData> {
             return new Terminal.ColorData();
         }
 
-        final String json = (String) deserializationVisitor.getObject("value", String.class, null);
-        if (json == null) {
-            return new Terminal.ColorData();
-        }
-
-        return new Gson().fromJson(json, Terminal.ColorData.class);
+        final int combined = deserializationVisitor.getInt("value");
+        return toColorData(combined);
     }
 }

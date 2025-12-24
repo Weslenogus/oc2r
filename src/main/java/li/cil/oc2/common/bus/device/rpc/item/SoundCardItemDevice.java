@@ -7,12 +7,12 @@ import li.cil.oc2.api.bus.device.object.Parameter;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.util.BlockLocation;
 import li.cil.oc2.common.util.TickUtils;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.registries.ForgeRegistries;
 
 import javax.annotation.Nullable;
 import java.time.Duration;
@@ -69,7 +69,7 @@ public final class SoundCardItemDevice extends AbstractItemRPCDevice {
 
             gameTimeCooldownExpiresAt = gameTime + COOLDOWN_IN_TICKS;
 
-            final SoundEvent soundEvent = ForgeRegistries.SOUND_EVENTS.getValue(ResourceLocation.parse(name));
+            final SoundEvent soundEvent = BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse(name));
             if (soundEvent == null) throw new IllegalArgumentException("Sound not found.");
             level.playSound(null, location.blockPos(), soundEvent, SoundSource.BLOCKS, volume, pitch);
         }));
@@ -81,7 +81,7 @@ public final class SoundCardItemDevice extends AbstractItemRPCDevice {
 
         final ArrayList<String> matches = new ArrayList<>();
 
-        for (final ResourceLocation key : ForgeRegistries.SOUND_EVENTS.getKeys()) {
+        for (final ResourceLocation key : BuiltInRegistries.SOUND_EVENT.keySet()) {
             final String keyName = key.toString();
             if (keyName.contains(name)) {
                 matches.add(keyName);

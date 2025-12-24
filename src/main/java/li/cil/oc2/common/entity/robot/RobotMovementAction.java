@@ -133,13 +133,13 @@ public final class RobotMovementAction extends AbstractRobotAction {
         if (direction == null) direction = MovementDirection.FORWARD;
         direction = direction.resolve();
         if (tag.contains(ORIGIN_TAG_NAME, NBTTagIds.TAG_COMPOUND)) {
-            origin = NbtUtils.readBlockPos(tag.getCompound(ORIGIN_TAG_NAME));
+            origin = NbtUtils.readBlockPos(tag, ORIGIN_TAG_NAME).orElseThrow();
         }
         if (tag.contains(START_TAG_NAME, NBTTagIds.TAG_COMPOUND)) {
-            start = NbtUtils.readBlockPos(tag.getCompound(START_TAG_NAME));
+            start = NbtUtils.readBlockPos(tag, START_TAG_NAME).orElseThrow();
         }
         if (tag.contains(TARGET_TAG_NAME, NBTTagIds.TAG_COMPOUND)) {
-            target = NbtUtils.readBlockPos(tag.getCompound(TARGET_TAG_NAME));
+            target = NbtUtils.readBlockPos(tag, TARGET_TAG_NAME).orElseThrow();
             targetPos = getTargetPositionInBlock(target);
         }
     }

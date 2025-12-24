@@ -2,23 +2,23 @@
 
 package li.cil.oc2.common.item;
 
-import li.cil.oc2.api.API;
-import li.cil.oc2.api.bus.device.DeviceTypes;
 import li.cil.oc2.client.renderer.entity.RobotWithoutLevelRenderer;
+import li.cil.oc2.common.capabilities.Capabilities;
+import li.cil.oc2.common.components.RestrictedContainer;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.energy.EnergyStorageItemStack;
 import li.cil.oc2.common.entity.Entities;
 import li.cil.oc2.common.entity.Robot;
 import li.cil.oc2.common.entity.robot.RobotActions;
+import li.cil.oc2.common.tags.ItemTags;
 import li.cil.oc2.common.util.LevelUtils;
-import li.cil.oc2.common.util.NBTUtils;
 import li.cil.oc2.common.util.TooltipUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.NonNullList;
 import net.minecraft.core.Vec3i;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.stats.Stats;
 import net.minecraft.world.InteractionResult;
@@ -29,8 +29,9 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.client.extensions.common.IClientItemExtensions;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -42,20 +43,23 @@ import static li.cil.oc2.common.util.RegistryUtils.key;
 
 public final class RobotItem extends ModItem {
     @Override
-    public void appendHoverText(final ItemStack stack, @Nullable final Level level, final List<Component> tooltip, final TooltipFlag flag) {
-        super.appendHoverText(stack, level, tooltip, flag);
-        TooltipUtils.addEnergyConsumption(Config.robotEnergyPerTick, tooltip);
-        TooltipUtils.addEntityEnergyInformation(stack, tooltip);
-        TooltipUtils.addEntityInventoryInformation(stack, tooltip);
+    public void appendHoverText(final ItemStack stack, final TooltipContext context, final List<Component> components, final TooltipFlag flag) {
+        super.appendHoverText(stack, context, components, flag);
+        TooltipUtils.addEnergyConsumption(Config.robotEnergyPerTick, components);
+        TooltipUtils.addEntityEnergyInformation(stack, components);
+        TooltipUtils.addInventoryInformation(stack, components);
     }
 
-    @Nullable
-    @Override
-    public ICapabilityProvider initCapabilities(final ItemStack stack, @Nullable final CompoundTag nbt) {
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
         if (Config.robotsUseEnergy()) {
-            return new EnergyStorageItemStack(stack, Config.robotEnergyStorage, MOD_TAG_NAME, ENERGY_TAG_NAME);
-        } else {
-            return null;
+            event.registerItem(
+                Capabilities.EnergyStorage.ITEM,
+                (stack, ctx) -> {
+                    return new EnergyStorageItemStack(stack, Config.robotEnergyStorage, MOD_TAG_NAME, ENERGY_TAG_NAME);
+                },
+                Items.ROBOT.get()
+            );
         }
     }
 
@@ -121,11 +125,15 @@ public final class RobotItem extends ModItem {
 
     public static ItemStack getRobotWithFlash() {
         final ItemStack robot = new ItemStack(Items.ROBOT.get());
+        var container = new RestrictedContainer();
 
-        final CompoundTag itemsTag = NBTUtils.getOrCreateChildTag(robot.getOrCreateTag(), API.MOD_ID, ITEMS_TAG_NAME);
-        itemsTag.put(key(DeviceTypes.FLASH_MEMORY), makeInventoryTag(
-            new ItemStack(Items.FLASH_MEMORY_CUSTOM.get())
-        ));
+        container.items().put(ItemTags.DEVICES_FLASH_MEMORY, NonNullList.withSize(1, new ItemStack(Items.FLASH_MEMORY_CUSTOM.get())));
+        container.items().put(ItemTags.DEVICES_CPU, NonNullList.withSize(1, ItemStack.EMPTY));
+        container.items().put(ItemTags.DEVICES_MEMORY, NonNullList.withSize(4, ItemStack.EMPTY));
+        container.items().put(ItemTags.DEVICES_ROBOT_MODULE, NonNullList.withSize(4, ItemStack.EMPTY));
+        container.items().put(ItemTags.DEVICES_HARD_DRIVE, NonNullList.withSize(2, ItemStack.EMPTY));
+
+        robot.set(li.cil.oc2.common.components.DataComponents.RESTRICTED_CONTAINER, container);
 
         return robot;
     }

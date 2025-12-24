@@ -5,44 +5,43 @@ package li.cil.oc2.common.network.message;
 import li.cil.oc2.common.entity.Robot;
 import li.cil.oc2.common.network.MessageUtils;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
-import net.minecraftforge.network.NetworkEvent;
+
+import io.netty.buffer.ByteBuf;
+import li.cil.oc2.api.API;
+import net.minecraft.network.chat.ComponentSerialization;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import javax.annotation.Nullable;
 
-public final class RobotBootErrorMessage extends AbstractMessage {
-    private int entityId;
-    private Component value;
+public record RobotBootErrorMessage(int entityId, @Nullable Component value) implements AbstractMessage {
+    public static final StreamCodec<RegistryFriendlyByteBuf, RobotBootErrorMessage> STREAM_CODEC = StreamCodec.composite(
+        ByteBufCodecs.INT,
+        RobotBootErrorMessage::entityId,
+        ComponentSerialization.STREAM_CODEC,
+        RobotBootErrorMessage::value,
+        RobotBootErrorMessage::new
+    );
+
+    public static final CustomPacketPayload.Type<RobotBootErrorMessage> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "robot_boot_error_message"));
+
+    @Override
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
+    }
 
     ///////////////////////////////////////////////////////////////////
 
     public RobotBootErrorMessage(final Robot robot, @Nullable final Component value) {
-        this.entityId = robot.getId();
-        this.value = value;
+        this(robot.getId(), value);
     }
 
-    public RobotBootErrorMessage(final FriendlyByteBuf buffer) {
-        super(buffer);
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-    @Override
-    public void fromBytes(final FriendlyByteBuf buffer) {
-        entityId = buffer.readVarInt();
-        value = buffer.readComponent();
-    }
-
-    @Override
-    public void toBytes(final FriendlyByteBuf buffer) {
-        buffer.writeVarInt(entityId);
-        buffer.writeComponent(value);
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-    @Override
-    protected void handleMessage(final NetworkEvent.Context context) {
+    public void handleMessage(IPayloadContext context) {
         MessageUtils.withClientEntity(entityId, Robot.class,
             robot -> robot.getVirtualMachine().setBootErrorClient(value));
     }

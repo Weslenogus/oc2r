@@ -1,5 +1,6 @@
 package li.cil.oc2.common.block;
 
+import com.mojang.serialization.MapCodec;
 import li.cil.oc2.common.blockentity.BlockEntities;
 import li.cil.oc2.common.blockentity.NetworkHubBlockEntity;
 import net.minecraft.core.BlockPos;
@@ -27,20 +28,16 @@ public final class NetworkSwitchBlock extends HorizontalDirectionalBlock impleme
         registerDefaultState(getStateDefinition().any().setValue(FACING, Direction.NORTH));
     }
 
+    @Override
+    protected MapCodec<NetworkSwitchBlock> codec() {
+        return BlockCodecs.NETWORK_SWITCH.get();
+    }
+
     ///////////////////////////////////////////////////////////////////
 
     @Override
     public BlockState getStateForPlacement(final BlockPlaceContext context) {
         return super.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
-    }
-
-    @SuppressWarnings("deprecation")
-    @Override
-    public void neighborChanged(final BlockState state, final Level level, final BlockPos pos, final Block changedBlock, final BlockPos changedBlockPos, final boolean isMoving) {
-        final BlockEntity blockEntity = level.getBlockEntity(pos);
-        if (blockEntity instanceof final NetworkHubBlockEntity networkHub) {
-            networkHub.handleNeighborChanged();
-        }
     }
 
     ///////////////////////////////////////////////////////////////////

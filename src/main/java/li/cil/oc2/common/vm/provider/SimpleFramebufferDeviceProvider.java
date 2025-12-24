@@ -24,7 +24,9 @@ public final class SimpleFramebufferDeviceProvider implements DeviceTreeProvider
         final Optional<MappedMemoryRange> range = memoryMap.getMemoryRange((MemoryMappedDevice) device);
         return range.map(r -> {
             final DeviceTree chosen = root.find("/chosen");
-            chosen.addProp(DevicePropertyNames.RANGES);
+            chosen.addProp(DevicePropertyNames.RANGES)
+                  .addProp("#address-cells", 2)
+                  .addProp("#size-cells", 2);
 
             return chosen.getChild(deviceName, r.address());
         });
@@ -39,7 +41,6 @@ public final class SimpleFramebufferDeviceProvider implements DeviceTreeProvider
             .addProp("height", fb.getHeight())
             .addProp("stride", fb.getWidth() * SimpleFramebufferDevice.STRIDE)
             .addProp("format", "r5g6b5")
-            .addProp("no-map")
             .addProp(DevicePropertyNames.STATUS, "okay");
     }
 }

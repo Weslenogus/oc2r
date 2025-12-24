@@ -7,10 +7,12 @@ import li.cil.oc2.common.bus.device.data.FirmwareRegistry;
 import li.cil.oc2.common.util.ItemStackUtils;
 import net.minecraft.ResourceLocationException;
 import net.minecraft.Util;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.StringUtil;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 
 import javax.annotation.Nullable;
 
@@ -57,7 +59,9 @@ public final class FlashMemoryWithExternalDataItem extends ModItem {
 
         final ResourceLocation key = FirmwareRegistry.getKey(firmware);
 
-        ItemStackUtils.getOrCreateModDataTag(stack).putString(FIRMWARE_TAG_NAME, key.toString());
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, (nbt) -> {
+            ItemStackUtils.getOrCreateModDataTag(nbt).putString(FIRMWARE_TAG_NAME, key.toString());
+        });
 
         return stack;
     }

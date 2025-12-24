@@ -2,26 +2,42 @@
 
 package li.cil.oc2.common.network.message;
 
+import io.netty.buffer.ByteBuf;
+import li.cil.oc2.api.API;
 import li.cil.oc2.common.blockentity.ComputerBlockEntity;
 import li.cil.oc2.common.network.MessageUtils;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import java.nio.ByteBuffer;
 
-public final class ComputerTerminalOutputMessage extends AbstractTerminalBlockMessage {
-    public ComputerTerminalOutputMessage(final ComputerBlockEntity computer, final ByteBuffer data) {
-        super(computer, data);
-    }
+public record ComputerTerminalOutputMessage(BlockPos pos, byte[] data) implements AbstractMessage {
+    public static final StreamCodec<ByteBuf, ComputerTerminalOutputMessage> STREAM_CODEC = StreamCodec.composite(
+        BlockPos.STREAM_CODEC,
+        ComputerTerminalOutputMessage::pos,
+        ByteBufCodecs.BYTE_ARRAY,
+        ComputerTerminalOutputMessage::data,
+        ComputerTerminalOutputMessage::new
+    );
 
-    public ComputerTerminalOutputMessage(final FriendlyByteBuf buffer) {
-        super(buffer);
+    public static final CustomPacketPayload.Type<ComputerTerminalOutputMessage> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "computer_terminal_output_message"));
+
+    @Override
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 
     ///////////////////////////////////////////////////////////////////
 
-    @Override
-    protected void handleMessage(final NetworkEvent.Context context) {
+    public ComputerTerminalOutputMessage(final ComputerBlockEntity computer, final ByteBuffer data) {
+        this(computer.getBlockPos(), data.array());
+    }
+
+    public void handleMessage(IPayloadContext context) {
         MessageUtils.withClientBlockEntityAt(pos, ComputerBlockEntity.class,
             computer -> computer.getTerminal().putOutput(ByteBuffer.wrap(data)));
     }

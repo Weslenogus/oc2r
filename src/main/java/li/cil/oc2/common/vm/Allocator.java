@@ -4,9 +4,9 @@ package li.cil.oc2.common.vm;
 
 import li.cil.oc2.api.API;
 import li.cil.oc2.common.config.Config;
-import net.minecraftforge.event.server.ServerStoppedEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
  * Call sites must be cooperative and only free claimed memory when actually being sure the
  * allocated memory associated with the claim will be garbage collected.
  */
-@Mod.EventBusSubscriber(modid = API.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class Allocator {
     private static final Logger LOGGER = LogManager.getLogger();
 

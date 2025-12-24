@@ -2,6 +2,8 @@
 
 package li.cil.oc2.common.blockentity;
 
+import li.cil.oc2.api.API;
+import li.cil.oc2.common.block.Blocks;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.block.PciCardCageBlock;
 import li.cil.oc2.common.bus.device.vm.block.PciCardCageDevice;
@@ -9,12 +11,16 @@ import li.cil.oc2.common.capabilities.Capabilities;
 import li.cil.oc2.common.energy.FixedEnergyStorage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
 import javax.annotation.Nullable;
 
-
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class PciCardCageBlockEntity extends ModBlockEntity implements TickableBlockEntity {
 
     private static final String ENERGY_TAG_NAME = "energy";
@@ -64,8 +70,8 @@ public final class PciCardCageBlockEntity extends ModBlockEntity implements Tick
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
-        final CompoundTag tag = super.getUpdateTag();
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        final CompoundTag tag = super.getUpdateTag(registries);
 
         tag.putBoolean(HAS_ENERGY_TAG_NAME, hasEnergy);
 
@@ -73,24 +79,24 @@ public final class PciCardCageBlockEntity extends ModBlockEntity implements Tick
     }
 
     @Override
-    public void handleUpdateTag(final CompoundTag tag) {
-        super.handleUpdateTag(tag);
+    public void handleUpdateTag(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.handleUpdateTag(tag, registries);
 
         hasEnergy = tag.getBoolean(HAS_ENERGY_TAG_NAME);
     }
 
     @Override
-    protected void saveAdditional(final CompoundTag tag) {
-        super.saveAdditional(tag);
+    protected void saveAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
 
-        tag.put(ENERGY_TAG_NAME, energy.serializeNBT());
+        tag.put(ENERGY_TAG_NAME, energy.serializeNBT(registries));
     }
 
     @Override
-    public void load(final CompoundTag tag) {
-        super.load(tag);
+    public void loadAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
 
-        energy.deserializeNBT(tag.getCompound(ENERGY_TAG_NAME));
+        energy.deserializeNBT(registries, tag.getCompound(ENERGY_TAG_NAME));
     }
 
 
@@ -103,15 +109,33 @@ public final class PciCardCageBlockEntity extends ModBlockEntity implements Tick
 
     ///////////////////////////////////////////////////////////////
 
-    @Override
-    protected void collectCapabilities(final CapabilityCollector collector, @Nullable final Direction direction) {
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
         if (Config.cardCagesUseEnergy()) {
-            collector.offer(Capabilities.energyStorage(), energy);
+            event.registerBlock(
+                Capabilities.EnergyStorage.BLOCK,
+                (level, pos, state, be, side) -> {
+                    if (be instanceof final PciCardCageBlockEntity self) {
+                        return self.energy;
+                    }
+                    return null;
+                },
+                Blocks.PCI_CARD_CAGE.get()
+            );
         }
 
-        if (direction == getBlockState().getValue(PciCardCageBlock.FACING).getOpposite()) {
-            collector.offer(Capabilities.device(), cardCageDevice);
-        }
+        event.registerBlock(
+            Capabilities.Device.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (be instanceof final PciCardCageBlockEntity self) {
+                    if (side == self.getBlockState().getValue(PciCardCageBlock.FACING).getOpposite()) {
+                        return self.cardCageDevice;
+                    }
+                }
+                return null;
+            },
+            Blocks.PCI_CARD_CAGE.get()
+        );
     }
 
     ///////////////////////////////////////////////////////////////

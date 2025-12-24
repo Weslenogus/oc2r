@@ -2,45 +2,34 @@
 
 package li.cil.oc2.common.network.message;
 
+import io.netty.buffer.ByteBuf;
+import li.cil.oc2.api.API;
 import li.cil.oc2.common.bus.device.rpc.item.FileImportExportCardItemDevice;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import java.util.function.Supplier;
+public record ClientCanceledImportFileMessage(int id) implements AbstractMessage {
+    public static final StreamCodec<ByteBuf, ClientCanceledImportFileMessage> STREAM_CODEC = StreamCodec.composite(
+        ByteBufCodecs.INT,
+        ClientCanceledImportFileMessage::id,
+        ClientCanceledImportFileMessage::new
+    );
 
-public final class ClientCanceledImportFileMessage extends AbstractMessage {
-    private int id;
-
-    ///////////////////////////////////////////////////////////////////
-
-    public ClientCanceledImportFileMessage(final int id) {
-        this.id = id;
-    }
-
-    public ClientCanceledImportFileMessage(final FriendlyByteBuf buffer) {
-        super(buffer);
-    }
-
-    ///////////////////////////////////////////////////////////////////
+    public static final CustomPacketPayload.Type<ClientCanceledImportFileMessage> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "client_canceled_import_file_message"));
 
     @Override
-    public void fromBytes(final FriendlyByteBuf buffer) {
-        id = buffer.readVarInt();
-    }
-
-    @Override
-    public void toBytes(final FriendlyByteBuf buffer) {
-        buffer.writeVarInt(id);
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 
     ///////////////////////////////////////////////////////////////////
 
-    @Override
-    protected void handleMessage(final Supplier<NetworkEvent.Context> context) {
-        final ServerPlayer player = context.get().getSender();
-        if (player != null) {
-            FileImportExportCardItemDevice.cancelImport(player, id);
-        }
+    public void handleMessage(IPayloadContext context) {
+        final ServerPlayer player = (ServerPlayer) context.player();
+        FileImportExportCardItemDevice.cancelImport(player, id);
     }
 }

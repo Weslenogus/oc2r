@@ -8,6 +8,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.item.ItemDisplayContext;
+import org.joml.Matrix4fStack;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import li.cil.oc2.client.gui.widget.Texture;
@@ -62,7 +63,7 @@ public final class NetworkInterfaceCardScreen extends Screen {
 
     private final ComputerBlockItemRenderer computerBlockItemRenderer = new ComputerBlockItemRenderer();
 
-    private Vector3f blockRotation = new Vector3f(-30, 45, 0);
+    private Vector3f blockRotation = new Vector3f(0, 0, 0);
     private int left, top;
     @Nullable private Direction focusedSide;
     private boolean isDraggingBlock, hasDraggedBlock;
@@ -136,8 +137,8 @@ public final class NetworkInterfaceCardScreen extends Screen {
             }
             if (hasDraggedBlock) {
                 blockRotation = new Vector3f(
-                    Mth.clamp(blockRotation.x() - (float) deltaY, -MAX_BLOCK_PITCH, MAX_BLOCK_PITCH),
-                    Mth.wrapDegrees(blockRotation.y() + (float) deltaX),
+                    Mth.clamp(blockRotation.x() - (float) deltaY * 0.2f, -MAX_BLOCK_PITCH, MAX_BLOCK_PITCH),
+                    Mth.wrapDegrees(blockRotation.y() + (float) deltaX * 0.2f),
                     blockRotation.z()
                 );
             }
@@ -148,7 +149,7 @@ public final class NetworkInterfaceCardScreen extends Screen {
 
     @Override
     public void render(final GuiGraphics graphics, final int mouseX, final int mouseY, final float partialTicks) {
-        renderBackground(graphics);
+        renderBackground(graphics, mouseX, mouseY, partialTicks);
         Sprites.NETWORK_INTERFACE_CARD_SCREEN.draw(graphics, left, top);
 
         super.render(graphics, mouseX, mouseY, partialTicks);
@@ -227,10 +228,10 @@ public final class NetworkInterfaceCardScreen extends Screen {
             final Vector3f renderRotation = new Vector3f(rotation.x, rotation.y, rotation.z);
             renderRotation.add(0, 180, 0);
 
-            final PoseStack stack = RenderSystem.getModelViewStack();
-            stack.pushPose();
+            final Matrix4fStack stack = RenderSystem.getModelViewStack();
+            stack.pushMatrix();
             stack.translate(x, y, 0);
-            stack.mulPose(new Quaternionf().rotateXYZ(renderRotation.x, renderRotation.y, renderRotation.z));
+            stack.rotate(new Quaternionf().rotateXYZ(renderRotation.x, renderRotation.y, renderRotation.z));
             stack.scale(BLOCK_RENDER_SIZE, -BLOCK_RENDER_SIZE, BLOCK_RENDER_SIZE);
             RenderSystem.applyModelViewMatrix();
 
@@ -239,7 +240,7 @@ public final class NetworkInterfaceCardScreen extends Screen {
             renderOverlays(stack, bufferSource);
             bufferSource.endBatch();
 
-            stack.popPose();
+            stack.popMatrix();
             RenderSystem.applyModelViewMatrix();
         }
 
@@ -247,19 +248,19 @@ public final class NetworkInterfaceCardScreen extends Screen {
             itemRenderer.render(computerItemStack, ItemDisplayContext.NONE, false, new PoseStack(), bufferSource, 0xF000F0, OverlayTexture.NO_OVERLAY, model);
         }
 
-        private void renderOverlays(final PoseStack poseStack, final MultiBufferSource.BufferSource bufferSource) {
+        private void renderOverlays(final Matrix4fStack poseStack, final MultiBufferSource.BufferSource bufferSource) {
             for (final Direction side : Direction.values()) {
                 // South face of computers is the front face (screen) and there's no connectivity allowed there.
                 if (side == Direction.SOUTH) {
                     continue;
                 }
 
-                poseStack.pushPose();
-                poseStack.setIdentity();
+                poseStack.pushMatrix();
+                poseStack.identity();
 
-                poseStack.translate(-side.getStepX() * 0.51, side.getStepY() * 0.51, -side.getStepZ() * 0.51);
+                poseStack.translate(-side.getStepX() * 0.51f, side.getStepY() * 0.51f, -side.getStepZ() * 0.51f);
 
-                final Vector3f sideRotation = switch (side) {
+                Vector3f sideRotation = switch (side) {
                     case DOWN -> new Vector3f(-90, 0, 0);
                     case UP -> new Vector3f(90, 0, 0);
                     case NORTH -> new Vector3f(0, 180, 0);
@@ -267,9 +268,10 @@ public final class NetworkInterfaceCardScreen extends Screen {
                     case EAST -> new Vector3f(0, 90, 0);
                     default -> throw new IllegalStateException("Unexpected value: " + side);
                 };
-                poseStack.mulPose(new Quaternionf().rotateXYZ(sideRotation.x, sideRotation.y, sideRotation.z));
+                sideRotation.mul((float) Math.PI / 180.0f);
+                poseStack.rotate(new Quaternionf().rotateXYZ(sideRotation.x, sideRotation.y, sideRotation.z));
 
-                poseStack.translate(-0.5, -0.5, 0);
+                poseStack.translate(-0.5f, -0.5f, 0f);
 
                 if (getConfiguration(side)) {
                     renderOverlay(poseStack, bufferSource, Textures.BLOCK_FACE_ENABLED_TEXTURE);
@@ -281,17 +283,17 @@ public final class NetworkInterfaceCardScreen extends Screen {
                     renderOverlay(poseStack, bufferSource, Textures.BLOCK_FACE_FOCUSED_TEXTURE);
                 }
 
-                poseStack.popPose();
+                poseStack.popMatrix();
             }
         }
 
-        private void renderOverlay(final PoseStack poseStack, final MultiBufferSource.BufferSource bufferSource, final Texture texture) {
+        private void renderOverlay(final Matrix4fStack poseStack, final MultiBufferSource.BufferSource bufferSource, final Texture texture) {
             final VertexConsumer buffer = bufferSource.getBuffer(ModRenderType.getOverlay(texture.location));
 
-            buffer.vertex(poseStack.last().pose(), 0, 0, 0).uv(0, 0).endVertex();
-            buffer.vertex(poseStack.last().pose(), 0, 1, 0).uv(0, 1).endVertex();
-            buffer.vertex(poseStack.last().pose(), 1, 1, 0).uv(1, 1).endVertex();
-            buffer.vertex(poseStack.last().pose(), 1, 0, 0).uv(1, 0).endVertex();
+            buffer.addVertex(poseStack, 0, 0, 0).setUv(0, 0);
+            buffer.addVertex(poseStack, 0, 1, 0).setUv(0, 1);
+            buffer.addVertex(poseStack, 1, 1, 0).setUv(1, 1);
+            buffer.addVertex(poseStack, 1, 0, 0).setUv(1, 0);
         }
     }
 }

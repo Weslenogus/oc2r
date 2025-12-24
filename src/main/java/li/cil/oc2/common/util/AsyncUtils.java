@@ -3,16 +3,12 @@ package li.cil.oc2.common.util;
 import li.cil.oc2.common.config.AsyncConfig;
 import li.cil.oc2.common.event.ForgeEventHandlers;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraftforge.fml.util.thread.EffectiveSide;
-import net.minecraftforge.server.ServerLifecycleHooks;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.util.concurrent.*;
 import java.util.List;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -22,10 +18,14 @@ public final class AsyncUtils {
     private static final Logger LOGGER = LogManager.getLogger();
 
     // Use a dedicated executor for async operations to avoid blocking the main server thread
-    private static final ExecutorService ASYNC_EXECUTOR;
-    
+    private static volatile ExecutorService asyncExecutor;
+
     static {
-        ASYNC_EXECUTOR = new ForkJoinPool(
+        asyncExecutor = createExecutor();
+    }
+
+    private static ExecutorService createExecutor() {
+        return new ForkJoinPool(
             Math.max(1, Runtime.getRuntime().availableProcessors() / 2),
             ForkJoinPool.defaultForkJoinWorkerThreadFactory,
             (t, e) -> LOGGER.error("Uncaught exception in async executor thread", e),
@@ -61,7 +61,7 @@ public final class AsyncUtils {
      * @return The async executor service.
      */
     public static ExecutorService getAsyncExecutor() {
-        return ASYNC_EXECUTOR;
+        return ensureExecutor();
     }
 
     // Prevent instantiation
@@ -75,7 +75,8 @@ public final class AsyncUtils {
      * @return a CompletableFuture that will complete when the task finishes
      */
     public static <T> CompletableFuture<T> runAsync(Supplier<T> task, String description) {
-        if (ASYNC_EXECUTOR.isShutdown()) {
+        final ExecutorService executor = ensureExecutor();
+        if (executor == null || executor.isShutdown()) {
             LOGGER.warn("Attempted to submit async task '{}' after executor was shut down", description);
             CompletableFuture<T> failedFuture = new CompletableFuture<>();
             failedFuture.completeExceptionally(new RejectedExecutionException("Executor has been shut down"));
@@ -109,7 +110,7 @@ public final class AsyncUtils {
                         LOGGER.trace("Config not loaded yet, skipping debug logging for: {}", description);
                     }
                 }
-            }, ASYNC_EXECUTOR);
+            }, executor);
         } catch (RejectedExecutionException e) {
             LOGGER.warn("Failed to submit async task '{}' - executor is shutting down", description, e);
             CompletableFuture<T> failedFuture = new CompletableFuture<>();
@@ -131,14 +132,14 @@ public final class AsyncUtils {
             return null;
         }, description);
     }
-    
+
     /**
      * Checks if the async executor has been shut down.
      *
      * @return true if the executor has been shut down, false otherwise
      */
     public static boolean isShutdown() {
-        return ASYNC_EXECUTOR.isShutdown();
+        return asyncExecutor == null || asyncExecutor.isShutdown();
     }
 
     /**
@@ -223,7 +224,8 @@ public final class AsyncUtils {
      * Uses a shorter timeout and more aggressive cancellation to speed up shutdown.
      */
     public static void shutdown() {
-        if (ASYNC_EXECUTOR.isShutdown()) {
+        final ExecutorService executor = asyncExecutor;
+        if (executor == null || executor.isShutdown()) {
             return; // Already shut down
         }
 
@@ -240,11 +242,11 @@ public final class AsyncUtils {
         }
 
         // Disable new tasks from being submitted
-        ASYNC_EXECUTOR.shutdown();
+        executor.shutdown();
 
         try {
             // Wait a short time for tasks to complete
-            if (!ASYNC_EXECUTOR.awaitTermination(1, TimeUnit.SECONDS)) {
+            if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
                 if (debug) {
                     LOGGER.warn("Async executor did not shut down within timeout, forcing immediate shutdown");
                 } else {
@@ -252,22 +254,33 @@ public final class AsyncUtils {
                 }
 
                 // Cancel currently executing tasks
-                final var runningTasks = ASYNC_EXECUTOR.shutdownNow();
+                final var runningTasks = executor.shutdownNow();
 
                 if (debug && !runningTasks.isEmpty()) {
                     LOGGER.warn("Cancelled {} running tasks", runningTasks.size());
                 }
 
                 // Wait a bit more for tasks to respond to being cancelled
-                if (!ASYNC_EXECUTOR.awaitTermination(100, TimeUnit.MILLISECONDS)) {
+                if (!executor.awaitTermination(100, TimeUnit.MILLISECONDS)) {
                     LOGGER.warn("Some tasks did not respond to cancellation");
                 }
             }
         } catch (final InterruptedException e) {
             LOGGER.warn("Interrupted while waiting for async executor to shut down, forcing immediate shutdown", e);
             // Try one last time with extreme prejudice
-            ASYNC_EXECUTOR.shutdownNow();
+            executor.shutdownNow();
             Thread.currentThread().interrupt();
         }
+    }
+
+    private static synchronized ExecutorService ensureExecutor() {
+        if (asyncExecutor == null || asyncExecutor.isShutdown()) {
+            if (ForgeEventHandlers.getCurrentServer() == null) {
+                return asyncExecutor;
+            }
+            asyncExecutor = createExecutor();
+            LOGGER.info("Async executor reinitialized");
+        }
+        return asyncExecutor;
     }
 }

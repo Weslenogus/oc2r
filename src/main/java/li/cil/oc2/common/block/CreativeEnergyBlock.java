@@ -2,6 +2,7 @@
 
 package li.cil.oc2.common.block;
 
+import com.mojang.serialization.MapCodec;
 import li.cil.oc2.common.blockentity.BlockEntities;
 import li.cil.oc2.common.blockentity.TickableBlockEntity;
 import net.minecraft.core.BlockPos;
@@ -25,6 +26,11 @@ public final class CreativeEnergyBlock extends Block implements EntityBlock {
             .sound(SoundType.METAL)
             .strength(-1, 3600000)
             .noLootTable());
+    }
+
+    @Override
+    public MapCodec<CreativeEnergyBlock> codec() {
+        return BlockCodecs.CREATIVE_ENERGY.get();
     }
 
     ///////////////////////////////////////////////////////////////////

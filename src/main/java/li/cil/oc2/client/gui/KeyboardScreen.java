@@ -27,7 +27,7 @@ public final class KeyboardScreen extends Screen {
     private static final float ARM_SWING_RATE = 0.8f;
     private static final int BORDER_COLOR = 0xFFFFFFFF;
 
-    private static final MutableComponent CLOSE_INFO = Component.translatable("gui.oc2.keyboard.close_info");
+    private static final MutableComponent CLOSE_INFO = Component.translatable("gui.oc2r.keyboard.close_info");
 
     ///////////////////////////////////////////////////////////////////
 
@@ -47,10 +47,6 @@ public final class KeyboardScreen extends Screen {
     @Override
     protected void init() {
         super.init();
-
-        // Grabbing the mouse allows us to let the player keep turning the camera (to get a better
-        // look at the projection of a projector, e.g.), while still grabbing all keyboard input.
-        grabMouse();
 
         // Disable hotbar since we don't need it here, and it just blocks screen space.
         hideHotbar = true;
@@ -91,6 +87,11 @@ public final class KeyboardScreen extends Screen {
     }
 
     @Override
+    public void renderBackground(final GuiGraphics guiGraphics, final int mouseX, final int mouseY, final float partialTick) {
+        // Don't
+    }
+
+    @Override
     public void render(final GuiGraphics graphics, final int mouseX, final int mouseY, final float partialTicks) {
         super.render(graphics, mouseX, mouseY, partialTicks);
 
@@ -121,29 +122,10 @@ public final class KeyboardScreen extends Screen {
     ///////////////////////////////////////////////////////////////////
 
     private void renderBorderOverlay(final GuiGraphics graphics) {
-        blitQuad(graphics, BORDER_SIZE, BORDER_SIZE, width - BORDER_SIZE, BORDER_SIZE * 2, BORDER_COLOR);
-        blitQuad(graphics, BORDER_SIZE, BORDER_SIZE, BORDER_SIZE * 2, height - BORDER_SIZE, BORDER_COLOR);
-        blitQuad(graphics, BORDER_SIZE, height - BORDER_SIZE * 2, width - BORDER_SIZE, height - BORDER_SIZE, BORDER_COLOR);
-        blitQuad(graphics, width - BORDER_SIZE * 2, BORDER_SIZE, width - BORDER_SIZE, height - BORDER_SIZE, BORDER_COLOR);
-    }
-
-    private void blitQuad(final GuiGraphics graphics, final int x0, final int y0, final int x1, final int y1, final int color) {
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
-        final Tesselator tesselator = Tesselator.getInstance();
-        final BufferBuilder builder = tesselator.getBuilder();
-        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-        builder.vertex(graphics.pose().last().pose(), x0, y1, 0).color(color).endVertex();
-        builder.vertex(graphics.pose().last().pose(), x1, y1, 0).color(color).endVertex();
-        builder.vertex(graphics.pose().last().pose(), x1, y0, 0).color(color).endVertex();
-        builder.vertex(graphics.pose().last().pose(), x0, y0, 0).color(color).endVertex();
-        tesselator.end();
-    }
-
-    private void grabMouse() {
-        final Minecraft minecraft = getMinecraft();
-        final MouseHandler mouseHandler = minecraft.mouseHandler;
-        mouseHandler.mouseGrabbed = true;
-        InputConstants.grabOrReleaseMouse(minecraft.getWindow().getWindow(), InputConstants.CURSOR_DISABLED, mouseHandler.xpos(), mouseHandler.ypos());
+        graphics.fill(BORDER_SIZE, BORDER_SIZE, width - BORDER_SIZE, BORDER_SIZE * 2, BORDER_COLOR);
+        graphics.fill(BORDER_SIZE, BORDER_SIZE, BORDER_SIZE * 2, height - BORDER_SIZE, BORDER_COLOR);
+        graphics.fill(BORDER_SIZE, height - BORDER_SIZE * 2, width - BORDER_SIZE, height - BORDER_SIZE, BORDER_COLOR);
+        graphics.fill(width - BORDER_SIZE * 2, BORDER_SIZE, width - BORDER_SIZE, height - BORDER_SIZE, BORDER_COLOR);
     }
 
     private void sendInputMessage(final int keycode, final boolean isDown) {

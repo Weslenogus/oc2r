@@ -2,48 +2,41 @@
 
 package li.cil.oc2.common.network.message;
 
+import li.cil.oc2.api.API;
 import li.cil.oc2.common.blockentity.DiskDriveBlockEntity;
 import li.cil.oc2.common.network.MessageUtils;
 import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-public final class DiskDriveFloppyMessage extends AbstractMessage {
-    private BlockPos pos;
-    private CompoundTag data;
+public record DiskDriveFloppyMessage(BlockPos pos, ItemStack data) implements AbstractMessage {
+    public static final StreamCodec<RegistryFriendlyByteBuf, DiskDriveFloppyMessage> STREAM_CODEC = StreamCodec.composite(
+        BlockPos.STREAM_CODEC,
+        DiskDriveFloppyMessage::pos,
+        ItemStack.OPTIONAL_STREAM_CODEC,
+        DiskDriveFloppyMessage::data,
+        DiskDriveFloppyMessage::new
+    );
+
+    public static final CustomPacketPayload.Type<DiskDriveFloppyMessage> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "disk_drive_floppy_message"));
+
+    @Override
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
+    }
 
     ///////////////////////////////////////////////////////////////////
 
     public DiskDriveFloppyMessage(final DiskDriveBlockEntity diskDrive) {
-        this.pos = diskDrive.getBlockPos();
-        this.data = diskDrive.getFloppy().serializeNBT();
+        this(diskDrive.getBlockPos(), diskDrive.getFloppy());
     }
 
-    public DiskDriveFloppyMessage(final FriendlyByteBuf buffer) {
-        super(buffer);
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-    @Override
-    public void fromBytes(final FriendlyByteBuf buffer) {
-        pos = buffer.readBlockPos();
-        data = buffer.readNbt();
-    }
-
-    @Override
-    public void toBytes(final FriendlyByteBuf buffer) {
-        buffer.writeBlockPos(pos);
-        buffer.writeNbt(data);
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-    @Override
-    protected void handleMessage(final NetworkEvent.Context context) {
+    public void handleMessage(IPayloadContext context) {
         MessageUtils.withClientBlockEntityAt(pos, DiskDriveBlockEntity.class,
-            diskDrive -> diskDrive.setFloppyClient(ItemStack.of(data)));
+            diskDrive -> diskDrive.setFloppyClient(data));
     }
 }

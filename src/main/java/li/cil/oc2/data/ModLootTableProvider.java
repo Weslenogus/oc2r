@@ -3,32 +3,33 @@
 package li.cil.oc2.data;
 
 import li.cil.oc2.common.block.Blocks;
+import li.cil.oc2.common.components.DataComponents;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.data.PackOutput;
 import net.minecraft.data.loot.BlockLootSubProvider;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.data.loot.LootTableProvider;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.storage.loot.LootPool;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.entries.LootItem;
-import net.minecraft.world.level.storage.loot.functions.CopyNbtFunction;
+import net.minecraft.world.level.storage.loot.functions.CopyComponentsFunction;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
-import net.minecraft.world.level.storage.loot.providers.nbt.ContextNbtProvider;
 import net.minecraft.world.level.storage.loot.providers.number.ConstantValue;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.neoforge.registries.DeferredHolder;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.singletonList;
-import static li.cil.oc2.common.Constants.*;
 
 public final class ModLootTableProvider extends LootTableProvider {
-    public ModLootTableProvider(final PackOutput output, final Set<ResourceLocation> additionalTables, final List<SubProviderEntry> subProviders) {
-        super(output, additionalTables, subProviders);
+    public ModLootTableProvider(PackOutput output, Set<ResourceKey<LootTable>> requiredTables, List<SubProviderEntry> subProviders, CompletableFuture<HolderLookup.Provider> registries) {
+        super(output, requiredTables, subProviders, registries);
     }
 
     @Override
@@ -42,8 +43,8 @@ public final class ModLootTableProvider extends LootTableProvider {
     }
 
     public static final class ModBlockLootTables extends BlockLootSubProvider {
-        public ModBlockLootTables() {
-            super(Collections.emptySet(), FeatureFlags.REGISTRY.allFlags());
+        public ModBlockLootTables(HolderLookup.Provider registries) {
+            super(Collections.emptySet(), FeatureFlags.REGISTRY.allFlags(), registries);
         }
 
         @Override
@@ -56,6 +57,12 @@ public final class ModLootTableProvider extends LootTableProvider {
             dropSelf(Blocks.NETWORK_HUB.get());
             dropSelf(Blocks.PROJECTOR.get());
             dropSelf(Blocks.REDSTONE_INTERFACE.get());
+            dropSelf(Blocks.MONITOR.get());
+            dropSelf(Blocks.FLASH_MEMORY_FLASHER.get());
+            dropSelf(Blocks.NETWORK_SWITCH.get());
+            dropSelf(Blocks.VXLAN_HUB.get());
+            dropSelf(Blocks.PCI_CARD_CAGE.get());
+            dropSelf(Blocks.INTERNET_GATEWAY.get());
         }
 
         @Override
@@ -63,7 +70,7 @@ public final class ModLootTableProvider extends LootTableProvider {
             return Blocks.BLOCKS.getEntries()
                 .stream()
                 .filter(blockRegObj -> blockRegObj.get() != Blocks.BUS_CABLE.get())
-                .map(RegistryObject::get)
+                .map(DeferredHolder::get)
                 .collect(Collectors.toList());
         }
 
@@ -72,13 +79,9 @@ public final class ModLootTableProvider extends LootTableProvider {
                 .withPool(applyExplosionCondition(block, LootPool.lootPool()
                     .setRolls(ConstantValue.exactly(1))
                     .add(LootItem.lootTableItem(block)
-                        .apply(CopyNbtFunction.copyData(ContextNbtProvider.BLOCK_ENTITY)
-                            .copy(ITEMS_TAG_NAME,
-                                concat(BLOCK_ENTITY_TAG_NAME_IN_ITEM, ITEMS_TAG_NAME),
-                                CopyNbtFunction.MergeStrategy.REPLACE)
-                            .copy(ENERGY_TAG_NAME,
-                                concat(BLOCK_ENTITY_TAG_NAME_IN_ITEM, ENERGY_TAG_NAME),
-                                CopyNbtFunction.MergeStrategy.REPLACE)
+                        .apply(
+                            CopyComponentsFunction.copyComponents(CopyComponentsFunction.Source.BLOCK_ENTITY)
+                                .include(DataComponents.RESTRICTED_CONTAINER.get())
                         )
                     )
                 ));

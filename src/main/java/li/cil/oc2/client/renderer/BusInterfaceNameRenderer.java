@@ -2,8 +2,10 @@
 
 package li.cil.oc2.client.renderer;
 
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.common.NeoForge;
 import org.joml.Matrix4f;
 import li.cil.oc2.common.block.BusCableBlock;
 import li.cil.oc2.common.blockentity.BusCableBlockEntity;
@@ -20,9 +22,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 public enum BusInterfaceNameRenderer {
     INSTANCE;
@@ -30,7 +30,7 @@ public enum BusInterfaceNameRenderer {
     ///////////////////////////////////////////////////////////////////
 
     public static void initialize() {
-        MinecraftForge.EVENT_BUS.register(INSTANCE);
+        NeoForge.EVENT_BUS.register(INSTANCE);
     }
 
     @SubscribeEvent
@@ -86,20 +86,20 @@ public enum BusInterfaceNameRenderer {
         final EntityRenderDispatcher renderManager = mc.getEntityRenderDispatcher();
         stack.mulPose(renderManager.cameraOrientation());
 
-        stack.scale(-0.025f, -0.025f, 0.025f);
+        stack.scale(0.025f, -0.025f, 0.025f);
 
         final Matrix4f matrix = stack.last().pose();
 
         final Font font = Minecraft.getInstance().font;
-        final MultiBufferSource.BufferSource buffer = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
+        final MultiBufferSource.BufferSource buffer = MultiBufferSource.immediate(new ByteBufferBuilder(0));
 
         final float horizontalTextOffset = -font.width(name) * 0.5f;
         final float backgroundOpacity = Minecraft.getInstance().options.getBackgroundOpacity(0.25F);
         final int backgroundColor = (int) (backgroundOpacity * 255.0F) << 24;
         final int packedLight = LightTexture.pack(15, 15);
 
-        font.drawInBatch(name, horizontalTextOffset, 0, 0xffffffff,
-            false, matrix, buffer, Font.DisplayMode.POLYGON_OFFSET, backgroundColor, packedLight);
+        font.drawInBatch(name, horizontalTextOffset, 0, 0,
+            false, matrix, buffer, Font.DisplayMode.SEE_THROUGH, backgroundColor, packedLight);
         font.drawInBatch(name, horizontalTextOffset, 0, 0xffffffff,
             false, matrix, buffer, Font.DisplayMode.NORMAL, 0, packedLight);
 

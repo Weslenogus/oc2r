@@ -3,31 +3,26 @@
 package li.cil.oc2.common.item;
 
 import li.cil.oc2.api.API;
-import li.cil.oc2.common.util.ColorUtils;
 import net.minecraft.Util;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.item.DyeableLeatherItem;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.component.DyedItemColor;
 
 import javax.annotation.Nullable;
 
-public final class HardDriveItem extends AbstractStorageItem implements DyeableLeatherItem {
-    private final int defaultColor;
+public final class HardDriveItem extends AbstractStorageItem {
     @Nullable private String descriptionId;
 
     ///////////////////////////////////////////////////////////////////
 
     public HardDriveItem(final int capacity, final DyeColor defaultColor) {
-        super(capacity);
-        this.defaultColor = ColorUtils.textureDiffuseColorsToRGB(defaultColor.getTextureDiffuseColors());
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-    @Override
-    public int getColor(final ItemStack stack) {
-        return hasCustomColor(stack) ? DyeableLeatherItem.super.getColor(stack) : defaultColor;
+        super(
+            new Item.Properties()
+                .component(DataComponents.DYED_COLOR, new DyedItemColor(defaultColor.getTextureDiffuseColor(), true)),
+            capacity
+        );
     }
 
     ///////////////////////////////////////////////////////////////////

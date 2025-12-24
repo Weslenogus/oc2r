@@ -2,46 +2,37 @@
 
 package li.cil.oc2.common.network.message;
 
+import li.cil.oc2.api.API;
 import li.cil.oc2.common.blockentity.BusCableBlockEntity;
 import li.cil.oc2.common.network.MessageUtils;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-public final class BusCableFacadeMessage extends AbstractMessage {
-    private BlockPos pos;
-    private ItemStack stack;
+public record BusCableFacadeMessage(BlockPos pos, ItemStack stack) implements AbstractMessage {
 
-    ///////////////////////////////////////////////////////////////////
+    public static final StreamCodec<RegistryFriendlyByteBuf, BusCableFacadeMessage> STREAM_CODEC = StreamCodec.composite(
+        BlockPos.STREAM_CODEC,
+        BusCableFacadeMessage::pos,
+        ItemStack.OPTIONAL_STREAM_CODEC,
+        BusCableFacadeMessage::stack,
+        BusCableFacadeMessage::new
+    );
 
-    public BusCableFacadeMessage(final BlockPos pos, final ItemStack stack) {
-        this.pos = pos;
-        this.stack = stack;
-    }
-
-    public BusCableFacadeMessage(final FriendlyByteBuf buffer) {
-        super(buffer);
-    }
-
-    ///////////////////////////////////////////////////////////////////
+    public static final CustomPacketPayload.Type<BusCableFacadeMessage> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "bus_cable_facade_message"));
 
     @Override
-    public void fromBytes(final FriendlyByteBuf buffer) {
-        pos = buffer.readBlockPos();
-        stack = buffer.readItem();
-    }
-
-    @Override
-    public void toBytes(final FriendlyByteBuf buffer) {
-        buffer.writeBlockPos(pos);
-        buffer.writeItem(stack);
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 
     ///////////////////////////////////////////////////////////////////
 
-    @Override
-    protected void handleMessage(final NetworkEvent.Context context) {
+    public void handleMessage(final IPayloadContext context) {
         MessageUtils.withClientBlockEntityAt(pos, BusCableBlockEntity.class,
             busCable -> busCable.setFacade(stack));
     }

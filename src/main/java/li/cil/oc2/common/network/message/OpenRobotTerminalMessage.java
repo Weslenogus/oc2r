@@ -6,42 +6,38 @@ import li.cil.oc2.common.entity.Robot;
 import li.cil.oc2.common.network.MessageUtils;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkEvent;
 
-public final class OpenRobotTerminalMessage extends AbstractMessage {
-    private int entityId;
+import io.netty.buffer.ByteBuf;
+import li.cil.oc2.api.API;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+
+public record OpenRobotTerminalMessage(int entityId) implements AbstractMessage {
+    public static final StreamCodec<ByteBuf, OpenRobotTerminalMessage> STREAM_CODEC = StreamCodec.composite(
+        ByteBufCodecs.INT,
+        OpenRobotTerminalMessage::entityId,
+        OpenRobotTerminalMessage::new
+    );
+
+    public static final CustomPacketPayload.Type<OpenRobotTerminalMessage> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "open_robot_terminal_message"));
+
+    @Override
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
+    }
 
     ///////////////////////////////////////////////////////////////////
 
     public OpenRobotTerminalMessage(final Robot robot) {
-        this.entityId = robot.getId();
+        this(robot.getId());
     }
 
-    public OpenRobotTerminalMessage(final FriendlyByteBuf buffer) {
-        super(buffer);
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-    @Override
-    public void fromBytes(final FriendlyByteBuf buffer) {
-        entityId = buffer.readVarInt();
-    }
-
-    @Override
-    public void toBytes(final FriendlyByteBuf buffer) {
-        buffer.writeVarInt(entityId);
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-
-    @Override
-    protected void handleMessage(final NetworkEvent.Context context) {
-        final ServerPlayer player = context.getSender();
-        if (player != null) {
-            MessageUtils.withNearbyServerEntity(context, entityId, Robot.class,
-                robot -> robot.openTerminalScreen(player));
-        }
+    public void handleMessage(IPayloadContext context) {
+        final ServerPlayer player = (ServerPlayer) context.player();
+        MessageUtils.withNearbyServerEntity(context, entityId, Robot.class,
+            robot -> robot.openTerminalScreen(player));
     }
 }

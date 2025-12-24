@@ -9,6 +9,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
+import net.neoforged.neoforge.registries.RegistryBuilder;
 
 /**
  * Implementations describe individual slot types. Slot types are only used
@@ -21,7 +22,11 @@ public interface DeviceType {
     /**
      * The registry name of the registry holding device types.
      */
-    ResourceKey<Registry<DeviceType>> REGISTRY = ResourceKey.createRegistryKey(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "device_type"));
+    ResourceKey<Registry<DeviceType>> REGISTRY_KEY = ResourceKey.createRegistryKey(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "device_type"));
+    @SuppressWarnings("unused")
+    public static final Registry<DeviceType> REGISTRY = new RegistryBuilder<>(REGISTRY_KEY)
+        .sync(true)
+        .create();
 
     /**
      * The tag representing this device type.

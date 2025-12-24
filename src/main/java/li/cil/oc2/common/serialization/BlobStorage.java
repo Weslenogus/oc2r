@@ -7,9 +7,10 @@ import li.cil.oc2.common.config.AsyncConfig;
 import li.cil.oc2.common.util.AsyncUtils;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.storage.LevelResource;
-import net.minecraftforge.event.server.ServerAboutToStartEvent;
-import net.minecraftforge.event.server.ServerStoppedEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -25,12 +26,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 
-import net.minecraftforge.fml.common.Mod;
-
 /**
  * This class facilitates storing binary chunks of data in an efficient, parallelized fashion.
  */
-@Mod.EventBusSubscriber(modid = API.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class BlobStorage {
     private static final Logger LOGGER = LogManager.getLogger();
 
@@ -77,7 +76,7 @@ public final class BlobStorage {
             // Close all open handles if the directory changes
             close();
             dataDirectory = newDataDir;
-            
+
             try {
                 // Create directories synchronously since this is called during server startup
                 // when the config system might not be fully initialized yet
@@ -98,7 +97,7 @@ public final class BlobStorage {
             future.cancel(true);
         }
         PENDING_OPERATIONS.clear();
-        
+
         // Close all open channels
         for (final FileChannel blob : BLOBS.values()) {
             try {
@@ -108,7 +107,7 @@ public final class BlobStorage {
             }
         }
         BLOBS.clear();
-        
+
         // Safely check debug config if available
         boolean debug = false;
         try {
@@ -116,7 +115,7 @@ public final class BlobStorage {
         } catch (IllegalStateException ignored) {
             // Config system might be shutting down, continue with debug disabled
         }
-        
+
         if (debug) {
             LOGGER.info("Closed all blob storage resources");
         }
@@ -159,7 +158,7 @@ public final class BlobStorage {
         if (existingChannel != null && existingChannel.isOpen()) {
             return CompletableFuture.completedFuture(existingChannel);
         }
-        
+
         // Check if there's already a pending operation
         return PENDING_OPERATIONS.computeIfAbsent(handle, h -> {
             return AsyncUtils.runAsync(() -> {
@@ -177,7 +176,7 @@ public final class BlobStorage {
             }, "Open blob " + h);
         });
     }
-    
+
     /**
      * Get or opens a file channel for the blob with the specified handle.
      * <p>
@@ -214,7 +213,7 @@ public final class BlobStorage {
         } catch (IllegalStateException ignored) {
             // Config system might be shutting down, continue with debug disabled
         }
-        
+
         final boolean finalDebug = debug;
         return AsyncUtils.runAsync(() -> {
             try {
@@ -231,7 +230,7 @@ public final class BlobStorage {
             }
         }, "Close blob " + handle);
     }
-    
+
     /**
      * Closes the blob with the specified handle.
      *
@@ -261,7 +260,7 @@ public final class BlobStorage {
         } catch (IllegalStateException ignored) {
             // Config system might be shutting down, continue with debug disabled
         }
-        
+
         final boolean finalDebug = debug;
         return AsyncUtils.runAsync(() -> {
             final Path path = getBlobPath(handle);
@@ -277,7 +276,7 @@ public final class BlobStorage {
             return null;
         }, "Deleting blob " + handle);
     }
-    
+
     /**
      * Deletes the blob with the specified handle.
      *

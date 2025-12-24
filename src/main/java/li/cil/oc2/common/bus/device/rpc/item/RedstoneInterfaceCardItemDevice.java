@@ -2,30 +2,35 @@
 
 package li.cil.oc2.common.bus.device.rpc.item;
 
+import li.cil.oc2.api.API;
 import li.cil.oc2.api.bus.device.object.Callback;
 import li.cil.oc2.api.bus.device.object.DocumentedDevice;
 import li.cil.oc2.api.bus.device.object.Parameter;
 import li.cil.oc2.api.capabilities.RedstoneEmitter;
 import li.cil.oc2.api.util.Side;
 import li.cil.oc2.common.Constants;
+import li.cil.oc2.common.block.Blocks;
+import li.cil.oc2.common.blockentity.ComputerBlockEntity;
 import li.cil.oc2.common.capabilities.Capabilities;
 import li.cil.oc2.common.util.HorizontalBlockUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
-import net.minecraftforge.common.util.LazyOptional;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public final class RedstoneInterfaceCardItemDevice extends AbstractItemRPCDevice implements DocumentedDevice, ICapabilityProvider {
+@EventBusSubscriber(modid = API.MOD_ID)
+public final class RedstoneInterfaceCardItemDevice extends AbstractItemRPCDevice implements DocumentedDevice {
     private static final String OUTPUT_TAG_NAME = "output";
 
     private static final String GET_REDSTONE_INPUT = "getRedstoneInput";
@@ -55,26 +60,35 @@ public final class RedstoneInterfaceCardItemDevice extends AbstractItemRPCDevice
 
     ///////////////////////////////////////////////////////////////////
 
-    @Nonnull
-    @Override
-    public <T> LazyOptional<T> getCapability(@Nonnull final Capability<T> capability, @Nullable final Direction side) {
-        if (capability == Capabilities.redstoneEmitter() && side != null) {
-            final int index = side.get3DDataValue();
-            return LazyOptional.of(() -> capabilities[index]).cast();
-        }
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerBlock(
+            Capabilities.RedstoneEmitter.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (side == null) return null;
 
-        return LazyOptional.empty();
+                if (be instanceof final ComputerBlockEntity computer) {
+                    RedstoneInterfaceCardItemDevice self = computer.getFirstDevice(RedstoneInterfaceCardItemDevice.class);
+                    if (self == null) return null;
+
+                    final int index = side.get3DDataValue();
+                    return self.capabilities[index];
+                }
+                return null;
+            },
+            Blocks.COMPUTER.get()
+        );
     }
 
     @Override
-    public CompoundTag serializeNBT() {
+    public CompoundTag serializeNBT(HolderLookup.Provider provider) {
         final CompoundTag tag = new CompoundTag();
         tag.putByteArray(OUTPUT_TAG_NAME, output);
         return tag;
     }
 
     @Override
-    public void deserializeNBT(final CompoundTag tag) {
+    public void deserializeNBT(HolderLookup.Provider provider, final CompoundTag tag) {
         final byte[] serializedOutput = tag.getByteArray(OUTPUT_TAG_NAME);
         System.arraycopy(serializedOutput, 0, output, 0, Math.min(serializedOutput.length, output.length));
     }

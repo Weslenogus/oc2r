@@ -11,6 +11,7 @@ import li.cil.oc2.common.util.FakePlayerUtils;
 import li.cil.oc2.common.util.TickUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -22,6 +23,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Tier;
+import net.minecraft.world.item.Tiers;
 import net.minecraft.world.item.TieredItem;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.GameType;
@@ -34,10 +36,9 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.TierSortingRegistry;
-import net.minecraftforge.event.ForgeEventFactory;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.ItemStackHandler;
+import net.neoforged.neoforge.event.EventHooks;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemStackHandler;
 
 import javax.annotation.Nullable;
 import java.time.Duration;
@@ -65,14 +66,14 @@ public final class BlockOperationsModuleDevice extends AbstractItemRPCDevice {
     ///////////////////////////////////////////////////////////////////
 
     @Override
-    public CompoundTag serializeNBT() {
+    public CompoundTag serializeNBT(HolderLookup.Provider provider) {
         final CompoundTag tag = new CompoundTag();
         tag.putLong(LAST_OPERATION_TAG_NAME, lastOperation);
         return tag;
     }
 
     @Override
-    public void deserializeNBT(final CompoundTag tag) {
+    public void deserializeNBT(HolderLookup.Provider provider, final CompoundTag tag) {
         lastOperation = (long) Mth.clamp(tag.getLong(LAST_OPERATION_TAG_NAME), 0, entity.level().getGameTime());
     }
 
@@ -231,8 +232,8 @@ public final class BlockOperationsModuleDevice extends AbstractItemRPCDevice {
         }
 
         final ServerPlayer player = FakePlayerUtils.getFakePlayer(level, entity);
-        final int experience = net.minecraftforge.common.ForgeHooks.onBlockBreakEvent(level, GameType.DEFAULT_MODE, player, blockPos);
-        if (experience == -1) {
+        final var breakEvent = net.neoforged.neoforge.common.CommonHooks.fireBlockBreak(level, GameType.DEFAULT_MODE, player, blockPos, blockState);
+        if (breakEvent.isCanceled()) {
             return false;
         }
 
@@ -247,18 +248,25 @@ public final class BlockOperationsModuleDevice extends AbstractItemRPCDevice {
             return false;
         }
 
-        final Tier toolTier = TierSortingRegistry.byName(Config.blockOperationsModuleToolTier);
-        if (toolTier == null || !TierSortingRegistry.isCorrectTierForDrops(toolTier, blockState)) {
+        Tier toolTier;
+        try {
+            toolTier = Tiers.valueOf( Config.blockOperationsModuleToolTier );
+        } catch (IllegalArgumentException e) {
+            toolTier = null;
+        }
+        if (toolTier == null || blockState.is(toolTier.getIncorrectBlocksForDrops())) {
             return false;
         }
 
-        if (!ForgeEventFactory.doPlayerHarvestCheck(player, blockState, true)) {
+        if (!EventHooks.doPlayerHarvestCheck(player, blockState, level, blockPos)) {
             return false;
         }
 
-        if (identity.hurt(1, level.random, null)) {
+        var damage = identity.getDamageValue();
+        if (damage >= identity.getMaxDamage())
             return false;
-        }
+        damage += 1;
+        identity.setDamageValue(damage);
 
         if (!blockState.onDestroyedByPlayer(level, blockPos, player, true, level.getFluidState(blockPos))) {
             return false;

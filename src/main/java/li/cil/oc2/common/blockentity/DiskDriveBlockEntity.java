@@ -2,7 +2,9 @@
 
 package li.cil.oc2.common.blockentity;
 
+import li.cil.oc2.api.API;
 import li.cil.oc2.common.Constants;
+import li.cil.oc2.common.block.Blocks;
 import li.cil.oc2.common.block.DiskDriveBlock;
 import li.cil.oc2.common.bus.device.vm.block.DiskDriveContainer;
 import li.cil.oc2.common.bus.device.vm.block.DiskDriveDevice;
@@ -17,22 +19,27 @@ import li.cil.oc2.common.util.SoundEvents;
 import li.cil.oc2.common.util.ThrottledSoundEmitter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.time.Duration;
 
+import static li.cil.oc2.common.item.AbstractBlockDeviceItem.DATA_TAG_NAME;
+
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class DiskDriveBlockEntity extends ModBlockEntity implements DiskDriveContainer {
-    private static final String DATA_TAG_NAME = "data";
-
-    ///////////////////////////////////////////////////////////////////
-
     private final DiskDriveItemStackHandler itemHandler = new DiskDriveItemStackHandler();
     private final DiskDriveDevice<DiskDriveBlockEntity> device = new DiskDriveDevice<>(this);
     private final ThrottledSoundEmitter accessSoundEmitter;
@@ -85,7 +92,7 @@ public final class DiskDriveBlockEntity extends ModBlockEntity implements DiskDr
             ItemStackUtils.spawnAsEntity(level, getBlockPos().relative(facing), stack, facing).ifPresent(entity -> {
                 if (player != null) {
                     entity.setNoPickUpDelay();
-                    entity.setThrower(player.getUUID());
+                    entity.setThrower(player);
                 }
             });
         }
@@ -100,40 +107,57 @@ public final class DiskDriveBlockEntity extends ModBlockEntity implements DiskDr
         itemHandler.setStackInSlot(0, stack);
     }
 
-    @Override
-    protected void collectCapabilities(final CapabilityCollector collector, @Nullable final Direction direction) {
-        collector.offer(Capabilities.itemHandler(), itemHandler);
-
-        if (direction == getBlockState().getValue(DiskDriveBlock.FACING).getOpposite()) {
-            collector.offer(Capabilities.device(), device);
-        }
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerBlock(
+            Capabilities.ItemHandler.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (be instanceof final DiskDriveBlockEntity self) {
+                    return self.itemHandler;
+                }
+                return null;
+            },
+            Blocks.DISK_DRIVE.get()
+        );
+        event.registerBlock(
+            Capabilities.Device.BLOCK,
+            (level, pos, state, be, side) -> {
+                if (be instanceof final DiskDriveBlockEntity self) {
+                    if (side == self.getBlockState().getValue(DiskDriveBlock.FACING).getOpposite()) {
+                        return self.device;
+                    }
+                }
+                return null;
+            },
+            Blocks.DISK_DRIVE.get()
+        );
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
-        final CompoundTag tag = super.getUpdateTag();
-        tag.put(Constants.ITEMS_TAG_NAME, itemHandler.serializeNBT());
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        final CompoundTag tag = super.getUpdateTag(registries);
+        tag.put(Constants.ITEMS_TAG_NAME, itemHandler.serializeNBT(registries));
         return tag;
     }
 
     @Override
-    public void handleUpdateTag(final CompoundTag tag) {
-        super.handleUpdateTag(tag);
-        itemHandler.deserializeNBT(tag.getCompound(Constants.ITEMS_TAG_NAME));
+    public void handleUpdateTag(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.handleUpdateTag(tag, registries);
+        itemHandler.deserializeNBT(registries, tag.getCompound(Constants.ITEMS_TAG_NAME));
     }
 
     @Override
-    protected void saveAdditional(final CompoundTag tag) {
-        super.saveAdditional(tag);
+    protected void saveAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
 
-        tag.put(Constants.ITEMS_TAG_NAME, itemHandler.serializeNBT());
+        tag.put(Constants.ITEMS_TAG_NAME, itemHandler.serializeNBT(registries));
     }
 
     @Override
-    public void load(final CompoundTag tag) {
-        super.load(tag);
+    public void loadAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
 
-        itemHandler.deserializeNBT(tag.getCompound(Constants.ITEMS_TAG_NAME));
+        itemHandler.deserializeNBT(registries, tag.getCompound(Constants.ITEMS_TAG_NAME));
     }
 
     @Override
@@ -181,9 +205,9 @@ public final class DiskDriveBlockEntity extends ModBlockEntity implements DiskDr
         }
 
         @Override
-        public CompoundTag serializeNBT() {
+        public CompoundTag serializeNBT(HolderLookup.Provider provider) {
             exportDeviceDataToItemStack(getStackInSlotRaw(0));
-            return super.serializeNBT();
+            return super.serializeNBT(provider);
         }
 
         @Override
@@ -198,8 +222,10 @@ public final class DiskDriveBlockEntity extends ModBlockEntity implements DiskDr
             if (stack.isEmpty()) {
                 device.removeBlockDevice();
             } else {
-                final CompoundTag tag = ItemStackUtils.getOrCreateModDataTag(stack).getCompound(DATA_TAG_NAME);
-                device.updateBlockDevice(tag);
+                CustomData.update(DataComponents.CUSTOM_DATA, stack, (nbt) -> {
+                    final CompoundTag tag = ItemStackUtils.getOrCreateModDataTag(nbt).getCompound(DATA_TAG_NAME);
+                    device.updateBlockDevice(tag);
+                });
             }
 
             Network.sendToClientsTrackingBlockEntity(new DiskDriveFloppyMessage(DiskDriveBlockEntity.this), DiskDriveBlockEntity.this);
@@ -218,7 +244,9 @@ public final class DiskDriveBlockEntity extends ModBlockEntity implements DiskDr
 
             final CompoundTag tag = new CompoundTag();
             device.exportToItemStack(tag);
-            ItemStackUtils.getOrCreateModDataTag(stack).put(DATA_TAG_NAME, tag);
+            CustomData.update(DataComponents.CUSTOM_DATA, stack, (nbt) -> {
+                ItemStackUtils.getOrCreateModDataTag(nbt).put(DATA_TAG_NAME, tag);
+            });
         }
     }
 }

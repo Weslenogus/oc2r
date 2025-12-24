@@ -5,41 +5,38 @@ package li.cil.oc2.common.network.message;
 import li.cil.oc2.common.entity.Robot;
 import li.cil.oc2.common.network.MessageUtils;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
 
-public final class RobotPowerMessage extends AbstractMessage {
-    private int entityId;
-    private boolean power;
+import io.netty.buffer.ByteBuf;
+import li.cil.oc2.api.API;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+
+public record RobotPowerMessage(int entityId, boolean power) implements AbstractMessage {
+    public static final StreamCodec<ByteBuf, RobotPowerMessage> STREAM_CODEC = StreamCodec.composite(
+        ByteBufCodecs.INT,
+        RobotPowerMessage::entityId,
+        ByteBufCodecs.BOOL,
+        RobotPowerMessage::power,
+        RobotPowerMessage::new
+    );
+
+    public static final CustomPacketPayload.Type<RobotPowerMessage> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "robot_power_message"));
+
+    @Override
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
+    }
 
     ///////////////////////////////////////////////////////////////////
 
     public RobotPowerMessage(final Robot robot, final boolean power) {
-        this.entityId = robot.getId();
-        this.power = power;
+        this(robot.getId(), power);
     }
 
-    public RobotPowerMessage(final FriendlyByteBuf buffer) {
-        super(buffer);
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-    @Override
-    public void fromBytes(final FriendlyByteBuf buffer) {
-        entityId = buffer.readVarInt();
-        power = buffer.readBoolean();
-    }
-
-    @Override
-    public void toBytes(final FriendlyByteBuf buffer) {
-        buffer.writeVarInt(entityId);
-        buffer.writeBoolean(power);
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-    @Override
-    protected void handleMessage(final NetworkEvent.Context context) {
+    public void handleMessage(IPayloadContext context) {
         MessageUtils.withNearbyServerEntity(context, entityId, Robot.class,
             robot -> {
                 if (power) {

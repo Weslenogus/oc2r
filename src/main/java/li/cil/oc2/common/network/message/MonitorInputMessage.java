@@ -2,49 +2,44 @@
 
 package li.cil.oc2.common.network.message;
 
+import io.netty.buffer.ByteBuf;
+import li.cil.oc2.api.API;
 import li.cil.oc2.common.blockentity.MonitorBlockEntity;
 import li.cil.oc2.common.network.MessageUtils;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-public final class MonitorInputMessage extends AbstractMessage {
-    private BlockPos pos;
-    private int keycode;
-    private boolean isDown;
+public record MonitorInputMessage(BlockPos pos, int keycode, boolean isDown) implements AbstractMessage {
+    public static final StreamCodec<ByteBuf, MonitorInputMessage> STREAM_CODEC = StreamCodec.composite(
+        BlockPos.STREAM_CODEC,
+        MonitorInputMessage::pos,
+        ByteBufCodecs.INT,
+        MonitorInputMessage::keycode,
+        ByteBufCodecs.BOOL,
+        MonitorInputMessage::isDown,
+        MonitorInputMessage::new
+    );
+
+    public static final CustomPacketPayload.Type<MonitorInputMessage> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "monitor_input_message"));
+
+    @Override
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
+    }
 
     ///////////////////////////////////////////////////////////////////
 
     public MonitorInputMessage(final MonitorBlockEntity keyboard, final int keycode, final boolean isDown) {
-        this.pos = keyboard.getBlockPos();
-        this.keycode = keycode;
-        this.isDown = isDown;
-    }
-
-    public MonitorInputMessage(final FriendlyByteBuf buffer) {
-        super(buffer);
+        this(keyboard.getBlockPos(), keycode, isDown);
     }
 
     ///////////////////////////////////////////////////////////////////
 
-    @Override
-    public void fromBytes(final FriendlyByteBuf buffer) {
-        pos = buffer.readBlockPos();
-        keycode = buffer.readVarInt();
-        isDown = buffer.readBoolean();
-    }
-
-    @Override
-    public void toBytes(final FriendlyByteBuf buffer) {
-        buffer.writeBlockPos(pos);
-        buffer.writeVarInt(keycode);
-        buffer.writeBoolean(isDown);
-    }
-
-    ///////////////////////////////////////////////////////////////////
-
-    @Override
-    protected void handleMessage(final NetworkEvent.Context context) {
+    public void handleMessage(IPayloadContext context) {
         MessageUtils.withNearbyServerBlockEntityForInteraction(context, pos, MonitorBlockEntity.class,
             (player, monitor) -> monitor.handleInput(keycode, isDown));
     }

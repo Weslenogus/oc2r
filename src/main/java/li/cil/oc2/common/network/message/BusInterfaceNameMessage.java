@@ -2,77 +2,54 @@
 
 package li.cil.oc2.common.network.message;
 
+import io.netty.buffer.ByteBuf;
+import li.cil.oc2.api.API;
 import li.cil.oc2.common.blockentity.BusCableBlockEntity;
 import li.cil.oc2.common.network.MessageUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-public abstract class BusInterfaceNameMessage extends AbstractMessage {
-    protected BlockPos pos;
-    protected Direction side;
-    protected String value;
+public record BusInterfaceNameMessage(BlockPos pos, Direction side, String value) implements CustomPacketPayload {
 
-    ///////////////////////////////////////////////////////////////////
+    public static final StreamCodec<ByteBuf, BusInterfaceNameMessage> STREAM_CODEC = StreamCodec.composite(
+        BlockPos.STREAM_CODEC,
+        BusInterfaceNameMessage::pos,
+        Direction.STREAM_CODEC,
+        BusInterfaceNameMessage::side,
+        ByteBufCodecs.STRING_UTF8,
+        BusInterfaceNameMessage::value,
+        BusInterfaceNameMessage::new
+    );
 
-    protected BusInterfaceNameMessage(final BusCableBlockEntity busCable, final Direction side, final String value) {
-        this.pos = busCable.getBlockPos();
-        this.side = side;
-        this.value = value;
-    }
-
-    protected BusInterfaceNameMessage(final FriendlyByteBuf buffer) {
-        super(buffer);
-    }
-
-    ///////////////////////////////////////////////////////////////////
+    public static final CustomPacketPayload.Type<BusInterfaceNameMessage> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(API.MOD_ID, "bus_interface_name_message"));
 
     @Override
-    public void fromBytes(final FriendlyByteBuf buffer) {
-        pos = buffer.readBlockPos();
-        side = buffer.readEnum(Direction.class);
-        value = buffer.readUtf(32);
-    }
-
-    @Override
-    public void toBytes(final FriendlyByteBuf buffer) {
-        buffer.writeBlockPos(pos);
-        buffer.writeEnum(side);
-        buffer.writeUtf(value, 32);
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 
     ///////////////////////////////////////////////////////////////////
 
-    public static final class ToClient extends BusInterfaceNameMessage {
-        public ToClient(final BusCableBlockEntity busCable, final Direction side, final String value) {
-            super(busCable, side, value);
-        }
-
-        public ToClient(final FriendlyByteBuf buffer) {
-            super(buffer);
-        }
-
-        @Override
-        protected void handleMessage(final NetworkEvent.Context context) {
-            MessageUtils.withClientBlockEntityAt(pos, BusCableBlockEntity.class,
-                busCable -> busCable.setInterfaceName(side, value));
-        }
+    public static BusInterfaceNameMessage ToClient(final BusCableBlockEntity busCable, final Direction side, final String value) {
+        return new BusInterfaceNameMessage(busCable.getBlockPos(), side, value);
     }
 
-    public static final class ToServer extends BusInterfaceNameMessage {
-        public ToServer(final BusCableBlockEntity busCable, final Direction side, final String value) {
-            super(busCable, side, value);
-        }
+    public void handleClientMessage(final IPayloadContext context) {
+        MessageUtils.withClientBlockEntityAt(pos, BusCableBlockEntity.class,
+            busCable -> busCable.setInterfaceName(side, value));
+    }
 
-        public ToServer(final FriendlyByteBuf buffer) {
-            super(buffer);
-        }
+    public static BusInterfaceNameMessage ToServer(final BusCableBlockEntity busCable, final Direction side, final String value) {
+        return new BusInterfaceNameMessage(busCable.getBlockPos(), side, value);
+    }
 
-        @Override
-        protected void handleMessage(final NetworkEvent.Context context) {
-            MessageUtils.withNearbyServerBlockEntityForInteraction(context, pos, BusCableBlockEntity.class,
-                (player, busCable) -> busCable.setInterfaceName(side, value));
-        }
+    public void handleServerMessage(final IPayloadContext context) {
+        MessageUtils.withNearbyServerBlockEntityForInteraction(context, pos, BusCableBlockEntity.class,
+            (player, busCable) -> busCable.setInterfaceName(side, value));
     }
 }

@@ -3,22 +3,25 @@
 package li.cil.oc2.data;
 
 import li.cil.oc2.common.item.Items;
+import li.cil.oc2.common.item.crafting.WrenchRecipe;
+import net.minecraft.advancements.Criterion;
 import net.minecraft.advancements.critereon.InventoryChangeTrigger;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.data.PackOutput;
 import net.minecraft.data.recipes.*;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.level.ItemLike;
-import net.minecraftforge.common.Tags;
+import net.neoforged.neoforge.common.Tags;
 
-import java.util.function.Consumer;
+import java.util.concurrent.CompletableFuture;
 
 public final class ModRecipesProvider extends RecipeProvider {
-    public ModRecipesProvider(final PackOutput output) {
-        super(output);
+    public ModRecipesProvider(final PackOutput output, CompletableFuture<HolderLookup.Provider> registries) {
+        super(output, registries);
     }
 
     @Override
-    protected void buildRecipes(final Consumer<FinishedRecipe> consumer) {
+    protected void buildRecipes(final RecipeOutput consumer) {
         ShapedRecipeBuilder
             .shaped(RecipeCategory.MISC, Items.COMPUTER.get())
             .pattern("ICI")
@@ -56,7 +59,7 @@ public final class ModRecipesProvider extends RecipeProvider {
             .pattern("IGI")
             .pattern("ITI")
             .define('I', Tags.Items.INGOTS_IRON)
-            .define('G', Tags.Items.GLASS)
+            .define('G', Tags.Items.GLASS_BLOCKS)
             .define('T', Items.TRANSISTOR.get())
             .unlockedBy("has_transistor", inventoryChange(Items.TRANSISTOR.get()))
             .save(consumer);
@@ -152,21 +155,20 @@ public final class ModRecipesProvider extends RecipeProvider {
             .unlockedBy("has_transistor", inventoryChange(Items.TRANSISTOR.get()))
             .save(consumer);
 
-        WrenchRecipeBuilder
-            .wrenchRecipe(Items.MANUAL.get())
+        ShapelessRecipeBuilder
+            .shapeless(RecipeCategory.MISC, Items.MANUAL.get())
             .requires(net.minecraft.world.item.Items.BOOK)
             .unlockedBy("has_book", inventoryChange(net.minecraft.world.item.Items.BOOK))
             .unlockedBy("has_wrench", inventoryChange(Items.WRENCH.get()))
-            .save(consumer);
-
+            .save(new WrenchRecipe.WrenchRecipeOutputAdapter(consumer));
 
         ShapedRecipeBuilder
             .shaped(RecipeCategory.MISC, Items.NETWORK_CABLE.get(), 8)
             .pattern("SSS")
             .pattern("GTG")
             .pattern("SSS")
-            .define('S', Tags.Items.STRING)
-            .define('G', Tags.Items.GLASS)
+            .define('S', Tags.Items.STRINGS)
+            .define('G', Tags.Items.GLASS_BLOCKS)
             .define('T', Items.TRANSISTOR.get())
             .unlockedBy("has_network_connector", inventoryChange(Items.NETWORK_CONNECTOR.get()))
             .save(consumer);
@@ -292,12 +294,12 @@ public final class ModRecipesProvider extends RecipeProvider {
             .unlockedBy("has_robot", inventoryChange(Items.ROBOT.get()))
             .save(consumer);
 
-        WrenchRecipeBuilder
-            .wrenchRecipe(Items.FLASH_MEMORY_CUSTOM.get())
+        ShapelessRecipeBuilder
+            .shapeless(RecipeCategory.MISC, Items.FLASH_MEMORY_CUSTOM.get())
             .requires(Items.FLASH_MEMORY.get())
             .unlockedBy("has_computer", inventoryChange(Items.COMPUTER.get()))
             .unlockedBy("has_robot", inventoryChange(Items.ROBOT.get()))
-            .save(consumer);
+            .save(new WrenchRecipe.WrenchRecipeOutputAdapter(consumer));
 
         ShapedRecipeBuilder
             .shaped(RecipeCategory.MISC, Items.REDSTONE_INTERFACE_CARD.get())
@@ -314,7 +316,7 @@ public final class ModRecipesProvider extends RecipeProvider {
             .shaped(RecipeCategory.MISC, Items.NETWORK_INTERFACE_CARD.get())
             .pattern("IGT")
             .pattern(" B ")
-            .define('G', Tags.Items.GLASS)
+            .define('G', Tags.Items.GLASS_BLOCKS)
             .define('I', Tags.Items.INGOTS_IRON)
             .define('T', Items.TRANSISTOR.get())
             .define('B', Items.CIRCUIT_BOARD.get())
@@ -430,7 +432,7 @@ public final class ModRecipesProvider extends RecipeProvider {
             .save(consumer);
     }
 
-    private static InventoryChangeTrigger.TriggerInstance inventoryChange(final ItemLike item) {
+    private static Criterion<InventoryChangeTrigger.TriggerInstance> inventoryChange(final ItemLike item) {
         return InventoryChangeTrigger.TriggerInstance.hasItems(item);
     }
 }

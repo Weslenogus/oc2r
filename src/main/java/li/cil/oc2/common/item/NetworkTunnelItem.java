@@ -6,6 +6,7 @@ import li.cil.oc2.common.container.NetworkTunnelContainer;
 import li.cil.oc2.common.util.ItemStackUtils;
 import li.cil.oc2.common.util.TextFormatUtils;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -16,6 +17,7 @@ import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
@@ -47,18 +49,20 @@ public final class NetworkTunnelItem extends ModItem {
     }
 
     public static void setTunnelId(final ItemStack stack, final UUID value) {
-        ItemStackUtils.getOrCreateModDataTag(stack).putUUID(TUNNEL_ID_TAG_NAME, value);
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, (nbt) -> {
+            ItemStackUtils.getOrCreateModDataTag(nbt).putUUID(TUNNEL_ID_TAG_NAME, value);
+        });
     }
 
     ///////////////////////////////////////////////////////////////////
 
     @Override
-    public void appendHoverText(final ItemStack stack, @Nullable final Level level, final List<Component> tooltip, final TooltipFlag flag) {
-        super.appendHoverText(stack, level, tooltip, flag);
+    public void appendHoverText(final ItemStack stack, final TooltipContext context, final List<Component> components, final TooltipFlag flag) {
+        super.appendHoverText(stack, context, components, flag);
         getTunnelId(stack).ifPresent(id -> {
             final String idString = StringUtil.truncateStringIfNecessary(id.toString(), 8 + 3, true);
             final MutableComponent idComponent = TextFormatUtils.withFormat(idString, ChatFormatting.GREEN);
-            tooltip.add(Component.translatable(TUNNEL_ID_TEXT, idComponent).withStyle(ChatFormatting.GRAY));
+            components.add(Component.translatable(TUNNEL_ID_TEXT, idComponent).withStyle(ChatFormatting.GRAY));
         });
     }
 

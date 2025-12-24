@@ -2,6 +2,7 @@
 
 package li.cil.oc2.common.entity;
 
+import li.cil.oc2.api.API;
 import li.cil.oc2.api.bus.DeviceBusElement;
 import li.cil.oc2.api.bus.device.Device;
 import li.cil.oc2.api.bus.device.DeviceTypes;
@@ -10,6 +11,7 @@ import li.cil.oc2.api.bus.device.object.ObjectDevice;
 import li.cil.oc2.api.bus.device.object.Parameter;
 import li.cil.oc2.api.bus.device.provider.ItemDeviceQuery;
 import li.cil.oc2.api.capabilities.TerminalUserProvider;
+import li.cil.oc2.common.components.RestrictedContainer;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.bus.AbstractDeviceBusElement;
 import li.cil.oc2.common.bus.CommonDeviceBusController;
@@ -35,11 +37,11 @@ import li.cil.oc2.common.vm.terminal.Terminal;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Cursor3D;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -53,6 +55,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -67,26 +70,26 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.event.level.ChunkEvent;
-import net.minecraftforge.event.level.LevelEvent;
-import net.minecraftforge.items.ItemStackHandler;
-import net.minecraftforge.network.NetworkHooks;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.level.ChunkEvent;
+import net.neoforged.neoforge.event.level.LevelEvent;
+import net.neoforged.neoforge.items.ItemStackHandler;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static java.util.Collections.singleton;
 import static li.cil.oc2.common.Constants.*;
 
+@EventBusSubscriber(modid = API.MOD_ID)
 public final class Robot extends Entity implements li.cil.oc2.api.capabilities.Robot, TerminalUserProvider, ICaptureInputStateStorage {
     public static final EntityDataAccessor<BlockPos> TARGET_POSITION = SynchedEntityData.defineId(Robot.class, EntityDataSerializers.BLOCK_POS);
     public static final EntityDataAccessor<Direction> TARGET_DIRECTION = SynchedEntityData.defineId(Robot.class, EntityDataSerializers.DIRECTION);
@@ -121,7 +124,7 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
     private final Terminal terminal = new Terminal();
     private final RobotVirtualMachine virtualMachine;
     private final RobotBusElement busElement = new RobotBusElement();
-    private final RobotItemStackHandlers deviceItems = new RobotItemStackHandlers();
+    private final RobotItemStackHandlers deviceItems = new RobotItemStackHandlers(this::registryAccess);
     private final FixedEnergyStorage energy = new FixedEnergyStorage(Config.robotEnergyStorage);
     private final ItemStackHandler inventory = new FixedSizeItemStackHandler(INVENTORY_SIZE);
     private final Set<Player> terminalUsers = Collections.newSetFromMap(new WeakHashMap<>());
@@ -135,6 +138,10 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
         super(type, world);
         this.blocksBuilding = true;
         setNoGravity(true);
+
+        if (world.isClientSide()) {
+            terminal.setDisplayOnly(true);
+        }
 
         final CommonDeviceBusController busController = new CommonDeviceBusController(busElement, Config.robotEnergyPerTick);
         virtualMachine = new RobotVirtualMachine(busController);
@@ -185,34 +192,31 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
         this.captureInputState = value;
     }
 
-    @Nonnull
-    @Override
-    public <T> LazyOptional<T> getCapability(final Capability<T> capability, @Nullable final Direction side) {
-        if (capability == Capabilities.itemHandler()) {
-            return LazyOptional.of(() -> inventory).cast();
-        }
-        if (capability == Capabilities.energyStorage() && Config.robotsUseEnergy()) {
-            return LazyOptional.of(() -> energy).cast();
-        }
-        if (capability == Capabilities.robot()) {
-            return LazyOptional.of(() -> this).cast();
-        }
-
-        final LazyOptional<T> optional = super.getCapability(capability, side);
-        if (optional.isPresent()) {
-            return optional;
-        }
-
-        for (final Device device : virtualMachine.busController.getDevices()) {
-            if (device instanceof final ICapabilityProvider capabilityProvider) {
-                final LazyOptional<T> value = capabilityProvider.getCapability(capability, side);
-                if (value.isPresent()) {
-                    return value;
-                }
+    @SubscribeEvent
+    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerEntity(
+            Capabilities.ItemHandler.ENTITY,
+            Entities.ROBOT.get(),
+            (robot, ctx) -> {
+                return robot.inventory;
             }
+        );
+        if (Config.robotsUseEnergy()) {
+            event.registerEntity(
+                Capabilities.EnergyStorage.ENTITY,
+                Entities.ROBOT.get(),
+                (robot, ctx) -> {
+                    return robot.energy;
+                }
+            );
         }
-
-        return LazyOptional.empty();
+        event.registerEntity(
+            Capabilities.Robot.ENTITY,
+            Entities.ROBOT.get(),
+            (robot, ctx) -> {
+                return robot;
+            }
+        );
     }
 
     public long getLastPistonMovement() {
@@ -358,15 +362,10 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
     }
 
     @Override
-    public Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return NetworkHooks.getEntitySpawningPacket(this);
-    }
+    public void remove(RemovalReason reason) {
+        super.remove(reason);
 
-    @Override
-    public void setRemoved(final RemovalReason reason) {
-        super.setRemoved(reason);
-
-        if (!level().isClientSide()) {
+        if (!level().isClientSide() && reason.shouldDestroy()) {
             // Full unload to release out-of-nbt persisted runtime-only data such as ram.
             virtualMachine.stop();
             virtualMachine.dispose();
@@ -398,36 +397,43 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
     }
 
     public void exportToItemStack(final ItemStack stack) {
-        final CompoundTag itemsTag = NBTUtils.getOrCreateChildTag(stack.getOrCreateTag(), MOD_TAG_NAME, ITEMS_TAG_NAME);
-        deviceItems.saveItems(itemsTag); // Puts one tag per device type, as expected by TooltipUtils.
-        itemsTag.put(INVENTORY_TAG_NAME, inventory.serializeNBT()); // Won't show up in tooltip.
+        var container = new RestrictedContainer();
+        deviceItems.saveItems(container);
+        stack.set(li.cil.oc2.common.components.DataComponents.RESTRICTED_CONTAINER, container);
 
-        NBTUtils.getOrCreateChildTag(stack.getOrCreateTag(), MOD_TAG_NAME)
-            .put(ENERGY_TAG_NAME, energy.serializeNBT());
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, (nbt) -> {
+            var tag = NBTUtils.getOrCreateChildTag(nbt, MOD_TAG_NAME);
+            tag.put(ENERGY_TAG_NAME, energy.serializeNBT(registryAccess()));
+        });
     }
 
     public void importFromItemStack(final ItemStack stack) {
-        final CompoundTag itemsTag = NBTUtils.getChildTag(stack.getTag(), MOD_TAG_NAME, ITEMS_TAG_NAME);
+        final var provider = registryAccess();
+        final var container = stack.get(li.cil.oc2.common.components.DataComponents.RESTRICTED_CONTAINER);
+        final CompoundTag itemsTag = NBTUtils.getChildTag(stack, MOD_TAG_NAME, ITEMS_TAG_NAME);
 
-        deviceItems.loadItems(itemsTag);
+        if (container != null) {
+            deviceItems.loadItems(provider, container);
+        } else {
+            deviceItems.loadItems(provider, itemsTag);
+            inventory.deserializeNBT(provider, itemsTag.getCompound(INVENTORY_TAG_NAME));
+        }
 
-        inventory.deserializeNBT(itemsTag.getCompound(INVENTORY_TAG_NAME));
-
-        energy.deserializeNBT(NBTUtils.getChildTag(stack.getTag(), MOD_TAG_NAME, ENERGY_TAG_NAME));
+        energy.deserializeNBT(provider, NBTUtils.getChildTag(stack, MOD_TAG_NAME, ENERGY_TAG_NAME));
     }
 
     ///////////////////////////////////////////////////////////////////
 
     @Override
-    protected void defineSynchedData() {
-        final SynchedEntityData dataManager = getEntityData();
-        dataManager.define(TARGET_POSITION, BlockPos.ZERO);
-        dataManager.define(TARGET_DIRECTION, Direction.NORTH);
-        dataManager.define(SELECTED_SLOT, (byte) 0);
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        builder.define(TARGET_POSITION, BlockPos.ZERO);
+        builder.define(TARGET_DIRECTION, Direction.NORTH);
+        builder.define(SELECTED_SLOT, (byte) 0);
     }
 
     @Override
     protected void addAdditionalSaveData(final CompoundTag tag) {
+        final var provider = registryAccess();
         if (virtualMachine.getRunState() != VMRunState.STOPPED) {
             tag.put(STATE_TAG_NAME, virtualMachine.serialize());
             tag.put(TERMINAL_TAG_NAME, NBTSerialization.serialize(terminal));
@@ -435,23 +441,24 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
 
         tag.put(COMMAND_PROCESSOR_TAG_NAME, actionProcessor.serialize());
         tag.put(BUS_ELEMENT_TAG_NAME, busElement.serialize());
-        tag.put(ITEMS_TAG_NAME, deviceItems.saveItems());
-        tag.put(DEVICES_TAG_NAME, deviceItems.saveDevices());
-        tag.put(ENERGY_TAG_NAME, energy.serializeNBT());
-        tag.put(INVENTORY_TAG_NAME, inventory.serializeNBT());
+        tag.put(ITEMS_TAG_NAME, deviceItems.saveItems(provider));
+        tag.put(DEVICES_TAG_NAME, deviceItems.saveDevices(provider));
+        tag.put(ENERGY_TAG_NAME, energy.serializeNBT(provider));
+        tag.put(INVENTORY_TAG_NAME, inventory.serializeNBT(provider));
         tag.putByte(SELECTED_SLOT_TAG_NAME, getEntityData().get(SELECTED_SLOT));
     }
 
     @Override
     protected void readAdditionalSaveData(final CompoundTag tag) {
+        final var provider = registryAccess();
         virtualMachine.deserialize(tag.getCompound(STATE_TAG_NAME));
         NBTSerialization.deserialize(tag.getCompound(TERMINAL_TAG_NAME), terminal);
         actionProcessor.deserialize(tag.getCompound(COMMAND_PROCESSOR_TAG_NAME));
         busElement.deserialize(tag.getCompound(BUS_ELEMENT_TAG_NAME));
-        deviceItems.loadItems(tag.getCompound(ITEMS_TAG_NAME));
-        deviceItems.loadDevices(tag.getCompound(DEVICES_TAG_NAME));
-        energy.deserializeNBT(tag.getCompound(ENERGY_TAG_NAME));
-        inventory.deserializeNBT(tag.getCompound(INVENTORY_TAG_NAME));
+        deviceItems.loadItems(provider, tag.getCompound(ITEMS_TAG_NAME));
+        deviceItems.loadDevices(provider, tag.getCompound(DEVICES_TAG_NAME));
+        energy.deserializeNBT(provider, tag.getCompound(ENERGY_TAG_NAME));
+        inventory.deserializeNBT(provider, tag.getCompound(INVENTORY_TAG_NAME));
         setSelectedSlot(tag.getByte(SELECTED_SLOT_TAG_NAME));
     }
 
@@ -479,13 +486,13 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
     }
 
     private void registerListeners() {
-        MinecraftForge.EVENT_BUS.addListener(chunkUnloadListener);
-        MinecraftForge.EVENT_BUS.addListener(worldUnloadListener);
+        NeoForge.EVENT_BUS.addListener(chunkUnloadListener);
+        NeoForge.EVENT_BUS.addListener(worldUnloadListener);
     }
 
     private void unregisterListeners() {
-        MinecraftForge.EVENT_BUS.unregister(chunkUnloadListener);
-        MinecraftForge.EVENT_BUS.unregister(worldUnloadListener);
+        NeoForge.EVENT_BUS.unregister(chunkUnloadListener);
+        NeoForge.EVENT_BUS.unregister(worldUnloadListener);
     }
 
     private void handleChunkUnload(final ChunkEvent.Unload event) {
@@ -749,8 +756,9 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
     }
 
     private final class RobotItemStackHandlers extends AbstractVMItemStackHandlers {
-        public RobotItemStackHandlers() {
+        public RobotItemStackHandlers(Supplier<HolderLookup.Provider> providerSupplier) {
             super(
+                providerSupplier,
                 new GroupDefinition(DeviceTypes.MEMORY, MEMORY_SLOTS),
                 new GroupDefinition(DeviceTypes.HARD_DRIVE, HARD_DRIVE_SLOTS),
                 new GroupDefinition(DeviceTypes.FLASH_MEMORY, FLASH_MEMORY_SLOTS),
@@ -780,8 +788,10 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
         private UUID deviceId = UUID.randomUUID();
 
         @Override
-        public Optional<Collection<LazyOptional<DeviceBusElement>>> getNeighbors() {
-            return Optional.of(singleton(LazyOptional.of(() -> deviceItems.busElement)));
+        public Optional<Collection<DeviceBusElement>> getNeighbors() {
+            return Optional.of(singleton(
+                deviceItems.busElement
+            ));
         }
 
         @Override

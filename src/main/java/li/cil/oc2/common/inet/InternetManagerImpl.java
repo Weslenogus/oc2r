@@ -6,10 +6,10 @@ import li.cil.oc2.api.inet.provider.InternetProvider;
 import li.cil.oc2.api.inet.layer.LinkLocalLayer;
 import li.cil.oc2.common.config.Config;
 import net.minecraft.nbt.Tag;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.server.ServerStoppingEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -46,7 +46,7 @@ public final class InternetManagerImpl implements InternetManager {
         }
         executor = Executors.newSingleThreadExecutor(runnable -> new Thread(runnable, "Internet"));
         ipSpace = InetUtils.computeIpSpace(Config.deniedHosts, Config.allowedHosts);
-        MinecraftForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.register(this);
     }
 
     public static void initialize() {
@@ -126,7 +126,7 @@ public final class InternetManagerImpl implements InternetManager {
     //////////////////////////////////////////////////////////////
 
     @SubscribeEvent
-    public void onTick(final TickEvent.ServerTickEvent event) {
+    public void onTick(final ServerTickEvent.Pre event) {
         final List<InternetConnectionImpl> connectionsToStop = connections.stream()
             .filter(connection -> connection.isStopped)
             .collect(Collectors.toList());

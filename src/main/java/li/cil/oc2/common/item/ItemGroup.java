@@ -4,18 +4,18 @@ package li.cil.oc2.common.item;
 
 import li.cil.oc2.api.API;
 import li.cil.oc2.common.block.ComputerBlock;
-import net.minecraft.core.registries.Registries;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.registries.DeferredHolder;
 
 public final class ItemGroup {
-    public static final DeferredRegister<CreativeModeTab> TAB_REGISTER = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, API.MOD_ID);
+    public static final DeferredRegister<CreativeModeTab> TAB_REGISTER = DeferredRegister.create(BuiltInRegistries.CREATIVE_MODE_TAB, API.MOD_ID);
 
     @SuppressWarnings("unused")
-    public static final RegistryObject<CreativeModeTab> COMMON_TAB = TAB_REGISTER.register("common", () -> CreativeModeTab.builder()
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> COMMON_TAB = TAB_REGISTER.register("common", () -> CreativeModeTab.builder()
         // Set name of tab to display
         .title(Component.translatable("item_group." + API.MOD_ID + ".common"))
         // Set icon of creative tab
