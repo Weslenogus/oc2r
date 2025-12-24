@@ -35,8 +35,8 @@ public final class BusCableItem extends ModBlockItem {
 
     @OnlyIn(Dist.CLIENT)
     @Override
-    public void appendHoverText(final ItemStack stack, final @Nullable Level level, final List<Component> tooltip, final TooltipFlag flag) {
-        super.appendHoverText(stack, level, tooltip, flag);
+    public void appendHoverText(final ItemStack stack, final TooltipContext context, final List<Component> tooltip, final TooltipFlag flag) {
+        super.appendHoverText(stack, context, tooltip, flag);
         TooltipUtils.addEnergyConsumption(Config.busCableEnergyPerTick, tooltip);
     }
 

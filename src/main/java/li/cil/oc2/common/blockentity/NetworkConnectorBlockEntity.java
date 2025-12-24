@@ -29,6 +29,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -404,14 +405,14 @@ public final class NetworkConnectorBlockEntity extends ModBlockEntity implements
             vb.subtract(ab),
             ClipContext.Block.COLLIDER,
             ClipContext.Fluid.NONE,
-            null
+            (CollisionContext) null
         ));
         final BlockHitResult hitBA = level.clip(new ClipContext(
             vb.subtract(ab),
             va.add(ab),
             ClipContext.Block.COLLIDER,
             ClipContext.Fluid.NONE,
-            null
+            (CollisionContext) null
         ));
 
         return hitAB.getType() != HitResult.Type.MISS ||

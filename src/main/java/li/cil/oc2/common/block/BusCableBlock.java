@@ -27,6 +27,7 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
@@ -356,7 +357,7 @@ public final class BusCableBlock extends BaseEntityBlock {
     }
 
     @Override
-    public ItemStack getCloneItemStack(final BlockState state, final HitResult hit, final BlockGetter level, final BlockPos pos, final Player player) {
+    public ItemStack getCloneItemStack(final BlockState state, final HitResult hit, final LevelReader level, final BlockPos pos, final Player player) {
         final BlockEntity blockEntity = level.getBlockEntity(pos);
         if (!(blockEntity instanceof final BusCableBlockEntity busCable)) {
             return super.getCloneItemStack(state, hit, level, pos, player);

@@ -57,12 +57,12 @@ public final class NetworkTunnelItem extends ModItem {
     ///////////////////////////////////////////////////////////////////
 
     @Override
-    public void appendHoverText(final ItemStack stack, @Nullable final Level level, final List<Component> tooltip, final TooltipFlag flag) {
-        super.appendHoverText(stack, level, tooltip, flag);
+    public void appendHoverText(final ItemStack stack, final TooltipContext context, final List<Component> components, final TooltipFlag flag) {
+        super.appendHoverText(stack, context, components, flag);
         getTunnelId(stack).ifPresent(id -> {
             final String idString = StringUtil.truncateStringIfNecessary(id.toString(), 8 + 3, true);
             final MutableComponent idComponent = TextFormatUtils.withFormat(idString, ChatFormatting.GREEN);
-            tooltip.add(Component.translatable(TUNNEL_ID_TEXT, idComponent).withStyle(ChatFormatting.GRAY));
+            components.add(Component.translatable(TUNNEL_ID_TEXT, idComponent).withStyle(ChatFormatting.GRAY));
         });
     }
 

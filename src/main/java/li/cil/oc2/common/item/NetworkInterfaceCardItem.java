@@ -88,10 +88,10 @@ public final class NetworkInterfaceCardItem extends ModItem {
 
 
     @Override
-    public void appendHoverText(final ItemStack stack, @Nullable final Level level, final List<Component> tooltip, final TooltipFlag flag) {
-        super.appendHoverText(stack, level, tooltip, flag);
+    public void appendHoverText(final ItemStack stack, final TooltipContext context, final List<Component> components, final TooltipFlag flag) {
+        super.appendHoverText(stack, context, components, flag);
         if (NetworkInterfaceCardItem.hasConfiguration(stack)) {
-            tooltip.add(IS_CONFIGURED_TEXT);
+            components.add(IS_CONFIGURED_TEXT);
         }
     }
 

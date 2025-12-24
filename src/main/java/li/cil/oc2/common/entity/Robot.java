@@ -361,10 +361,10 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
     }
 
     @Override
-    public void setRemoved(final RemovalReason reason) {
-        super.setRemoved(reason);
+    public void remove(RemovalReason reason) {
+        super.remove(reason);
 
-        if (!level().isClientSide()) {
+        if (!level().isClientSide() && reason.shouldDestroy()) {
             // Full unload to release out-of-nbt persisted runtime-only data such as ram.
             virtualMachine.stop();
             virtualMachine.dispose();

@@ -28,9 +28,9 @@ public class ModBlockItem extends BlockItem {
 
     @OnlyIn(Dist.CLIENT)
     @Override
-    public void appendHoverText(final ItemStack stack, @Nullable final Level level, final List<Component> tooltip, final TooltipFlag flag) {
+    public void appendHoverText(final ItemStack stack, final TooltipContext context, final List<Component> tooltip, final TooltipFlag flag) {
         TooltipUtils.tryAddDescription(stack, tooltip);
-        super.appendHoverText(stack, level, tooltip, flag);
+        super.appendHoverText(stack, context, tooltip, flag);
     }
 
     ///////////////////////////////////////////////////////////////////

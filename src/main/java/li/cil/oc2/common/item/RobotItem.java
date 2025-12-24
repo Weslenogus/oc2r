@@ -49,11 +49,11 @@ import static li.cil.oc2.common.util.RegistryUtils.key;
 @EventBusSubscriber(modid = API.MOD_ID)
 public final class RobotItem extends ModItem {
     @Override
-    public void appendHoverText(final ItemStack stack, @Nullable final Level level, final List<Component> tooltip, final TooltipFlag flag) {
-        super.appendHoverText(stack, level, tooltip, flag);
-        TooltipUtils.addEnergyConsumption(Config.robotEnergyPerTick, tooltip);
-        TooltipUtils.addEntityEnergyInformation(stack, tooltip);
-        TooltipUtils.addEntityInventoryInformation(stack, tooltip);
+    public void appendHoverText(final ItemStack stack, final TooltipContext context, final List<Component> components, final TooltipFlag flag) {
+        super.appendHoverText(stack, context, components, flag);
+        TooltipUtils.addEnergyConsumption(Config.robotEnergyPerTick, components);
+        TooltipUtils.addEntityEnergyInformation(stack, components);
+        TooltipUtils.addEntityInventoryInformation(stack, components);
     }
 
     @SubscribeEvent

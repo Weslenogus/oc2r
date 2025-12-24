@@ -41,7 +41,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
-import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -382,7 +382,7 @@ public final class ComputerBlockEntity extends ModBlockEntity implements Termina
 
         @Nullable
         @Override
-        public LevelAccessor getLevel() {
+        public Level getLevel() {
             return ComputerBlockEntity.this.getLevel();
         }
 

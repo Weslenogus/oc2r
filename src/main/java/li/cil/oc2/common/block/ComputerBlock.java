@@ -26,6 +26,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.CustomData;
@@ -92,8 +93,8 @@ public final class ComputerBlock extends HorizontalDirectionalBlock implements E
 
     @OnlyIn(Dist.CLIENT)
     @Override
-    public void appendHoverText(final ItemStack stack, @Nullable final BlockGetter level, final List<Component> tooltip, final TooltipFlag advanced) {
-        super.appendHoverText(stack, level, tooltip, advanced);
+    public void appendHoverText(final ItemStack stack, final Item.TooltipContext context, final List<Component> tooltip, final TooltipFlag advanced) {
+        super.appendHoverText(stack, context, tooltip, advanced);
         TooltipUtils.addEnergyConsumption(Config.computerEnergyPerTick, tooltip);
         TooltipUtils.addBlockEntityInventoryInformation(stack, tooltip);
     }
@@ -187,7 +188,7 @@ public final class ComputerBlock extends HorizontalDirectionalBlock implements E
     }
 
     @Override
-    public void playerWillDestroy(final Level level, final BlockPos pos, final BlockState state, final Player player) {
+    public BlockState playerWillDestroy(final Level level, final BlockPos pos, final BlockState state, final Player player) {
         final BlockEntity blockEntity = level.getBlockEntity(pos);
         if (!level.isClientSide() && blockEntity instanceof final ComputerBlockEntity computer) {
             if (!computer.getItemStackHandlers().isEmpty()) {
@@ -201,7 +202,7 @@ public final class ComputerBlock extends HorizontalDirectionalBlock implements E
             }
         }
 
-        super.playerWillDestroy(level, pos, state, player);
+        return super.playerWillDestroy(level, pos, state, player);
     }
 
     @Override

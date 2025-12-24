@@ -85,8 +85,8 @@ public final class MonitorBlock extends HorizontalDirectionalBlock implements En
 
     @OnlyIn(Dist.CLIENT)
     @Override
-    public void appendHoverText(final ItemStack stack, @Nullable final BlockGetter level, final List<Component> tooltip, final TooltipFlag advanced) {
-        super.appendHoverText(stack, level, tooltip, advanced);
+    public void appendHoverText(final ItemStack stack, final Item.TooltipContext context, final List<Component> tooltip, final TooltipFlag advanced) {
+        super.appendHoverText(stack, context, tooltip, advanced);
     }
 
     @SuppressWarnings("deprecation")

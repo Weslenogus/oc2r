@@ -91,7 +91,7 @@ public final class FlashMemoryFlasherBlockEntity extends ModBlockEntity implemen
             ItemStackUtils.spawnAsEntity(level, getBlockPos().relative(facing), stack, facing).ifPresent(entity -> {
                 if (player != null) {
                     entity.setNoPickUpDelay();
-                    entity.setThrower(player.getUUID());
+                    entity.setThrower(player);
                 }
             });
         }
