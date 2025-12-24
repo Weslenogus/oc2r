@@ -2,6 +2,7 @@
 
 package li.cil.oc2.common.block;
 
+import com.mojang.serialization.MapCodec;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.blockentity.BlockEntities;
 import li.cil.oc2.common.blockentity.TickableBlockEntity;
@@ -53,6 +54,11 @@ public final class PciCardCageBlock extends HorizontalDirectionalBlock implement
         registerDefaultState(getStateDefinition().any()
             .setValue(FACING, Direction.NORTH)
             .setValue(LIT, false));
+    }
+
+    @Override
+    protected MapCodec<PciCardCageBlock> codec() {
+        return BlockCodecs.PCI_CARD_CAGE.get();
     }
 
     ///////////////////////////////////////////////////////////////////

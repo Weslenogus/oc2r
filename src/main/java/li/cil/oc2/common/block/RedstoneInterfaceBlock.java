@@ -2,6 +2,7 @@
 
 package li.cil.oc2.common.block;
 
+import com.mojang.serialization.MapCodec;
 import net.minecraft.world.level.Level;
 import li.cil.oc2.common.blockentity.BlockEntities;
 import li.cil.oc2.common.blockentity.RedstoneInterfaceBlockEntity;
@@ -28,6 +29,11 @@ public final class RedstoneInterfaceBlock extends HorizontalDirectionalBlock imp
             .sound(SoundType.METAL)
             .strength(1.5f, 6.0f));
         registerDefaultState(getStateDefinition().any().setValue(FACING, Direction.NORTH));
+    }
+
+    @Override
+    protected MapCodec<RedstoneInterfaceBlock> codec() {
+        return BlockCodecs.REDSTONE_INTERFACE.get();
     }
 
     ///////////////////////////////////////////////////////////////////

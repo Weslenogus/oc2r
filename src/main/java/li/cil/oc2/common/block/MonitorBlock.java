@@ -2,6 +2,7 @@
 
 package li.cil.oc2.common.block;
 
+import com.mojang.serialization.MapCodec;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.blockentity.BlockEntities;
 import li.cil.oc2.common.blockentity.MonitorBlockEntity;
@@ -71,6 +72,11 @@ public final class MonitorBlock extends HorizontalDirectionalBlock implements En
         registerDefaultState(getStateDefinition().any()
             .setValue(FACING, Direction.NORTH)
             .setValue(LIT, false));
+    }
+
+    @Override
+    protected MapCodec<MonitorBlock> codec() {
+        return BlockCodecs.MONITOR.get();
     }
 
     ///////////////////////////////////////////////////////////////////

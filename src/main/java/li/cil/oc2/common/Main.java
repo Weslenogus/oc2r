@@ -6,6 +6,7 @@ import joptsimple.util.InetAddressConverter;
 import li.cil.ceres.Ceres;
 import li.cil.oc2.api.API;
 import li.cil.oc2.client.manual.Manuals;
+import li.cil.oc2.common.block.BlockCodecs;
 import li.cil.oc2.common.block.Blocks;
 import li.cil.oc2.common.blockentity.BlockEntities;
 import li.cil.oc2.common.bus.device.data.BlockDeviceDataRegistry;
@@ -65,6 +66,7 @@ public final class Main {
         ItemTags.initialize();
         BlockTags.initialize();
         Blocks.initialize(modBus);
+        BlockCodecs.initialize(modBus);
         Items.initialize(modBus);
         BlockEntities.initialize(modBus);
         Entities.initialize(modBus);

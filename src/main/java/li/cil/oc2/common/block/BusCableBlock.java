@@ -3,6 +3,7 @@
 package li.cil.oc2.common.block;
 
 import com.google.common.collect.Maps;
+import com.mojang.serialization.MapCodec;
 import li.cil.oc2.client.gui.BusInterfaceScreen;
 import li.cil.oc2.common.Constants;
 import li.cil.oc2.common.blockentity.BlockEntities;
@@ -137,6 +138,11 @@ public final class BusCableBlock extends BaseEntityBlock {
         registerDefaultState(defaultState);
 
         shapes = makeShapes();
+    }
+
+    @Override
+    protected MapCodec<BusCableBlock> codec() {
+        return BlockCodecs.BUS_CABLE.get();
     }
 
     ///////////////////////////////////////////////////////////////////

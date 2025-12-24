@@ -2,6 +2,7 @@
 
 package li.cil.oc2.common.block;
 
+import com.mojang.serialization.MapCodec;
 import li.cil.oc2.common.blockentity.BlockEntities;
 import li.cil.oc2.common.blockentity.DiskDriveBlockEntity;
 import net.minecraft.core.BlockPos;
@@ -32,6 +33,11 @@ public final class DiskDriveBlock extends HorizontalDirectionalBlock implements 
             .sound(SoundType.METAL)
             .strength(1.5f, 6.0f));
         registerDefaultState(getStateDefinition().any().setValue(FACING, Direction.NORTH));
+    }
+
+    @Override
+    protected MapCodec<DiskDriveBlock> codec() {
+        return BlockCodecs.DISK_DRIVE.get();
     }
 
     ///////////////////////////////////////////////////////////////////

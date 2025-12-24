@@ -1,5 +1,6 @@
 package li.cil.oc2.common.block;
 
+import com.mojang.serialization.MapCodec;
 import li.cil.oc2.common.blockentity.BlockEntities;
 import li.cil.oc2.common.blockentity.NetworkHubBlockEntity;
 import net.minecraft.core.BlockPos;
@@ -25,6 +26,11 @@ public final class NetworkSwitchBlock extends HorizontalDirectionalBlock impleme
             .sound(SoundType.METAL)
             .strength(1.5f, 6.0f));
         registerDefaultState(getStateDefinition().any().setValue(FACING, Direction.NORTH));
+    }
+
+    @Override
+    protected MapCodec<NetworkSwitchBlock> codec() {
+        return BlockCodecs.NETWORK_SWITCH.get();
     }
 
     ///////////////////////////////////////////////////////////////////

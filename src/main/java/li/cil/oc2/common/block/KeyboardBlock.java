@@ -2,6 +2,7 @@
 
 package li.cil.oc2.common.block;
 
+import com.mojang.serialization.MapCodec;
 import li.cil.oc2.client.gui.KeyboardScreen;
 import li.cil.oc2.common.blockentity.BlockEntities;
 import li.cil.oc2.common.blockentity.KeyboardBlockEntity;
@@ -11,7 +12,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -44,6 +47,11 @@ public final class KeyboardBlock extends HorizontalDirectionalBlock implements E
     public KeyboardBlock() {
         super(Properties.of().mapColor(MapColor.METAL).sound(SoundType.METAL).strength(1.5f, 6.0f));
         registerDefaultState(getStateDefinition().any().setValue(FACING, Direction.NORTH));
+    }
+
+    @Override
+    protected MapCodec<KeyboardBlock> codec() {
+        return BlockCodecs.KEYBOARD.get();
     }
 
     ///////////////////////////////////////////////////////////////////

@@ -2,6 +2,7 @@
 
 package li.cil.oc2.common.block;
 
+import com.mojang.serialization.MapCodec;
 import li.cil.oc2.common.blockentity.BlockEntities;
 import li.cil.oc2.common.blockentity.TickableBlockEntity;
 import net.minecraft.core.BlockPos;
@@ -44,6 +45,11 @@ public final class NetworkConnectorBlock extends FaceAttachedHorizontalDirection
         registerDefaultState(getStateDefinition().any()
             .setValue(FACING, Direction.NORTH)
             .setValue(FACE, AttachFace.WALL));
+    }
+
+    @Override
+    protected MapCodec<NetworkConnectorBlock> codec() {
+        return BlockCodecs.NETWORK_CONNECTOR.get();
     }
 
     ///////////////////////////////////////////////////////////////////

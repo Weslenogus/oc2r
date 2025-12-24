@@ -2,6 +2,7 @@
 
 package li.cil.oc2.common.block;
 
+import com.mojang.serialization.MapCodec;
 import li.cil.oc2.common.blockentity.BlockEntities;
 import li.cil.oc2.common.blockentity.FlashMemoryFlasherBlockEntity;
 import net.minecraft.core.BlockPos;
@@ -34,6 +35,10 @@ public final class FlashMemoryFlasherBlock extends HorizontalDirectionalBlock im
         registerDefaultState(getStateDefinition().any().setValue(FACING, Direction.NORTH));
     }
 
+    @Override
+    protected MapCodec<FlashMemoryFlasherBlock> codec() {
+        return BlockCodecs.FLASH_MEMORY_FLASHER.get();
+    }
     ///////////////////////////////////////////////////////////////////
 
     @Override

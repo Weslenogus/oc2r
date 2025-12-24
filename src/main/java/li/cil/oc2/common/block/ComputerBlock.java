@@ -3,6 +3,7 @@
 package li.cil.oc2.common.block;
 
 import li.cil.oc2.api.bus.device.DeviceTypes;
+import com.mojang.serialization.MapCodec;
 import li.cil.oc2.api.capabilities.RedstoneEmitter;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.blockentity.BlockEntities;
@@ -79,6 +80,11 @@ public final class ComputerBlock extends HorizontalDirectionalBlock implements E
             .sound(SoundType.METAL)
             .strength(1.5f, 6.0f));
         registerDefaultState(getStateDefinition().any().setValue(FACING, Direction.NORTH));
+    }
+
+    @Override
+    protected MapCodec<ComputerBlock> codec() {
+        return BlockCodecs.COMPUTER.get();
     }
 
     ///////////////////////////////////////////////////////////////////
