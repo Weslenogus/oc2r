@@ -130,20 +130,18 @@ public final class KeyboardScreen extends Screen {
     private void blitQuad(final GuiGraphics graphics, final int x0, final int y0, final int x1, final int y1, final int color) {
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         final Tesselator tesselator = Tesselator.getInstance();
-        final BufferBuilder builder = tesselator.getBuilder();
-        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-        builder.vertex(graphics.pose().last().pose(), x0, y1, 0).color(color).endVertex();
-        builder.vertex(graphics.pose().last().pose(), x1, y1, 0).color(color).endVertex();
-        builder.vertex(graphics.pose().last().pose(), x1, y0, 0).color(color).endVertex();
-        builder.vertex(graphics.pose().last().pose(), x0, y0, 0).color(color).endVertex();
-        tesselator.end();
+        final BufferBuilder builder = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        builder.addVertex(graphics.pose().last().pose(), x0, y1, 0).setColor(color);
+        builder.addVertex(graphics.pose().last().pose(), x1, y1, 0).setColor(color);
+        builder.addVertex(graphics.pose().last().pose(), x1, y0, 0).setColor(color);
+        builder.addVertex(graphics.pose().last().pose(), x0, y0, 0).setColor(color);
+        BufferUploader.drawWithShader(builder.buildOrThrow());
     }
 
     private void grabMouse() {
         final Minecraft minecraft = getMinecraft();
         final MouseHandler mouseHandler = minecraft.mouseHandler;
-        mouseHandler.mouseGrabbed = true;
-        InputConstants.grabOrReleaseMouse(minecraft.getWindow().getWindow(), InputConstants.CURSOR_DISABLED, mouseHandler.xpos(), mouseHandler.ypos());
+        mouseHandler.grabMouse();
     }
 
     private void sendInputMessage(final int keycode, final boolean isDown) {

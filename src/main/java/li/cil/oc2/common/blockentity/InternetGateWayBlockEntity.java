@@ -188,12 +188,9 @@ public class InternetGateWayBlockEntity extends ModBlockEntity implements Networ
         }
     }
 
-    @Override
     public AABB getRenderBoundingBox() {
-        return new AABB(
-            getBlockPos(),
-            getBlockPos().offset(1, 2, 1)
-        );
+        var orig = new AABB(getBlockPos());
+        return orig.setMaxY(orig.getMaxPosition().y + 1);
     }
 
 }

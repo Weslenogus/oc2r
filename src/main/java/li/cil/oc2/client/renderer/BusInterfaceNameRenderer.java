@@ -2,8 +2,8 @@
 
 package li.cil.oc2.client.renderer;
 
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import org.joml.Matrix4f;
@@ -86,20 +86,20 @@ public enum BusInterfaceNameRenderer {
         final EntityRenderDispatcher renderManager = mc.getEntityRenderDispatcher();
         stack.mulPose(renderManager.cameraOrientation());
 
-        stack.scale(-0.025f, -0.025f, 0.025f);
+        stack.scale(0.025f, -0.025f, 0.025f);
 
         final Matrix4f matrix = stack.last().pose();
 
         final Font font = Minecraft.getInstance().font;
-        final MultiBufferSource.BufferSource buffer = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
+        final MultiBufferSource.BufferSource buffer = MultiBufferSource.immediate(new ByteBufferBuilder(0));
 
         final float horizontalTextOffset = -font.width(name) * 0.5f;
         final float backgroundOpacity = Minecraft.getInstance().options.getBackgroundOpacity(0.25F);
         final int backgroundColor = (int) (backgroundOpacity * 255.0F) << 24;
         final int packedLight = LightTexture.pack(15, 15);
 
-        font.drawInBatch(name, horizontalTextOffset, 0, 0xffffffff,
-            false, matrix, buffer, Font.DisplayMode.POLYGON_OFFSET, backgroundColor, packedLight);
+        font.drawInBatch(name, horizontalTextOffset, 0, 0,
+            false, matrix, buffer, Font.DisplayMode.SEE_THROUGH, backgroundColor, packedLight);
         font.drawInBatch(name, horizontalTextOffset, 0, 0xffffffff,
             false, matrix, buffer, Font.DisplayMode.NORMAL, 0, packedLight);
 

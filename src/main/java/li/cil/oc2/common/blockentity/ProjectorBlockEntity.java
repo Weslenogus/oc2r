@@ -196,7 +196,6 @@ public final class ProjectorBlockEntity extends ModBlockEntity implements Tickab
         energy.deserializeNBT(registries, tag.getCompound(ENERGY_TAG_NAME));
     }
 
-    @Override
     public AABB getRenderBoundingBox() {
         return renderBounds;
     }

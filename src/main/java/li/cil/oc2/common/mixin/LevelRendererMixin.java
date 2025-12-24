@@ -4,7 +4,7 @@ package li.cil.oc2.common.mixin;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.DeltaTracker;
 import org.joml.Matrix4f;
 import li.cil.oc2.client.renderer.ProjectorDepthRenderer;
 import net.minecraft.client.Camera;
@@ -78,24 +78,17 @@ public abstract class LevelRendererMixin {
 
     @Inject(method = "renderLevel", at = @At(value = "INVOKE_STRING", target = "Lnet/minecraft/util/profiling/ProfilerFiller;popPush(Ljava/lang/String;)V", args = {"ldc=destroyProgress"}), cancellable = true, remap = false)
     private void captureDepthAndEarlyExit(
-        final PoseStack stack,
-        final float partialTicks,
-        final long startNanos,
-        final boolean shouldRenderBlockOutline,
-        final Camera camera,
-        final GameRenderer gameRenderer,
-        final LightTexture lightTexture,
-        final Matrix4f projectionMatrix,
-        final CallbackInfo ci
+        DeltaTracker deltaTracker, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightTexture lightTexture, Matrix4f frustumMatrix, Matrix4f projectionMatrix, CallbackInfo ci
     ) {
         if (ProjectorDepthRenderer.isIsRenderingProjectorDepth()) {
             // If we're rendering depth, we can skip most of the rest here: we don't need destruction progress,
             // transparency, hit result, debug stuff, clouds.
             cleanupDepthRendering();
+            float partialTicks = deltaTracker.getGameTimeDeltaPartialTick(false);
 
             // We do want particles and weather (rain) though, because that's a neat effect.
             final MultiBufferSource.BufferSource bufferSource = renderBuffers.bufferSource();
-            minecraft.particleEngine.render(stack, bufferSource, lightTexture, camera, partialTicks, cullingFrustum);
+            minecraft.particleEngine.render(lightTexture, camera, partialTicks, cullingFrustum, (ty) -> true);
             bufferSource.endBatch();
 
             final Vec3 cameraPosition = camera.getPosition();
@@ -104,6 +97,7 @@ public abstract class LevelRendererMixin {
             // Clean up anything regular return would also clean up.
             RenderSystem.depthMask(true);
             RenderSystem.disableBlend();
+            RenderSystem.getModelViewStack().popMatrix();
             RenderSystem.applyModelViewMatrix();
             FogRenderer.setupNoFog();
             ci.cancel();
@@ -119,7 +113,7 @@ public abstract class LevelRendererMixin {
             ProjectorDepthRenderer.captureMainCameraDepth();
         }
 
-        cullingFrustum = new Frustum(stack.last().pose(), projectionMatrix);
+        cullingFrustum = new Frustum(frustumMatrix, projectionMatrix);
     }
 
     /**

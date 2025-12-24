@@ -17,7 +17,6 @@ import li.cil.oc2.common.Constants;
 import li.cil.oc2.common.block.MonitorBlock;
 import li.cil.oc2.common.blockentity.MonitorBlockEntity;
 import li.cil.oc2.common.bus.device.vm.block.MonitorDevice;
-import li.cil.oc2.common.util.ChainableVertexConsumer;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
@@ -58,11 +57,13 @@ public final class MonitorRenderer implements BlockEntityRenderer<MonitorBlockEn
     ///////////////////////////////////////////////////////////////////
 
     private final BlockEntityRenderDispatcher renderer;
+    private final Font font;
 
     ///////////////////////////////////////////////////////////////////
 
     public MonitorRenderer(final BlockEntityRendererProvider.Context context) {
         this.renderer = context.getBlockEntityRenderDispatcher();
+        this.font = context.getFont();
     }
 
     ///////////////////////////////////////////////////////////////////
@@ -98,7 +99,7 @@ public final class MonitorRenderer implements BlockEntityRenderer<MonitorBlockEn
         if (monitor.getPowerState() && monitor.isMounted() && monitor.hasPower()) {
             renderTerminal(monitor, stack, bufferSource, cameraPosition);
         } else if (monitor.getPowerState()) {
-            renderStatusText(monitor, stack, cameraPosition);
+            renderStatusText(bufferSource, monitor, stack, cameraPosition);
         }
 
         stack.translate(0, 0, -0.1f);
@@ -139,7 +140,7 @@ public final class MonitorRenderer implements BlockEntityRenderer<MonitorBlockEn
             RenderSystem.enableDepthTest();
 
             try {
-                rendererViews.get(terminal, () -> terminal.getRenderer(monitor)).render(stack, RenderSystem.getProjectionMatrix(), MonitorDevice.WIDTH, MonitorDevice.HEIGHT);
+                rendererViews.get(terminal, () -> terminal.getRenderer(monitor)).render(stack, RenderSystem.getProjectionMatrix(), MonitorDevice.WIDTH, MonitorDevice.HEIGHT, true);
             } catch (final ExecutionException e) {
                 throw new RuntimeException(e);
             }
@@ -156,7 +157,7 @@ public final class MonitorRenderer implements BlockEntityRenderer<MonitorBlockEn
         }
     }
 
-    private void renderStatusText(final MonitorBlockEntity monitor, final PoseStack stack, final Vec3 cameraPosition) {
+    private void renderStatusText(MultiBufferSource bufferSource, final MonitorBlockEntity monitor, final PoseStack stack, final Vec3 cameraPosition) {
         if (!Vec3.atCenterOf(monitor.getBlockPos()).closerThan(cameraPosition, 12f)) {
             return;
         }
@@ -166,41 +167,36 @@ public final class MonitorRenderer implements BlockEntityRenderer<MonitorBlockEn
         stack.pushPose();
         stack.translate(3, 3, -0.9f);
 
-        drawText(stack, bootError);
+        drawText(bufferSource, stack, bootError);
 
         stack.popPose();
     }
 
-    private void drawText(final PoseStack stack, final Component text) {
+    private void drawText(MultiBufferSource bufferSource, final PoseStack stack, final Component text) {
         final int maxWidth = 100;
 
         stack.pushPose();
         stack.scale(10f / maxWidth, 10f / maxWidth, 10f / maxWidth);
 
-        final Font fontRenderer = renderer.font;
-        final List<FormattedText> wrappedText = fontRenderer.getSplitter().splitLines(text, maxWidth, Style.EMPTY);
+        final List<FormattedText> wrappedText = font.getSplitter().splitLines(text, maxWidth, Style.EMPTY);
         if (wrappedText.size() == 1) {
-            final int textWidth = fontRenderer.width(text);
-            draw(fontRenderer, stack, text, (maxWidth - textWidth) * 0.5f);
+            final int textWidth = font.width(text);
+            draw(bufferSource, font, stack, text, (maxWidth - textWidth) * 0.5f);
         } else {
             for (int i = 0; i < wrappedText.size(); i++) {
-                draw(fontRenderer, stack, wrappedText.get(i).getString(), i * fontRenderer.lineHeight);
+                draw(bufferSource, font, stack, wrappedText.get(i).getString(), i * font.lineHeight);
             }
         }
 
         stack.popPose();
     }
 
-    private void draw(Font font, PoseStack stack, Component text, float x) {
-        var batch = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
-        font.drawInBatch(text, x, (float) 0, 15610658, false, stack.last().pose(), batch, Font.DisplayMode.NORMAL, 0, 15728880);
-        batch.endBatch();
+    private void draw(MultiBufferSource bufferSource, Font font, PoseStack stack, Component text, float x) {
+        font.drawInBatch(text, x, (float) 0, 15610658, false, stack.last().pose(), bufferSource, Font.DisplayMode.NORMAL, 0, 15728880);
     }
 
-    private void draw(Font font, PoseStack stack, String text, float y) {
-        var batch = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
-        font.drawInBatch(text, (float) 0, y, 15610658, false, stack.last().pose(), batch, Font.DisplayMode.NORMAL, 0, 15728880, false);
-        batch.endBatch();
+    private void draw(MultiBufferSource bufferSource, Font font, PoseStack stack, String text, float y) {
+        font.drawInBatch(text, (float) 0, y, 15610658, false, stack.last().pose(), bufferSource, Font.DisplayMode.NORMAL, 0, 15728880, false);
     }
 
     private void renderPower(final Matrix4f matrix, final MultiBufferSource bufferSource) {
@@ -208,22 +204,17 @@ public final class MonitorRenderer implements BlockEntityRenderer<MonitorBlockEn
     }
 
     private static void renderQuad(final Matrix4f matrix, final VertexConsumer consumer) {
-        final VertexConsumer wrapper = new ChainableVertexConsumer(consumer);
-        wrapper.vertex(matrix, 0, 0, 0)
-            .uv(0, 0)
-            .endVertex();
+        consumer.addVertex(matrix, 0, 0, 0)
+            .setUv(0, 0);
 
-        wrapper.vertex(matrix, 0, 16, 0)
-            .uv(0, 1)
-            .endVertex();
+        consumer.addVertex(matrix, 0, 16, 0)
+            .setUv(0, 1);
 
-        wrapper.vertex(matrix, 16, 16, 0)
-            .uv(1, 1)
-            .endVertex();
+        consumer.addVertex(matrix, 16, 16, 0)
+            .setUv(1, 1);
 
-        wrapper.vertex(matrix, 16, 0, 0)
-            .uv(1, 0)
-            .endVertex();
+        consumer.addVertex(matrix, 16, 0, 0)
+            .setUv(1, 0);
     }
 
     @SubscribeEvent

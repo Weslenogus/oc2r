@@ -2,6 +2,7 @@
 
 package li.cil.oc2.client.renderer;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import li.cil.oc2.common.util.Vec3Utils;
@@ -127,13 +128,21 @@ public final class NetworkCableRenderer {
 
         final Vec3 eye = event.getCamera().getPosition();
 
-        final Frustum frustum = new Frustum(stack.last().pose(), event.getProjectionMatrix());
+        final var frustumMatrix = new Matrix4f(event.getModelViewMatrix());
+        frustumMatrix.mul(stack.last().pose());
+        final Frustum frustum = new Frustum(frustumMatrix, event.getProjectionMatrix());
         frustum.prepare(eye.x, eye.y, eye.z);
 
         stack.pushPose();
         stack.translate(-eye.x, -eye.y, -eye.z);
 
+        RenderSystem.getModelViewStack().pushMatrix();
+        RenderSystem.getModelViewStack().set(event.getModelViewMatrix());
+        RenderSystem.applyModelViewMatrix();
+
         renderCables(level, stack, eye, connections, frustum::isVisible);
+
+        RenderSystem.getModelViewStack().popMatrix();
 
         stack.popPose();
     }
@@ -191,22 +200,18 @@ public final class NetworkCableRenderer {
                 final CablePoint pa = cablePoints.get(i);
                 final CablePoint pb = cablePoints.get(i + 1);
 
-                consumer.vertex(viewMatrix, pa.v0.x(), pa.v0.y(), pa.v0.z())
-                    .color(r, g, b, 1f)
-                    .uv2(pa.packedLight)
-                    .endVertex();
-                consumer.vertex(viewMatrix, pa.v1.x(), pa.v1.y(), pa.v1.z())
-                    .color(r, g, b, 1f)
-                    .uv2(pa.packedLight)
-                    .endVertex();
-                consumer.vertex(viewMatrix, pb.v1.x(), pb.v1.y(), pb.v1.z())
-                    .color(r, g, b, 1f)
-                    .uv2(pa.packedLight)
-                    .endVertex();
-                consumer.vertex(viewMatrix, pb.v0.x(), pb.v0.y(), pb.v0.z())
-                    .color(r, g, b, 1f)
-                    .uv2(pa.packedLight)
-                    .endVertex();
+                consumer.addVertex(viewMatrix, pa.v0.x(), pa.v0.y(), pa.v0.z())
+                    .setColor(r, g, b, 1f)
+                    .setUv2(pa.packedLight, 0);
+                consumer.addVertex(viewMatrix, pa.v1.x(), pa.v1.y(), pa.v1.z())
+                    .setColor(r, g, b, 1f)
+                    .setUv2(pa.packedLight, 0);
+                consumer.addVertex(viewMatrix, pb.v1.x(), pb.v1.y(), pb.v1.z())
+                    .setColor(r, g, b, 1f)
+                    .setUv2(pa.packedLight, 0);
+                consumer.addVertex(viewMatrix, pb.v0.x(), pb.v0.y(), pb.v0.z())
+                    .setColor(r, g, b, 1f)
+                    .setUv2(pa.packedLight, 0);
             }
 
             bufferSource.endBatch(renderType);

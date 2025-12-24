@@ -75,11 +75,11 @@ public abstract class ImageButton extends AbstractButton {
             background = pressedImage;
         }
 
-        background.draw(graphics, x, y);
+        background.draw(graphics, getX(), getY());
 
         if (!Objects.equals(getMessage(), Component.empty())) {
             graphics.drawCenteredString(Minecraft.getInstance().font, getMessage(),
-                x + width / 2, y + (height - 8) / 2,
+                getX() + width / 2, getY() + (height - 8) / 2,
                 getFGColor() | Mth.ceil(alpha * 255) << 24);
         }
     }

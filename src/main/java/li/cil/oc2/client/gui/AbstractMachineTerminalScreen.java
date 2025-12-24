@@ -90,9 +90,9 @@ public abstract class AbstractMachineTerminalScreen<T extends AbstractMachineTer
     }
 
     @Override
-    public boolean mouseScrolled(double p_94686_, double p_94687_, double p_94688_)
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY)
     {
-        return terminalWidget.mouseScrolled(p_94688_);
+        return terminalWidget.mouseScrolled(scrollY);
     }
 
     @Override

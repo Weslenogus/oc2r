@@ -2,6 +2,8 @@ package li.cil.oc2.client.renderer.blockentity;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import li.cil.oc2.common.blockentity.ChargerBlockEntity;
+import net.minecraft.world.phys.AABB;
 import org.joml.Matrix4f;
 
 import li.cil.oc2.client.renderer.ModRenderType;
@@ -102,13 +104,16 @@ public class InternetGateWayRenderer implements BlockEntityRenderer<InternetGate
     private void renderCubeFace(VertexConsumer vertices, Matrix4f matrix, float x, float y, float z, float halfSideSize, int signShiftX, int signShiftY, int signShiftZ, boolean enColor) {
         float signs[] = {-1f, -1f, 1f, 1f, -1f, 0f, 0f, 0f, 0f};
         for (int i=0;i<4;i++) {
-            vertices.vertex(matrix, x+halfSideSize*signs[i+signShiftX], y+halfSideSize*signs[i+signShiftY], z+halfSideSize*signs[i+signShiftZ]);
+            vertices.addVertex(matrix, x+halfSideSize*signs[i+signShiftX], y+halfSideSize*signs[i+signShiftY], z+halfSideSize*signs[i+signShiftZ]);
             if (enColor) {
-                vertices.color(1f, 1f, 1f, 1f);
+                vertices.setColor(1f, 1f, 1f, 1f);
             }
-            vertices.endVertex();
         }
 
     }
 
+    @Override
+    public AABB getRenderBoundingBox(InternetGateWayBlockEntity block) {
+        return block.getRenderBoundingBox();
+    }
 }

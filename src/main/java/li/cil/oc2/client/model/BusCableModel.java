@@ -26,8 +26,8 @@ public final class BusCableModel implements IUnbakedGeometry<BusCableModel> {
     ///////////////////////////////////////////////////////////////////
 
     @Override
-    public BakedModel bake(final IGeometryBakingContext owner, final ModelBaker baker, final Function<Material, TextureAtlasSprite> spriteGetter, final ModelState modelTransform, final ItemOverrides overrides, final ResourceLocation modelLocation) {
-        final BakedModel bakedBaseModel = proxy.bake(owner, baker, spriteGetter, modelTransform, overrides, modelLocation);
+    public BakedModel bake(final IGeometryBakingContext owner, final ModelBaker baker, final Function<Material, TextureAtlasSprite> spriteGetter, final ModelState modelTransform, final ItemOverrides overrides) {
+        final BakedModel bakedBaseModel = proxy.bake(owner, baker, spriteGetter, modelTransform, overrides);
         final BakedModel[] straightModelByAxis = {
             requireNonNull(baker.bake(BUS_CABLE_STRAIGHT_MODEL, BlockModelRotation.X0_Y90, spriteGetter)),
             requireNonNull(baker.bake(BUS_CABLE_STRAIGHT_MODEL, BlockModelRotation.X90_Y0, spriteGetter)),

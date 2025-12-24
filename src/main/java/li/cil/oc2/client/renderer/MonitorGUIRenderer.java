@@ -58,7 +58,7 @@ public class MonitorGUIRenderer {
     }
 
     public interface RendererView {
-        void render(final PoseStack stack, final Matrix4f projectionMatrix, float width, float height);
+        void render(final PoseStack stack, final Matrix4f projectionMatrix, float width, float height, boolean renderingToBlock);
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -136,13 +136,13 @@ public class MonitorGUIRenderer {
             }
 
             @Override
-            public void render(final PoseStack stack, final Matrix4f projectionMatrix, float width, float height) {
+            public void render(final PoseStack stack, final Matrix4f projectionMatrix, float width, float height, boolean renderingToBlock) {
                 if (monitorBlock.isValid()) {
                     DynamicTexture texture = getColorBuffer(monitorBlock);
                     monitorBlock.onRendering();
 
                     RenderSystem.backupProjectionMatrix();
-                    RenderSystem.getModelViewStack().pushPose();
+                    RenderSystem.getModelViewStack().pushMatrix();
 
                     RenderSystem.enableBlend();
                     RenderSystem.blendFunc(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE);
@@ -154,7 +154,8 @@ public class MonitorGUIRenderer {
 
                     if (shader == null) return;
 
-                    final BufferBuilder builder = Tesselator.getInstance().getBuilder();
+                    final BufferBuilder builder = Tesselator.getInstance()
+                        .begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
 
                     RenderSystem.setProjectionMatrix(projectionMatrix, VertexSorting.ORTHOGRAPHIC_Z);
 
@@ -162,21 +163,25 @@ public class MonitorGUIRenderer {
 
                     VertexBuffer buffer = new VertexBuffer(VertexBuffer.Usage.DYNAMIC);
 
-                    builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
-                    builder.vertex(0, 0, 0).uv(0, 0).endVertex();
-                    builder.vertex(0, height, 0).uv(0, 1).endVertex();
-                    builder.vertex(width, height, 0).uv(1, 1).endVertex();
-                    builder.vertex(width, 0, 0).uv(1, 0).endVertex();
+                    builder.addVertex(0, 0, 0).setUv(0, 0);
+                    builder.addVertex(0, height, 0).setUv(0, 1);
+                    builder.addVertex(width, height, 0).setUv(1, 1);
+                    builder.addVertex(width, 0, 0).setUv(1, 0);
 
                     buffer.bind();
-                    buffer.upload(builder.end());
-                    buffer.drawWithShader(stack.last().pose(), projectionMatrix, shader);
-                    VertexBuffer.unbind();
+                    buffer.upload(builder.buildOrThrow());
 
+                    var modelViewMatrix = stack.last().pose();
+                    if (renderingToBlock) {
+                        modelViewMatrix = RenderSystem.getModelViewMatrix().mul( modelViewMatrix );
+                    }
+                    buffer.drawWithShader(modelViewMatrix, projectionMatrix, shader);
+
+                    VertexBuffer.unbind();
                     buffer.close();
 
                     RenderSystem.restoreProjectionMatrix();
-                    RenderSystem.getModelViewStack().popPose();
+                    RenderSystem.getModelViewStack().popMatrix();
                     RenderSystem.applyModelViewMatrix();
 
                     RenderSystem.depthMask(true);

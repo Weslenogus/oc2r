@@ -70,7 +70,7 @@ public final class MonitorDisplayWidget {
             }
 
             final Matrix4f projectionMatrix = (new Matrix4f()).setOrtho(0, parent.width, parent.height, 0, -10f, 10f);
-            rendererView.render(terminalStack, projectionMatrix, MonitorDevice.WIDTH, MonitorDevice.HEIGHT);
+            rendererView.render(terminalStack, projectionMatrix, MonitorDevice.WIDTH, MonitorDevice.HEIGHT, false);
         } else if (container.getPowerState()) {
             final Font font = getClient().font;
             if (error != null) {
@@ -90,7 +90,7 @@ public final class MonitorDisplayWidget {
     }
 
     private void drawShadow(Font font, GuiGraphics graphics, Component text, float x, float y, int color) {
-        var batch = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
+        var batch = graphics.bufferSource();
         font.drawInBatch(text, x, y, color, true, graphics.pose().last().pose(), batch, Font.DisplayMode.NORMAL, 0, 15728880);
         batch.endBatch();
     }
