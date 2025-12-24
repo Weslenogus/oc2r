@@ -26,11 +26,9 @@ import net.minecraft.world.item.ItemStack;
 
 import java.nio.ByteBuffer;
 
+import static li.cil.oc2.common.item.AbstractBlockDeviceItem.DATA_TAG_NAME;
+
 public final class ByteBufferFlashStorageDevice extends IdentityProxy<ItemStack> implements VMDevice, ItemDevice, FirmwareLoader {
-    public static final String DATA_TAG_NAME = "data";
-
-    ///////////////////////////////////////////////////////////////
-
     private final int size;
     private MemoryMap memoryMap;
     private ByteBuffer data;
@@ -39,7 +37,6 @@ public final class ByteBufferFlashStorageDevice extends IdentityProxy<ItemStack>
     ///////////////////////////////////////////////////////////////
 
     // Online persisted data.
-    private CompoundTag deviceTag;
     private final OptionalAddress address = new OptionalAddress();
 
     ///////////////////////////////////////////////////////////////
@@ -61,8 +58,6 @@ public final class ByteBufferFlashStorageDevice extends IdentityProxy<ItemStack>
             return VMDeviceLoadResult.fail();
         }
 
-        loadPersistedState();
-
         memoryMap = context.getMemoryMap();
 
         context.getEventBus().register(this);
@@ -79,7 +74,7 @@ public final class ByteBufferFlashStorageDevice extends IdentityProxy<ItemStack>
 
     @Override
     public void dispose() {
-        deviceTag = null;
+        data = null;
         address.clear();
     }
 
@@ -131,15 +126,6 @@ public final class ByteBufferFlashStorageDevice extends IdentityProxy<ItemStack>
         device = new FlashMemoryDevice(data);
 
         return true;
-    }
-
-    private void loadPersistedState() {
-        if (deviceTag != null) {
-            data.clear();
-
-            final byte[] persistedData = deviceTag.getByteArray(DATA_TAG_NAME);
-            data.put(persistedData, 0, Math.min(persistedData.length, data.capacity()));
-        }
     }
 
     private void copyDataToMemory(final long startAddress) {

@@ -36,12 +36,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.time.Duration;
 
+import static li.cil.oc2.common.item.AbstractBlockDeviceItem.DATA_TAG_NAME;
+
 @EventBusSubscriber(modid = API.MOD_ID)
 public final class DiskDriveBlockEntity extends ModBlockEntity implements DiskDriveContainer {
-    private static final String DATA_TAG_NAME = "data";
-
-    ///////////////////////////////////////////////////////////////////
-
     private final DiskDriveItemStackHandler itemHandler = new DiskDriveItemStackHandler();
     private final DiskDriveDevice<DiskDriveBlockEntity> device = new DiskDriveDevice<>(this);
     private final ThrottledSoundEmitter accessSoundEmitter;
