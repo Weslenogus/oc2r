@@ -28,6 +28,10 @@ jobs:
         if: github.event.release.prerelease == true
 
       - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin' # See 'Supported distributions' for available options
+          java-version: '17'
       - name: Publish to Curseforge & Modrinth
         run: ./gradlew -Psemver='${{ github.event.release.tag_name }}' publish
         env:
