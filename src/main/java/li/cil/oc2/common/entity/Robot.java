@@ -35,6 +35,8 @@ import li.cil.oc2.common.vm.terminal.Terminal;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Cursor3D;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
@@ -53,6 +55,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -83,6 +86,7 @@ import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static java.util.Collections.singleton;
 import static li.cil.oc2.common.Constants.*;
@@ -121,7 +125,7 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
     private final Terminal terminal = new Terminal();
     private final RobotVirtualMachine virtualMachine;
     private final RobotBusElement busElement = new RobotBusElement();
-    private final RobotItemStackHandlers deviceItems = new RobotItemStackHandlers();
+    private final RobotItemStackHandlers deviceItems = new RobotItemStackHandlers(this::registryAccess);
     private final FixedEnergyStorage energy = new FixedEnergyStorage(Config.robotEnergyStorage);
     private final ItemStackHandler inventory = new FixedSizeItemStackHandler(INVENTORY_SIZE);
     private final Set<Player> terminalUsers = Collections.newSetFromMap(new WeakHashMap<>());
@@ -402,22 +406,26 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
     }
 
     public void exportToItemStack(final ItemStack stack) {
-        final CompoundTag itemsTag = NBTUtils.getOrCreateChildTag(stack.getOrCreateTag(), MOD_TAG_NAME, ITEMS_TAG_NAME);
-        deviceItems.saveItems(itemsTag); // Puts one tag per device type, as expected by TooltipUtils.
-        itemsTag.put(INVENTORY_TAG_NAME, inventory.serializeNBT()); // Won't show up in tooltip.
+        final var provider = registryAccess();
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, (nbt) -> {
+            final CompoundTag itemsTag = NBTUtils.getOrCreateChildTag(nbt, MOD_TAG_NAME, ITEMS_TAG_NAME);
+            deviceItems.saveItems(provider, itemsTag); // Puts one tag per device type, as expected by TooltipUtils.
+            itemsTag.put(INVENTORY_TAG_NAME, inventory.serializeNBT(provider)); // Won't show up in tooltip.
 
-        NBTUtils.getOrCreateChildTag(stack.getOrCreateTag(), MOD_TAG_NAME)
-            .put(ENERGY_TAG_NAME, energy.serializeNBT());
+            var tag = NBTUtils.getOrCreateChildTag(nbt, MOD_TAG_NAME);
+            tag.put(ENERGY_TAG_NAME, energy.serializeNBT(provider));
+        });
     }
 
     public void importFromItemStack(final ItemStack stack) {
-        final CompoundTag itemsTag = NBTUtils.getChildTag(stack.getTag(), MOD_TAG_NAME, ITEMS_TAG_NAME);
+        final var provider = registryAccess();
+        final CompoundTag itemsTag = NBTUtils.getChildTag(stack, MOD_TAG_NAME, ITEMS_TAG_NAME);
 
-        deviceItems.loadItems(itemsTag);
+        deviceItems.loadItems(provider, itemsTag);
 
-        inventory.deserializeNBT(itemsTag.getCompound(INVENTORY_TAG_NAME));
+        inventory.deserializeNBT(provider, itemsTag.getCompound(INVENTORY_TAG_NAME));
 
-        energy.deserializeNBT(NBTUtils.getChildTag(stack.getTag(), MOD_TAG_NAME, ENERGY_TAG_NAME));
+        energy.deserializeNBT(provider, NBTUtils.getChildTag(stack, MOD_TAG_NAME, ENERGY_TAG_NAME));
     }
 
     ///////////////////////////////////////////////////////////////////
@@ -432,6 +440,7 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
 
     @Override
     protected void addAdditionalSaveData(final CompoundTag tag) {
+        final var provider = registryAccess();
         if (virtualMachine.getRunState() != VMRunState.STOPPED) {
             tag.put(STATE_TAG_NAME, virtualMachine.serialize());
             tag.put(TERMINAL_TAG_NAME, NBTSerialization.serialize(terminal));
@@ -439,23 +448,24 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
 
         tag.put(COMMAND_PROCESSOR_TAG_NAME, actionProcessor.serialize());
         tag.put(BUS_ELEMENT_TAG_NAME, busElement.serialize());
-        tag.put(ITEMS_TAG_NAME, deviceItems.saveItems());
-        tag.put(DEVICES_TAG_NAME, deviceItems.saveDevices());
-        tag.put(ENERGY_TAG_NAME, energy.serializeNBT());
-        tag.put(INVENTORY_TAG_NAME, inventory.serializeNBT());
+        tag.put(ITEMS_TAG_NAME, deviceItems.saveItems(provider));
+        tag.put(DEVICES_TAG_NAME, deviceItems.saveDevices(provider));
+        tag.put(ENERGY_TAG_NAME, energy.serializeNBT(provider));
+        tag.put(INVENTORY_TAG_NAME, inventory.serializeNBT(provider));
         tag.putByte(SELECTED_SLOT_TAG_NAME, getEntityData().get(SELECTED_SLOT));
     }
 
     @Override
     protected void readAdditionalSaveData(final CompoundTag tag) {
+        final var provider = registryAccess();
         virtualMachine.deserialize(tag.getCompound(STATE_TAG_NAME));
         NBTSerialization.deserialize(tag.getCompound(TERMINAL_TAG_NAME), terminal);
         actionProcessor.deserialize(tag.getCompound(COMMAND_PROCESSOR_TAG_NAME));
         busElement.deserialize(tag.getCompound(BUS_ELEMENT_TAG_NAME));
-        deviceItems.loadItems(tag.getCompound(ITEMS_TAG_NAME));
-        deviceItems.loadDevices(tag.getCompound(DEVICES_TAG_NAME));
-        energy.deserializeNBT(tag.getCompound(ENERGY_TAG_NAME));
-        inventory.deserializeNBT(tag.getCompound(INVENTORY_TAG_NAME));
+        deviceItems.loadItems(provider, tag.getCompound(ITEMS_TAG_NAME));
+        deviceItems.loadDevices(provider, tag.getCompound(DEVICES_TAG_NAME));
+        energy.deserializeNBT(provider, tag.getCompound(ENERGY_TAG_NAME));
+        inventory.deserializeNBT(provider, tag.getCompound(INVENTORY_TAG_NAME));
         setSelectedSlot(tag.getByte(SELECTED_SLOT_TAG_NAME));
     }
 
@@ -753,8 +763,9 @@ public final class Robot extends Entity implements li.cil.oc2.api.capabilities.R
     }
 
     private final class RobotItemStackHandlers extends AbstractVMItemStackHandlers {
-        public RobotItemStackHandlers() {
+        public RobotItemStackHandlers(Supplier<HolderLookup.Provider> providerSupplier) {
             super(
+                providerSupplier,
                 new GroupDefinition(DeviceTypes.MEMORY, MEMORY_SLOTS),
                 new GroupDefinition(DeviceTypes.HARD_DRIVE, HARD_DRIVE_SLOTS),
                 new GroupDefinition(DeviceTypes.FLASH_MEMORY, FLASH_MEMORY_SLOTS),

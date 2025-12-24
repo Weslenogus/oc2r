@@ -4,6 +4,7 @@ package li.cil.oc2.common.bus.device.rpc;
 
 import li.cil.oc2.api.bus.device.rpc.RPCDevice;
 import li.cil.oc2.api.bus.device.rpc.RPCMethodGroup;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 
 import java.util.ArrayList;
@@ -59,12 +60,12 @@ public record RPCDeviceList(ArrayList<RPCDevice> devices) implements RPCDevice {
     //     As such, serialize/deserialize will never be called on this class.
 
     @Override
-    public CompoundTag serializeNBT() {
+    public CompoundTag serializeNBT(HolderLookup.Provider provider) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void deserializeNBT(final CompoundTag tag) {
+    public void deserializeNBT(HolderLookup.Provider provider, final CompoundTag tag) {
         throw new UnsupportedOperationException();
     }
 }

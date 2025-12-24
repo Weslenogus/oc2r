@@ -24,8 +24,10 @@ import net.minecraft.client.renderer.block.BlockModelShaper;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.util.StringUtil;
 import net.minecraft.world.item.ItemStack;
@@ -258,36 +260,56 @@ public final class BusCableBlockEntity extends ModBlockEntity {
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
-        final CompoundTag tag = super.getUpdateTag();
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        final CompoundTag tag = super.getUpdateTag(registries);
 
         tag.put(INTERFACE_NAMES_TAG_NAME, serializeInterfaceNames());
-        tag.put(FACADE_TAG_NAME, facade.serializeNBT());
+        if (facade == ItemStack.EMPTY) {
+            tag.put(FACADE_TAG_NAME, new CompoundTag());
+        } else {
+            var facade_nbt = ItemStack.CODEC.encodeStart(NbtOps.INSTANCE, facade);
+            tag.put(FACADE_TAG_NAME, facade_nbt.getOrThrow());
+        }
 
         return tag;
     }
 
     @Override
-    public void handleUpdateTag(final CompoundTag tag) {
+    public void handleUpdateTag(final CompoundTag tag, HolderLookup.Provider registries) {
         deserializeInterfaceNames(tag.getList(INTERFACE_NAMES_TAG_NAME, NBTTagIds.TAG_STRING));
-        setFacade(ItemStack.of(tag.getCompound(FACADE_TAG_NAME)));
+
+        var facade_nbt = tag.getCompound(FACADE_TAG_NAME);
+        if (!facade_nbt.isEmpty()) {
+            var facade_parsed = ItemStack.CODEC.parse(NbtOps.INSTANCE, facade_nbt);
+            facade = facade_parsed.getOrThrow();
+        } else {
+            facade = ItemStack.EMPTY;
+        }
     }
 
     @Override
-    protected void saveAdditional(final CompoundTag tag) {
-        super.saveAdditional(tag);
+    protected void saveAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
 
-        tag.put(BUS_ELEMENT_TAG_NAME, busElement.save());
+        tag.put(BUS_ELEMENT_TAG_NAME, busElement.save(registries));
         tag.put(INTERFACE_NAMES_TAG_NAME, serializeInterfaceNames());
-        tag.put(FACADE_TAG_NAME, facade.serializeNBT());
+        var facade_nbt = ItemStack.OPTIONAL_CODEC.encodeStart(NbtOps.INSTANCE, facade);
+        tag.put(FACADE_TAG_NAME, facade_nbt.getOrThrow());
     }
 
     @Override
-    public void load(final CompoundTag tag) {
-        super.load(tag);
-        busElement.load(tag.getCompound(BUS_ELEMENT_TAG_NAME));
+    public void loadAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
+        busElement.loadAdditional(tag.getCompound(BUS_ELEMENT_TAG_NAME), registries);
         deserializeInterfaceNames(tag.getList(INTERFACE_NAMES_TAG_NAME, NBTTagIds.TAG_STRING));
-        facade = ItemStack.of(tag.getCompound(FACADE_TAG_NAME));
+        var facade_nbt = tag.getCompound(FACADE_TAG_NAME);
+        try {
+            facade = ItemStack.OPTIONAL_CODEC.parse(NbtOps.INSTANCE, facade_nbt).getOrThrow();
+        } catch (IllegalStateException e) {
+            // It was ok for older minecraft versions to serialize ItemStack.EMPTY literally
+            // Newer versions throw an error if they see a minecraft:air serialized
+            facade = ItemStack.EMPTY;
+        }
 
         requestModelDataUpdate();
     }

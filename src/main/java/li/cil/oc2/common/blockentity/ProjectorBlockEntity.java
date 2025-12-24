@@ -18,6 +18,7 @@ import li.cil.oc2.jcodec.common.model.ColorSpace;
 import li.cil.oc2.jcodec.common.model.Picture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.SectionPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.Block;
@@ -164,8 +165,8 @@ public final class ProjectorBlockEntity extends ModBlockEntity implements Tickab
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
-        final CompoundTag tag = super.getUpdateTag();
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        final CompoundTag tag = super.getUpdateTag(registries);
 
         tag.putBoolean(IS_PROJECTING_TAG_NAME, isMounted);
         tag.putBoolean(HAS_ENERGY_TAG_NAME, hasEnergy);
@@ -174,25 +175,25 @@ public final class ProjectorBlockEntity extends ModBlockEntity implements Tickab
     }
 
     @Override
-    public void handleUpdateTag(final CompoundTag tag) {
-        super.handleUpdateTag(tag);
+    public void handleUpdateTag(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.handleUpdateTag(tag, registries);
 
         isMounted = tag.getBoolean(IS_PROJECTING_TAG_NAME);
         hasEnergy = tag.getBoolean(HAS_ENERGY_TAG_NAME);
     }
 
     @Override
-    protected void saveAdditional(final CompoundTag tag) {
-        super.saveAdditional(tag);
+    protected void saveAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
 
-        tag.put(ENERGY_TAG_NAME, energy.serializeNBT());
+        tag.put(ENERGY_TAG_NAME, energy.serializeNBT(registries));
     }
 
     @Override
-    public void load(final CompoundTag tag) {
-        super.load(tag);
+    public void loadAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
 
-        energy.deserializeNBT(tag.getCompound(ENERGY_TAG_NAME));
+        energy.deserializeNBT(registries, tag.getCompound(ENERGY_TAG_NAME));
     }
 
     @Override

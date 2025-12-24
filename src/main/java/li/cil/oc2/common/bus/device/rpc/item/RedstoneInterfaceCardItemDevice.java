@@ -12,6 +12,7 @@ import li.cil.oc2.common.capabilities.Capabilities;
 import li.cil.oc2.common.util.HorizontalBlockUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
@@ -67,14 +68,14 @@ public final class RedstoneInterfaceCardItemDevice extends AbstractItemRPCDevice
     }
 
     @Override
-    public CompoundTag serializeNBT() {
+    public CompoundTag serializeNBT(HolderLookup.Provider provider) {
         final CompoundTag tag = new CompoundTag();
         tag.putByteArray(OUTPUT_TAG_NAME, output);
         return tag;
     }
 
     @Override
-    public void deserializeNBT(final CompoundTag tag) {
+    public void deserializeNBT(HolderLookup.Provider provider, final CompoundTag tag) {
         final byte[] serializedOutput = tag.getByteArray(OUTPUT_TAG_NAME);
         System.arraycopy(serializedOutput, 0, output, 0, Math.min(serializedOutput.length, output.length));
     }

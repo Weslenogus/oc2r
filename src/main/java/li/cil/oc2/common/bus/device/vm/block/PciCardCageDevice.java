@@ -12,6 +12,7 @@ import li.cil.oc2.common.bus.device.util.OptionalAddress;
 import li.cil.oc2.common.serialization.BlobStorage;
 import li.cil.oc2.common.util.NBTTagIds;
 import li.cil.oc2.common.vm.device.PciRootPortDevice;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
@@ -91,7 +92,7 @@ public final class PciCardCageDevice extends IdentityProxy<BlockEntity> implemen
     }
 
     @Override
-    public CompoundTag serializeNBT() {
+    public CompoundTag serializeNBT(HolderLookup.Provider provider) {
         final CompoundTag tag = new CompoundTag();
 
         if (blobHandle != null) {
@@ -105,7 +106,7 @@ public final class PciCardCageDevice extends IdentityProxy<BlockEntity> implemen
     }
 
     @Override
-    public void deserializeNBT(final CompoundTag tag) {
+    public void deserializeNBT(HolderLookup.Provider provider, final CompoundTag tag) {
         if (tag.hasUUID(BLOB_HANDLE_TAG_NAME)) {
             blobHandle = tag.getUUID(BLOB_HANDLE_TAG_NAME);
         }

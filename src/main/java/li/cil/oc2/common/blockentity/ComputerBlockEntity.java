@@ -30,11 +30,14 @@ import li.cil.oc2.common.vm.*;
 import li.cil.oc2.common.vm.terminal.Terminal;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -47,6 +50,7 @@ import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.*;
+import java.util.function.Supplier;
 
 import static li.cil.oc2.common.Constants.BLOCK_ENTITY_TAG_NAME_IN_ITEM;
 import static li.cil.oc2.common.Constants.ITEMS_TAG_NAME;
@@ -76,7 +80,7 @@ public final class ComputerBlockEntity extends ModBlockEntity implements Termina
 
     private final Terminal terminal = new Terminal();
     private final ComputerBusElement busElement = new ComputerBusElement();
-    private final ComputerItemStackHandlers deviceItems = new ComputerItemStackHandlers();
+    private final ComputerItemStackHandlers deviceItems = new ComputerItemStackHandlers(() -> this.getLevel().registryAccess());
     private final FixedEnergyStorage energy = new FixedEnergyStorage(Config.computerEnergyStorage);
     private final ComputerVirtualMachine virtualMachine = new ComputerVirtualMachine(new BlockDeviceBusController(busElement, Config.computerEnergyPerTick, this), deviceItems::getDeviceAddressBase);
     private final Set<Player> terminalUsers = Collections.newSetFromMap(new WeakHashMap<>());
@@ -208,61 +212,62 @@ public final class ComputerBlockEntity extends ModBlockEntity implements Termina
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
-        final CompoundTag tag = super.getUpdateTag();
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        final CompoundTag tag = super.getUpdateTag(registries);
 
         tag.put(TERMINAL_TAG_NAME, NBTSerialization.serialize(terminal));
         tag.putInt(AbstractVirtualMachine.BUS_STATE_TAG_NAME, virtualMachine.getBusState().ordinal());
         tag.putInt(AbstractVirtualMachine.RUN_STATE_TAG_NAME, virtualMachine.getRunState().ordinal());
-        tag.putString(AbstractVirtualMachine.BOOT_ERROR_TAG_NAME, Component.Serializer.toJson(virtualMachine.getBootError()));
+        tag.putString(AbstractVirtualMachine.BOOT_ERROR_TAG_NAME, Component.Serializer.toJson(virtualMachine.getBootError(), registries));
 
         return tag;
     }
 
     @Override
-    public void handleUpdateTag(final CompoundTag tag) {
-        super.handleUpdateTag(tag);
+    public void handleUpdateTag(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.handleUpdateTag(tag, registries);
 
         NBTSerialization.deserialize(tag.getCompound(TERMINAL_TAG_NAME), terminal);
-        
+
         // Only update client-side state on the client
         if (level != null && level.isClientSide()) {
             virtualMachine.setBusStateClient(CommonDeviceBusController.BusState.values()[tag.getInt(AbstractVirtualMachine.BUS_STATE_TAG_NAME)]);
             virtualMachine.setRunStateClient(VMRunState.values()[tag.getInt(AbstractVirtualMachine.RUN_STATE_TAG_NAME)]);
-            virtualMachine.setBootErrorClient(Component.Serializer.fromJson(tag.getString(AbstractVirtualMachine.BOOT_ERROR_TAG_NAME)));
+            virtualMachine.setBootErrorClient(Component.Serializer.fromJson(tag.getString(AbstractVirtualMachine.BOOT_ERROR_TAG_NAME), registries));
         }
     }
 
     @Override
-    protected void saveAdditional(final CompoundTag tag) {
-        super.saveAdditional(tag);
+    protected void saveAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
 
         if (virtualMachine.getRunState() != VMRunState.STOPPED) {
             tag.put(STATE_TAG_NAME, virtualMachine.serialize());
             tag.put(TERMINAL_TAG_NAME, NBTSerialization.serialize(terminal));
         }
 
-        tag.put(ENERGY_TAG_NAME, energy.serializeNBT());
-        tag.put(BUS_ELEMENT_TAG_NAME, busElement.save());
-        tag.put(ITEMS_TAG_NAME, deviceItems.saveItems());
-        tag.put(DEVICES_TAG_NAME, deviceItems.saveDevices());
+        tag.put(ENERGY_TAG_NAME, energy.serializeNBT(registries));
+        tag.put(BUS_ELEMENT_TAG_NAME, busElement.save(registries));
+        tag.put(ITEMS_TAG_NAME, deviceItems.saveItems(registries));
+        tag.put(DEVICES_TAG_NAME, deviceItems.saveDevices(registries));
     }
 
     @Override
-    public void load(final CompoundTag tag) {
-        super.load(tag);
+    public void loadAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
 
-        energy.deserializeNBT(tag.getCompound(ENERGY_TAG_NAME));
-        busElement.load(tag.getCompound(BUS_ELEMENT_TAG_NAME));
-        deviceItems.loadItems(tag.getCompound(ITEMS_TAG_NAME));
-        deviceItems.loadDevices(tag.getCompound(DEVICES_TAG_NAME));
+        energy.deserializeNBT(registries, tag.getCompound(ENERGY_TAG_NAME));
+        busElement.loadAdditional(tag.getCompound(BUS_ELEMENT_TAG_NAME), registries);
+        deviceItems.loadItems(registries, tag.getCompound(ITEMS_TAG_NAME));
+        deviceItems.loadDevices(registries, tag.getCompound(DEVICES_TAG_NAME));
         virtualMachine.deserialize(tag.getCompound(STATE_TAG_NAME));
         NBTSerialization.deserialize(tag.getCompound(TERMINAL_TAG_NAME), terminal);
-
     }
 
     public void exportToItemStack(final ItemStack stack) {
-        deviceItems.saveItems(NBTUtils.getOrCreateChildTag(stack.getOrCreateTag(), BLOCK_ENTITY_TAG_NAME_IN_ITEM, ITEMS_TAG_NAME));
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, nbt -> {
+            deviceItems.saveItems(level.registryAccess(), NBTUtils.getOrCreateChildTag(nbt, BLOCK_ENTITY_TAG_NAME_IN_ITEM, ITEMS_TAG_NAME));
+        });
     }
 
     ///////////////////////////////////////////////////////////////////
@@ -325,8 +330,8 @@ public final class ComputerBlockEntity extends ModBlockEntity implements Termina
     ///////////////////////////////////////////////////////////////////
 
     private final class ComputerItemStackHandlers extends AbstractVMItemStackHandlers {
-        public ComputerItemStackHandlers() {
-            super(new GroupDefinition(DeviceTypes.MEMORY, MEMORY_SLOTS), new GroupDefinition(DeviceTypes.HARD_DRIVE, HARD_DRIVE_SLOTS), new GroupDefinition(DeviceTypes.FLASH_MEMORY, FLASH_MEMORY_SLOTS), new GroupDefinition(DeviceTypes.CARD, CARD_SLOTS), new GroupDefinition(DeviceTypes.CPU, CPU_SLOTS));
+        public ComputerItemStackHandlers(Supplier<HolderLookup.Provider> providerSupplier) {
+            super(providerSupplier, new GroupDefinition(DeviceTypes.MEMORY, MEMORY_SLOTS), new GroupDefinition(DeviceTypes.HARD_DRIVE, HARD_DRIVE_SLOTS), new GroupDefinition(DeviceTypes.FLASH_MEMORY, FLASH_MEMORY_SLOTS), new GroupDefinition(DeviceTypes.CARD, CARD_SLOTS), new GroupDefinition(DeviceTypes.CPU, CPU_SLOTS));
         }
 
         @Override
@@ -403,14 +408,14 @@ public final class ComputerBlockEntity extends ModBlockEntity implements Termina
         }
 
         @Override
-        public CompoundTag save() {
-            final CompoundTag tag = super.save();
+        public CompoundTag save(HolderLookup.Provider registries) {
+            final CompoundTag tag = super.save(registries);
             tag.putUUID(DEVICE_ID_TAG_NAME, deviceId);
             return tag;
         }
 
-        public void load(final CompoundTag tag) {
-            super.load(tag);
+        public void loadAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+            super.loadAdditional(tag, registries);
             if (tag.hasUUID(DEVICE_ID_TAG_NAME)) {
                 deviceId = tag.getUUID(DEVICE_ID_TAG_NAME);
             }

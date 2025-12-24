@@ -4,6 +4,7 @@ package li.cil.oc2.common.bus;
 
 import li.cil.oc2.api.bus.device.Device;
 import li.cil.oc2.common.util.NBTTagIds;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 
@@ -57,10 +58,10 @@ public abstract class AbstractGroupingDeviceBusElement<TEntry extends AbstractGr
 
     ///////////////////////////////////////////////////////////////////
 
-    public CompoundTag save() {
+    public CompoundTag save(HolderLookup.Provider registries) {
         final ListTag listTag = new ListTag();
         for (int i = 0; i < groupCount; i++) {
-            saveGroup(i);
+            saveGroup(registries, i);
 
             final CompoundTag sideTag = new CompoundTag();
 
@@ -75,7 +76,7 @@ public abstract class AbstractGroupingDeviceBusElement<TEntry extends AbstractGr
         return tag;
     }
 
-    public void load(final CompoundTag tag) {
+    public void loadAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
         final ListTag listTag = tag.getList(GROUPS_TAG_NAME, NBTTagIds.TAG_COMPOUND);
 
         final int count = Math.min(groupCount, listTag.size());
@@ -94,7 +95,7 @@ public abstract class AbstractGroupingDeviceBusElement<TEntry extends AbstractGr
                 final CompoundTag devicesTag = groupData[i];
                 entry.getDeviceDataKey().ifPresent(key -> {
                     if (devicesTag.contains(key, NBTTagIds.TAG_COMPOUND)) {
-                        entry.getDevice().deserializeNBT(devicesTag.getCompound(key));
+                        entry.getDevice().deserializeNBT(registries, devicesTag.getCompound(key));
                     }
                 });
             }
@@ -116,13 +117,13 @@ public abstract class AbstractGroupingDeviceBusElement<TEntry extends AbstractGr
 
     ///////////////////////////////////////////////////////////////////
 
-    protected final void setEntriesForGroupUnloaded(final int index) {
+    protected final void setEntriesForGroupUnloaded(final HolderLookup.Provider registries, final int index) {
         final HashSet<TEntry> oldEntries = groups.get(index);
         if (oldEntries.isEmpty()) {
             return;
         }
 
-        saveGroup(index);
+        saveGroup(registries, index);
 
         for (final TEntry entry : oldEntries) {
             devices.removeInt(entry.getDevice());
@@ -134,7 +135,7 @@ public abstract class AbstractGroupingDeviceBusElement<TEntry extends AbstractGr
         scanDevices();
     }
 
-    protected final void setEntriesForGroup(final int index, final QueryResult queryResult) {
+    protected final void setEntriesForGroup(final HolderLookup.Provider registries, final int index, final QueryResult queryResult) {
         final Set<TEntry> newEntries = queryResult.getEntries();
         final HashSet<TEntry> entries = groups.get(index);
         if (Objects.equals(newEntries, entries)) {
@@ -194,7 +195,7 @@ public abstract class AbstractGroupingDeviceBusElement<TEntry extends AbstractGr
             entry.getDeviceDataKey().ifPresent(key -> {
                 invalidDataKeys.remove(key);
                 if (devicesTag.contains(key, NBTTagIds.TAG_COMPOUND)) {
-                    entry.getDevice().deserializeNBT(devicesTag.getCompound(key));
+                    entry.getDevice().deserializeNBT(registries, devicesTag.getCompound(key));
                 } else {
                     devicesTag.remove(key);
                 }
@@ -240,12 +241,12 @@ public abstract class AbstractGroupingDeviceBusElement<TEntry extends AbstractGr
 
     ///////////////////////////////////////////////////////////////////
 
-    private void saveGroup(final int index) {
+    private void saveGroup(final HolderLookup.Provider registries, final int index) {
         final CompoundTag devicesTag = new CompoundTag();
         for (final TEntry entry : groups.get(index)) {
             entry.getDeviceDataKey().ifPresent(key -> {
                 // Always store, even if the data is empty, so we know an device by this provider existed.
-                devicesTag.put(key, entry.getDevice().serializeNBT());
+                devicesTag.put(key, entry.getDevice().serializeNBT(registries));
             });
         }
 

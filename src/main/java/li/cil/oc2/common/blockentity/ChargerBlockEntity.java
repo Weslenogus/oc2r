@@ -11,6 +11,7 @@ import li.cil.oc2.common.energy.FixedEnergyStorage;
 import li.cil.oc2.common.util.ChunkUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySelector;
@@ -74,17 +75,17 @@ public final class ChargerBlockEntity extends ModBlockEntity implements NamedDev
     }
 
     @Override
-    protected void saveAdditional(final CompoundTag tag) {
-        super.saveAdditional(tag);
+    protected void saveAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
 
-        tag.put(Constants.ENERGY_TAG_NAME, energy.serializeNBT());
+        tag.put(Constants.ENERGY_TAG_NAME, energy.serializeNBT(registries));
     }
 
     @Override
-    public void load(final CompoundTag tag) {
-        super.load(tag);
+    public void loadAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
 
-        energy.deserializeNBT(tag.getCompound(Constants.ENERGY_TAG_NAME));
+        energy.deserializeNBT(registries, tag.getCompound(Constants.ENERGY_TAG_NAME));
     }
 
     @Callback

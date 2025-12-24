@@ -79,11 +79,12 @@ public abstract class AbstractBlockDeviceBusElement extends AbstractGroupingDevi
         if (level == null || level.isClientSide()) {
             return;
         }
+        final var registries = level.registryAccess();
 
         final int index = side.get3DDataValue();
         collectDevices(level, getPosition().relative(side), side).ifPresentOrElse(
-            queryResult -> setEntriesForGroup(index, queryResult),
-            () -> setEntriesForGroupUnloaded(index)
+            queryResult -> setEntriesForGroup(registries, index, queryResult),
+            () -> setEntriesForGroupUnloaded(registries, index)
         );
     }
 
@@ -92,12 +93,13 @@ public abstract class AbstractBlockDeviceBusElement extends AbstractGroupingDevi
         if (level == null || level.isClientSide()) {
             return;
         }
+        final var registries = level.registryAccess();
 
         for (final Direction side : Direction.values()) {
             final int index = side.get3DDataValue();
             final BlockPos pos = getPosition().relative(side);
             final BlockDeviceQuery query = Devices.makeQuery(level, pos, side.getOpposite());
-            setEntriesForGroup(index, new BlockQueryResult(query, Collections.emptySet()));
+            setEntriesForGroup(registries, index, new BlockQueryResult(query, Collections.emptySet()));
         }
 
         scheduleScan();

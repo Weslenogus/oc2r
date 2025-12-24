@@ -12,6 +12,7 @@ import li.cil.oc2.common.bus.device.util.OptionalInterrupt;
 import li.cil.oc2.common.serialization.NBTSerialization;
 import li.cil.oc2.common.util.NBTTagIds;
 import li.cil.sedna.device.virtio.VirtIOKeyboardDevice;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 
 import javax.annotation.Nullable;
@@ -84,7 +85,7 @@ public final class KeyboardDevice<T> extends IdentityProxy<T> implements VMDevic
     }
 
     @Override
-    public CompoundTag serializeNBT() {
+    public CompoundTag serializeNBT(HolderLookup.Provider provider) {
         final CompoundTag tag = new CompoundTag();
 
         if (device != null) {
@@ -104,7 +105,7 @@ public final class KeyboardDevice<T> extends IdentityProxy<T> implements VMDevic
     }
 
     @Override
-    public void deserializeNBT(final CompoundTag tag) {
+    public void deserializeNBT(HolderLookup.Provider provider, final CompoundTag tag) {
         if (tag.contains(DEVICE_TAG_NAME, NBTTagIds.TAG_COMPOUND)) {
             deviceTag = tag.getCompound(DEVICE_TAG_NAME);
         }

@@ -11,6 +11,7 @@ import li.cil.oc2.common.util.FakePlayerUtils;
 import li.cil.oc2.common.util.TickUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -65,14 +66,14 @@ public final class BlockOperationsModuleDevice extends AbstractItemRPCDevice {
     ///////////////////////////////////////////////////////////////////
 
     @Override
-    public CompoundTag serializeNBT() {
+    public CompoundTag serializeNBT(HolderLookup.Provider provider) {
         final CompoundTag tag = new CompoundTag();
         tag.putLong(LAST_OPERATION_TAG_NAME, lastOperation);
         return tag;
     }
 
     @Override
-    public void deserializeNBT(final CompoundTag tag) {
+    public void deserializeNBT(HolderLookup.Provider provider, final CompoundTag tag) {
         lastOperation = (long) Mth.clamp(tag.getLong(LAST_OPERATION_TAG_NAME), 0, entity.level().getGameTime());
     }
 

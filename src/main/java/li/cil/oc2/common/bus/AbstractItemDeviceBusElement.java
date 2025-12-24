@@ -12,6 +12,7 @@ import li.cil.oc2.common.bus.device.util.Devices;
 import li.cil.oc2.common.bus.device.util.ItemDeviceInfo;
 import li.cil.oc2.common.util.ItemDeviceUtils;
 import li.cil.oc2.common.util.NBTTagIds;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
@@ -39,10 +40,10 @@ public abstract class AbstractItemDeviceBusElement extends AbstractGroupingDevic
         return false;
     }
 
-    public void handleSlotContentsChanged(final int slot, final ItemStack stack) {
+    public void handleSlotContentsChanged(final HolderLookup.Provider registries, final int slot, final ItemStack stack) {
         final ItemQueryResult queryResult = collectDevices(stack);
 
-        setEntriesForGroup(slot, queryResult);
+        setEntriesForGroup(registries, slot, queryResult);
     }
 
     public void exportDeviceDataToItemStack(final int slot, final ItemStack stack) {

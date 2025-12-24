@@ -4,6 +4,7 @@ package li.cil.oc2.common.util;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -20,11 +21,12 @@ import static li.cil.oc2.common.Constants.MOD_TAG_NAME;
 
 public final class ItemStackUtils {
     public static CompoundTag getModDataTag(final ItemStack stack) {
-        return NBTUtils.getChildTag(stack.getTag(), MOD_TAG_NAME);
+        final var nbt = stack.get(DataComponents.CUSTOM_DATA);
+        return NBTUtils.getChildTag(nbt, MOD_TAG_NAME);
     }
 
-    public static CompoundTag getOrCreateModDataTag(final ItemStack stack) {
-        return NBTUtils.getOrCreateChildTag(stack.getOrCreateTag(), MOD_TAG_NAME);
+    public static CompoundTag getOrCreateModDataTag(final CompoundTag tag) {
+        return NBTUtils.getOrCreateChildTag(tag, MOD_TAG_NAME);
     }
 
     @Nullable

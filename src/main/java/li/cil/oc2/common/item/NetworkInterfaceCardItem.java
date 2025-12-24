@@ -9,6 +9,7 @@ import li.cil.oc2.common.util.NBTTagIds;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -16,6 +17,7 @@ import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
@@ -36,19 +38,21 @@ public final class NetworkInterfaceCardItem extends ModItem {
     public static void setSideConfiguration(final ItemStack stack, final Direction side, final boolean enabled) {
         final int index = side.get3DDataValue();
 
-        final CompoundTag tag = ItemStackUtils.getOrCreateModDataTag(stack);
-        final byte[] values;
-        if (tag.contains(SIDE_CONFIGURATION_TAG_NAME, NBTTagIds.TAG_BYTE_ARRAY) &&
-            tag.getByteArray(SIDE_CONFIGURATION_TAG_NAME).length == Constants.BLOCK_FACE_COUNT) {
-            values = tag.getByteArray(SIDE_CONFIGURATION_TAG_NAME);
-        } else {
-            values = new byte[Constants.BLOCK_FACE_COUNT];
-            Arrays.fill(values, (byte) 1);
-        }
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, (nbt) -> {
+            final CompoundTag tag = ItemStackUtils.getOrCreateModDataTag(nbt);
+            final byte[] values;
+            if (tag.contains(SIDE_CONFIGURATION_TAG_NAME, NBTTagIds.TAG_BYTE_ARRAY) &&
+                tag.getByteArray(SIDE_CONFIGURATION_TAG_NAME).length == Constants.BLOCK_FACE_COUNT) {
+                values = tag.getByteArray(SIDE_CONFIGURATION_TAG_NAME);
+            } else {
+                values = new byte[Constants.BLOCK_FACE_COUNT];
+                Arrays.fill(values, (byte) 1);
+            }
 
-        values[index] = (byte) (enabled ? 1 : 0);
+            values[index] = (byte) (enabled ? 1 : 0);
 
-        tag.putByteArray(SIDE_CONFIGURATION_TAG_NAME, values);
+            tag.putByteArray(SIDE_CONFIGURATION_TAG_NAME, values);
+        });
     }
 
     public static boolean getSideConfiguration(final ItemStack stack, @Nullable final Direction side) {

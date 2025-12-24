@@ -14,6 +14,7 @@ import li.cil.oc2.common.util.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
@@ -202,12 +203,13 @@ public final class NetworkConnectorBlockEntity extends ModBlockEntity implements
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
-        final CompoundTag tag = super.getUpdateTag();
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        final CompoundTag tag = super.getUpdateTag(registries);
 
         final ListTag connections = new ListTag();
         for (final BlockPos position : connectorPositions) {
-            final CompoundTag connectionTag = NbtUtils.writeBlockPos(position);
+            final CompoundTag connectionTag = new CompoundTag(1);
+            connectionTag.put("pos", NbtUtils.writeBlockPos(position));
             connections.add(connectionTag);
         }
         tag.put(CONNECTIONS_TAG_NAME, connections);
@@ -216,25 +218,26 @@ public final class NetworkConnectorBlockEntity extends ModBlockEntity implements
     }
 
     @Override
-    public void handleUpdateTag(final CompoundTag tag) {
-        super.handleUpdateTag(tag);
+    public void handleUpdateTag(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.handleUpdateTag(tag, registries);
 
         final ListTag connections = tag.getList(CONNECTIONS_TAG_NAME, NBTTagIds.TAG_COMPOUND);
         for (int i = 0; i < Math.min(connections.size(), MAX_CONNECTION_COUNT); i++) {
             final CompoundTag connectionTag = connections.getCompound(i);
-            final BlockPos position = NbtUtils.readBlockPos(connectionTag);
+            final BlockPos position = NbtUtils.readBlockPos(connectionTag, "pos").orElseThrow();
             connectorPositions.add(position);
             dirtyConnectors.add(position);
         }
     }
 
     @Override
-    protected void saveAdditional(final CompoundTag tag) {
-        super.saveAdditional(tag);
+    protected void saveAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
 
         final ListTag connections = new ListTag();
         for (final BlockPos position : connectorPositions) {
-            final CompoundTag connectionTag = NbtUtils.writeBlockPos(position);
+            final CompoundTag connectionTag = new CompoundTag(2);
+            connectionTag.put("pos", NbtUtils.writeBlockPos(position));
             if (ownedCables.contains(position)) {
                 connectionTag.putBoolean(IS_OWNER_TAG_NAME, true);
             }
@@ -244,13 +247,15 @@ public final class NetworkConnectorBlockEntity extends ModBlockEntity implements
     }
 
     @Override
-    public void load(final CompoundTag tag) {
-        super.load(tag);
+    public void loadAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
 
         final ListTag connections = tag.getList(CONNECTIONS_TAG_NAME, NBTTagIds.TAG_COMPOUND);
         for (int i = 0; i < Math.min(connections.size(), MAX_CONNECTION_COUNT); i++) {
             final CompoundTag connectionTag = connections.getCompound(i);
-            final BlockPos position = NbtUtils.readBlockPos(connectionTag);
+            final BlockPos position = NbtUtils.readBlockPos(connectionTag, "pos")
+                .or(() -> NBTUtils.readBlockPosLegacy(connectionTag))
+                .orElseThrow();
             connectorPositions.add(position);
             dirtyConnectors.add(position);
             if (connectionTag.getBoolean(IS_OWNER_TAG_NAME)) {

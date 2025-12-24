@@ -15,6 +15,7 @@ import li.cil.oc2.common.util.LazyOptionalUtils;
 import li.cil.oc2.common.util.LevelUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.*;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -167,8 +168,8 @@ public final class NetworkSwitchBlockEntity extends ModBlockEntity implements Na
     }
 
     @Override
-    public void saveAdditional(final CompoundTag tag) {
-        super.saveAdditional(tag);
+    public void saveAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
 
         ListTag hosts = new ListTag();
         for (Map.Entry<Long, HostEntry> host : hostTable.entrySet()) {
@@ -190,8 +191,8 @@ public final class NetworkSwitchBlockEntity extends ModBlockEntity implements Na
     }
 
     @Override
-    public void load(final CompoundTag tag) {
-        super.load(tag);
+    public void loadAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
 
         Tag hosts = tag.get("hosts");
         if (hosts != null) {

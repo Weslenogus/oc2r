@@ -4,17 +4,19 @@ package li.cil.oc2.data;
 
 import li.cil.oc2.common.item.Items;
 import net.minecraft.advancements.critereon.InventoryChangeTrigger;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.data.PackOutput;
 import net.minecraft.data.recipes.*;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.level.ItemLike;
 import net.neoforged.neoforge.common.Tags;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 public final class ModRecipesProvider extends RecipeProvider {
-    public ModRecipesProvider(final PackOutput output) {
-        super(output);
+    public ModRecipesProvider(final PackOutput output, CompletableFuture<HolderLookup.Provider> registries) {
+        super(output, registries);
     }
 
     @Override

@@ -9,6 +9,7 @@ import li.cil.oc2.common.util.LevelUtils;
 import li.cil.oc2.common.vxlan.TunnelManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -98,16 +99,16 @@ public final class VxlanBlockEntity extends ModBlockEntity implements NetworkInt
     ///////////////////////////////////////////////////////////////////
 
     @Override
-    public void load(CompoundTag tag) {
-        super.load(tag);
+    public void loadAdditional(CompoundTag tag, HolderLookup.Provider registries)  {
+        super.loadAdditional(tag, registries);
         if (level != null && !level.isClientSide() && tag.contains("vti")) {
             vti = tag.getInt("vti");
         }
     }
 
     @Override
-    public void saveAdditional(CompoundTag tag) {
-        super.saveAdditional(tag);
+    public void saveAdditional(CompoundTag tag, HolderLookup.Provider registries)  {
+        super.saveAdditional(tag, registries);
         if (level != null && !level.isClientSide()) {
             tag.putInt("vti", vti);
         }

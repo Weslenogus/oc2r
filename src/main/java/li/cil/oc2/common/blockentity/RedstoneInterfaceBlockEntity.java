@@ -11,6 +11,7 @@ import li.cil.oc2.common.integration.util.BundledRedstone;
 import li.cil.oc2.common.util.HorizontalBlockUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.ChunkPos;
@@ -56,8 +57,8 @@ public final class RedstoneInterfaceBlockEntity extends ModBlockEntity implement
     ///////////////////////////////////////////////////////////////////
 
     @Override
-    protected void saveAdditional(final CompoundTag tag) {
-        super.saveAdditional(tag);
+    protected void saveAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
 
         tag.putByteArray(OUTPUT_TAG_NAME, output);
         CompoundTag tag_bundled_output = new CompoundTag();
@@ -68,8 +69,8 @@ public final class RedstoneInterfaceBlockEntity extends ModBlockEntity implement
     }
 
     @Override
-    public void load(final CompoundTag tag) {
-        super.load(tag);
+    public void loadAdditional(final CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
         final byte[] serializedOutput = tag.getByteArray(OUTPUT_TAG_NAME);
         System.arraycopy(serializedOutput, 0, output, 0, Math.min(serializedOutput.length, output.length));
 

@@ -16,7 +16,9 @@ import li.cil.oc2.common.util.TooltipUtils;
 import li.cil.oc2.common.util.VoxelShapeUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -24,6 +26,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -212,42 +215,51 @@ public final class ComputerBlock extends HorizontalDirectionalBlock implements E
 
     ///////////////////////////////////////////////////////////////////
 
-    public static ItemStack getComputerWithFlash() {
+    public static ItemStack getComputerWithFlash(HolderLookup.Provider provider) {
         final ItemStack computer = new ItemStack(Items.COMPUTER.get());
 
-        final CompoundTag itemsTag = NBTUtils.getOrCreateChildTag(computer.getOrCreateTag(), BLOCK_ENTITY_TAG_NAME_IN_ITEM, ITEMS_TAG_NAME);
-        itemsTag.put(DeviceTypes.FLASH_MEMORY.getName().toString(), makeInventoryTag(
-            new ItemStack(Items.FLASH_MEMORY_CUSTOM.get())
-        ));
+        CustomData.update(DataComponents.CUSTOM_DATA, computer, nbt -> {
+            final CompoundTag itemsTag = NBTUtils.getOrCreateChildTag(nbt, BLOCK_ENTITY_TAG_NAME_IN_ITEM, ITEMS_TAG_NAME);
+            itemsTag.put(DeviceTypes.FLASH_MEMORY.getName().toString(), makeInventoryTag(
+                provider,
+                new ItemStack(Items.FLASH_MEMORY_CUSTOM.get())
+            ));
+        });
 
         return computer;
     }
 
-    public static ItemStack getPreconfiguredComputer() {
-        final ItemStack computer = getComputerWithFlash();
+    public static ItemStack getPreconfiguredComputer(HolderLookup.Provider provider) {
+        final ItemStack computer = getComputerWithFlash(provider);
 
-        final CompoundTag itemsTag = NBTUtils.getOrCreateChildTag(computer.getOrCreateTag(), BLOCK_ENTITY_TAG_NAME_IN_ITEM, ITEMS_TAG_NAME);
+        CustomData.update(DataComponents.CUSTOM_DATA, computer, nbt -> {
+            final CompoundTag itemsTag = NBTUtils.getOrCreateChildTag(nbt, BLOCK_ENTITY_TAG_NAME_IN_ITEM, ITEMS_TAG_NAME);
 
-        itemsTag.put(DeviceTypes.MEMORY.getName().toString(), makeInventoryTag(
-            new ItemStack(Items.MEMORY_LARGE.get()),
-            new ItemStack(Items.MEMORY_LARGE.get()),
-            new ItemStack(Items.MEMORY_LARGE.get()),
-            new ItemStack(Items.MEMORY_LARGE.get())
-        ));
+            itemsTag.put(DeviceTypes.MEMORY.getName().toString(), makeInventoryTag(
+                provider,
+                new ItemStack(Items.MEMORY_LARGE.get()),
+                new ItemStack(Items.MEMORY_LARGE.get()),
+                new ItemStack(Items.MEMORY_LARGE.get()),
+                new ItemStack(Items.MEMORY_LARGE.get())
+            ));
 
-        itemsTag.put(DeviceTypes.HARD_DRIVE.getName().toString(), makeInventoryTag(
-            new ItemStack(Items.HARD_DRIVE_LARGE.get())
-        ));
+            itemsTag.put(DeviceTypes.HARD_DRIVE.getName().toString(), makeInventoryTag(
+                provider,
+                new ItemStack(Items.HARD_DRIVE_LARGE.get())
+            ));
 
-        itemsTag.put(DeviceTypes.CARD.getName().toString(), makeInventoryTag(
-            new ItemStack(Items.NETWORK_INTERFACE_CARD.get())
-        ));
+            itemsTag.put(DeviceTypes.CARD.getName().toString(), makeInventoryTag(
+                provider,
+                new ItemStack(Items.NETWORK_INTERFACE_CARD.get())
+            ));
 
-        itemsTag.put(DeviceTypes.CPU.getName().toString(), makeInventoryTag(
-            new ItemStack(Items.CPU_TIER_3.get())
-        ));
+            itemsTag.put(DeviceTypes.CPU.getName().toString(), makeInventoryTag(
+                provider,
+                new ItemStack(Items.CPU_TIER_3.get())
+            ));
+        });
 
-        computer.setHoverName(text("block.{mod}.computer.preconfigured"));
+        computer.set(DataComponents.CUSTOM_NAME, text("block.{mod}.computer.preconfigured"));
 
         return computer;
     }

@@ -6,10 +6,12 @@ import li.cil.oc2.api.bus.device.data.BlockDeviceData;
 import li.cil.oc2.common.bus.device.data.BlockDeviceDataRegistry;
 import li.cil.oc2.common.util.ItemStackUtils;
 import net.minecraft.ResourceLocationException;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.StringUtil;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 
 import javax.annotation.Nullable;
 
@@ -62,7 +64,9 @@ public abstract class AbstractBlockDeviceItem extends ModItem {
             return ItemStack.EMPTY;
         }
 
-        ItemStackUtils.getOrCreateModDataTag(stack).putString(DATA_TAG_NAME, key.toString());
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, (nbt) -> {
+            ItemStackUtils.getOrCreateModDataTag(nbt).putString(DATA_TAG_NAME, key.toString());
+        });
 
         return stack;
     }

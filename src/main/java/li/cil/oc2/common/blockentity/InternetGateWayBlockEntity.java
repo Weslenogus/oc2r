@@ -15,6 +15,7 @@ import li.cil.oc2.common.inet.InternetConnection;
 import li.cil.oc2.common.inet.InternetManagerImpl;
 import li.cil.oc2.common.util.ChunkUtils;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -64,42 +65,42 @@ public class InternetGateWayBlockEntity extends ModBlockEntity implements Networ
     }
 
     @Override
-    public void load(CompoundTag tag) {
-        super.load(tag);
+    public void loadAdditional(CompoundTag tag, HolderLookup.Provider registries)  {
+        super.loadAdditional(tag, registries);
         internetState = tag.get(Constants.INTERNET_ADAPTER_TAG_NAME);
-        energy.deserializeNBT(tag.getCompound(Constants.ENERGY_TAG_NAME));
+        energy.deserializeNBT(registries, tag.getCompound(Constants.ENERGY_TAG_NAME));
     }
 
     @Override
-    public void saveAdditional(CompoundTag tag) {
-        super.saveAdditional(tag);
+    public void saveAdditional(CompoundTag tag, HolderLookup.Provider registries)  {
+        super.saveAdditional(tag, registries);
         if (internetConnection != null) {
             internetConnection.saveAdapterState()
                 .ifPresent(adapterState -> tag.put(Constants.INTERNET_ADAPTER_TAG_NAME, adapterState));
         }
-        tag.put(Constants.ENERGY_TAG_NAME, energy.serializeNBT());
+        tag.put(Constants.ENERGY_TAG_NAME, energy.serializeNBT(registries));
         LOGGER.trace("State saved");
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
-        final CompoundTag tag = super.getUpdateTag();
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        final CompoundTag tag = super.getUpdateTag(registries);
         tag.putInt("inbound_count", inboundCount);
         tag.putInt("outbound_count", outboundCount);
         return tag;
     }
 
     @Override
-    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt)
+    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt, HolderLookup.Provider lookupProvider)
     {
         CompoundTag compoundtag = pkt.getTag();
         if (compoundtag != null) {
-            handleUpdateTag(compoundtag);
+            handleUpdateTag(compoundtag, lookupProvider);
         }
     }
 
     @Override
-    public void handleUpdateTag(final CompoundTag tag) {
+    public void handleUpdateTag(final CompoundTag tag, HolderLookup.Provider registries) {
         inboundCount = tag.getInt("inbound_count");
         outboundCount = tag.getInt("outbound_count");
         handledInboundCount = Math.max(handledInboundCount, inboundCount-128);

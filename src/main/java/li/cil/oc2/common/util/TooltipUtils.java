@@ -22,6 +22,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.locale.Language;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.chat.*;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
@@ -118,11 +119,11 @@ public final class TooltipUtils {
     }
 
     public static void addBlockEntityInventoryInformation(final ItemStack stack, final List<Component> tooltip) {
-        addInventoryInformation(NBTUtils.getChildTag(stack.getTag(), BLOCK_ENTITY_TAG_NAME_IN_ITEM, ITEMS_TAG_NAME), tooltip);
+        addInventoryInformation(NBTUtils.getChildTag(stack, BLOCK_ENTITY_TAG_NAME_IN_ITEM, ITEMS_TAG_NAME), tooltip);
     }
 
     public static void addEntityInventoryInformation(final ItemStack stack, final List<Component> tooltip) {
-        addInventoryInformation(NBTUtils.getChildTag(stack.getTag(), MOD_TAG_NAME, ITEMS_TAG_NAME), tooltip);
+        addInventoryInformation(NBTUtils.getChildTag(stack, MOD_TAG_NAME, ITEMS_TAG_NAME), tooltip);
     }
 
     public static void addInventoryInformation(final CompoundTag itemsTag, final List<Component> tooltip) {
@@ -182,7 +183,8 @@ public final class TooltipUtils {
         final ListTag itemsTag = tag.getList("Items", NBTTagIds.TAG_COMPOUND);
         for (int i = 0; i < itemsTag.size(); i++) {
             final CompoundTag itemTag = itemsTag.getCompound(i);
-            final ItemStack itemStack = ItemStack.of(itemTag);
+            final var itemStackParsed = ItemStack.CODEC.parse(NbtOps.INSTANCE, itemTag);
+            final ItemStack itemStack = itemStackParsed.getOrThrow();
 
             boolean didMerge = false;
             for (int j = 0; j < stacks.size(); j++) {

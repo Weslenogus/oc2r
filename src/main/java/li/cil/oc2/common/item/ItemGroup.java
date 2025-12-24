@@ -26,8 +26,8 @@ public final class ItemGroup {
             output.accept(Items.BUS_CABLE.get());
             output.accept(Items.BUS_INTERFACE.get());
             output.accept(Items.CHARGER.get());
-            output.accept(ComputerBlock.getComputerWithFlash());
-            output.accept(ComputerBlock.getPreconfiguredComputer());
+            output.accept(ComputerBlock.getComputerWithFlash(params.holders()));
+            output.accept(ComputerBlock.getPreconfiguredComputer(params.holders()));
             output.accept(Items.CREATIVE_ENERGY.get());
             output.accept(Items.DISK_DRIVE.get());
             output.accept(Items.FLASH_MEMORY_FLASHER.get());
@@ -39,7 +39,7 @@ public final class ItemGroup {
             output.accept(Items.REDSTONE_INTERFACE.get());
             output.accept(Items.WRENCH.get());
             output.accept(Items.MANUAL.get());
-            output.accept(RobotItem.getRobotWithFlash());
+            output.accept(RobotItem.getRobotWithFlash(params.holders()));
             output.accept(Items.NETWORK_CABLE.get());
             output.accept(Items.MEMORY_SMALL.get());
             output.accept(Items.MEMORY_MEDIUM.get());

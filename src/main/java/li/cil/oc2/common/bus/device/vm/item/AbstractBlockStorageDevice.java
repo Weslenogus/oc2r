@@ -19,6 +19,7 @@ import li.cil.oc2.common.util.Event;
 import li.cil.oc2.common.util.NBTTagIds;
 import li.cil.sedna.api.device.BlockDevice;
 import li.cil.sedna.device.virtio.VirtIOBlockDevice;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -135,7 +136,7 @@ public abstract class AbstractBlockStorageDevice<TBlock extends BlockDevice, TId
     }
 
     @Override
-    public CompoundTag serializeNBT() {
+    public CompoundTag serializeNBT(HolderLookup.Provider provider) {
         final CompoundTag tag = new CompoundTag();
 
         if (blobHandle != null) {
@@ -159,7 +160,7 @@ public abstract class AbstractBlockStorageDevice<TBlock extends BlockDevice, TId
     }
 
     @Override
-    public void deserializeNBT(final CompoundTag tag) {
+    public void deserializeNBT(HolderLookup.Provider provider, final CompoundTag tag) {
         if (tag.hasUUID(BLOB_HANDLE_TAG_NAME)) {
             blobHandle = tag.getUUID(BLOB_HANDLE_TAG_NAME);
         }

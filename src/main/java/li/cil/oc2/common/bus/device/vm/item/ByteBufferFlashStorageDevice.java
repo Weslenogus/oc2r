@@ -19,6 +19,7 @@ import li.cil.sedna.api.memory.MemoryAccessException;
 import li.cil.sedna.api.memory.MemoryMap;
 import li.cil.sedna.device.flash.FlashMemoryDevice;
 import li.cil.sedna.memory.MemoryMaps;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -88,7 +89,7 @@ public final class ByteBufferFlashStorageDevice extends IdentityProxy<ItemStack>
     }
 
     @Override
-    public CompoundTag serializeNBT() {
+    public CompoundTag serializeNBT(HolderLookup.Provider provider) {
         final CompoundTag tag = new CompoundTag();
 
         if (device != null) {
@@ -99,7 +100,7 @@ public final class ByteBufferFlashStorageDevice extends IdentityProxy<ItemStack>
     }
 
     @Override
-    public void deserializeNBT(final CompoundTag tag) {
+    public void deserializeNBT(HolderLookup.Provider provider, final CompoundTag tag) {
         final byte[] data = tag.getByteArray(DATA_TAG_NAME);
         final ByteBuffer bufferData = ByteBuffer.allocate(size);
         bufferData.clear();

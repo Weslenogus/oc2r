@@ -14,6 +14,7 @@ import li.cil.oc2.common.capabilities.Capabilities;
 import li.cil.oc2.common.serialization.NBTSerialization;
 import li.cil.oc2.common.util.NBTTagIds;
 import li.cil.sedna.device.virtio.VirtIONetworkDevice;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
@@ -95,7 +96,7 @@ public abstract class AbstractNetworkInterfaceDevice extends IdentityProxy<ItemS
     }
 
     @Override
-    public CompoundTag serializeNBT() {
+    public CompoundTag serializeNBT(HolderLookup.Provider provider) {
         final CompoundTag tag = new CompoundTag();
 
         if (device != null) {
@@ -115,7 +116,7 @@ public abstract class AbstractNetworkInterfaceDevice extends IdentityProxy<ItemS
     }
 
     @Override
-    public void deserializeNBT(final CompoundTag tag) {
+    public void deserializeNBT(HolderLookup.Provider provider, final CompoundTag tag) {
         if (tag.contains(DEVICE_TAG_NAME, NBTTagIds.TAG_COMPOUND)) {
             deviceTag = tag.getCompound(DEVICE_TAG_NAME);
         }

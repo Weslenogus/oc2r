@@ -17,13 +17,16 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Vec3i;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.stats.Stats;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
@@ -119,13 +122,16 @@ public final class RobotItem extends ModItem {
         });
     }
 
-    public static ItemStack getRobotWithFlash() {
+    public static ItemStack getRobotWithFlash(HolderLookup.Provider provider) {
         final ItemStack robot = new ItemStack(Items.ROBOT.get());
 
-        final CompoundTag itemsTag = NBTUtils.getOrCreateChildTag(robot.getOrCreateTag(), API.MOD_ID, ITEMS_TAG_NAME);
-        itemsTag.put(key(DeviceTypes.FLASH_MEMORY), makeInventoryTag(
-            new ItemStack(Items.FLASH_MEMORY_CUSTOM.get())
-        ));
+        CustomData.update(DataComponents.CUSTOM_DATA, robot, nbt -> {
+            final CompoundTag itemsTag = NBTUtils.getOrCreateChildTag(nbt, API.MOD_ID, ITEMS_TAG_NAME);
+            itemsTag.put(key(DeviceTypes.FLASH_MEMORY), makeInventoryTag(
+                provider,
+                new ItemStack(Items.FLASH_MEMORY_CUSTOM.get())
+            ));
+        });
 
         return robot;
     }
