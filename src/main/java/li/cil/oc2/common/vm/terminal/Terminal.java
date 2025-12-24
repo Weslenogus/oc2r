@@ -107,8 +107,6 @@ public class Terminal {
 
     // Related Enums
     public enum ColorMode {
-        @SerializedName("4")
-        DEFAULT_BACKGROUND,
         @SerializedName("0")
         SIXTEEN_COLOR,
         @SerializedName("1")
@@ -116,7 +114,9 @@ public class Terminal {
         @SerializedName("2")
         TRUE_COLOR,
         @SerializedName("3")
-        SIXTEEN_COLOR_BRIGHT
+        SIXTEEN_COLOR_BRIGHT,
+        @SerializedName("4")
+        DEFAULT_BACKGROUND,
     }
 
     public static final class CursorMode {

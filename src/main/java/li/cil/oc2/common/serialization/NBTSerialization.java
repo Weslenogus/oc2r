@@ -7,7 +7,9 @@ import li.cil.ceres.Ceres;
 import li.cil.ceres.api.DeserializationVisitor;
 import li.cil.ceres.api.SerializationException;
 import li.cil.ceres.api.SerializationVisitor;
+import li.cil.oc2.common.serialization.ceres.ColorDataSerializer;
 import li.cil.oc2.common.util.NBTTagIds;
+import li.cil.oc2.common.vm.terminal.Terminal;
 import net.minecraft.nbt.*;
 import org.jetbrains.annotations.Contract;
 
@@ -70,6 +72,7 @@ public final class NBTSerialization {
         ARRAY_SERIALIZERS.put(Enum.class, new EnumArraySerializer());
         ARRAY_SERIALIZERS.put(String.class, new StringArraySerializer());
         ARRAY_SERIALIZERS.put(UUID.class, new UUIDArraySerializer());
+        ARRAY_SERIALIZERS.put(Terminal.ColorData.class, new ColorDataArraySerializer());
     }
 
     private record Serializer(CompoundTag tag) implements SerializationVisitor {
@@ -192,6 +195,16 @@ public final class NBTSerialization {
             }
         }
 
+        private Tag putColorDataArray(final String name, final Terminal.ColorData[] array) {
+            final IntArrayList values = new IntArrayList();
+
+            for (var x: array) {
+                values.add(ColorDataSerializer.toInt(x));
+            }
+
+            return new IntArrayTag(values);
+        }
+
         @Contract(value = "_, null -> true")
         private boolean putIsNull(final String name, @Nullable final Object value) {
             final boolean isNull = value == null;
@@ -280,7 +293,6 @@ public final class NBTSerialization {
             Object deserialize(Tag tag, Class<?> type, @Nullable Object into);
         }
 
-        @SuppressWarnings({"unchecked", "rawtypes"})
         @Nullable
         private static Object getArray(final Tag tag, final Class<?> type, final @Nullable Object into) {
             final Class<?> componentType = type.getComponentType();
@@ -289,53 +301,59 @@ public final class NBTSerialization {
             if (arraySerializer != null) {
                 return arraySerializer.deserialize(tag, type, into);
             } else {
-                final ArrayComponentDeserializer componentDeserializer;
-                if (componentType.isArray()) {
-                    componentDeserializer = Deserializer::getArray;
-                } else {
-                    final li.cil.ceres.api.Serializer<?> serializer = Ceres.getSerializer(componentType);
-                    componentDeserializer = (n, t, i) -> serializer.deserialize(new Deserializer((CompoundTag) n), (Class) t, i);
-                }
+                return getGenericArray(tag, componentType, into);
+            }
+        }
 
-                Object[] data = (Object[]) into;
-                final ListTag listTag;
-                final int[] nulls;
-                int nullsIndex = 0;
-                if (tag instanceof final ListTag plainListTag) {
-                    listTag = plainListTag;
-                    nulls = new int[0];
-                } else if (tag instanceof final CompoundTag compoundTag) {
-                    listTag = (ListTag) compoundTag.get("value");
-                    nulls = compoundTag.getIntArray("nulls");
-                } else {
-                    return data;
-                }
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        @Nullable
+        public static Object getGenericArray(final Tag tag, final Class<?> componentType, final @Nullable Object into) {
+            final ArrayComponentDeserializer componentDeserializer;
+            if (componentType.isArray()) {
+                componentDeserializer = Deserializer::getArray;
+            } else {
+                final li.cil.ceres.api.Serializer<?> serializer = Ceres.getSerializer(componentType);
+                componentDeserializer = (n, t, i) -> serializer.deserialize(new Deserializer((CompoundTag) n), (Class) t, i);
+            }
 
-                if (listTag == null) {
-                    return data;
-                }
-
-                final int length = listTag.size() + nulls.length;
-                if (data == null || data.length != length) {
-                    data = (Object[]) Array.newInstance(componentType, length);
-                }
-
-                for (int i = 0; i < length; i++) {
-                    if (nullsIndex < nulls.length && i == nulls[nullsIndex]) {
-                        nullsIndex++;
-                        continue;
-                    }
-
-                    final Tag itemTag = listTag.get(i - nullsIndex);
-                    if (itemTag == null) {
-                        continue;
-                    }
-
-                    data[i] = componentDeserializer.deserialize(itemTag, componentType, data[i]);
-                }
-
+            Object[] data = (Object[]) into;
+            final ListTag listTag;
+            final int[] nulls;
+            int nullsIndex = 0;
+            if (tag instanceof final ListTag plainListTag) {
+                listTag = plainListTag;
+                nulls = new int[0];
+            } else if (tag instanceof final CompoundTag compoundTag) {
+                listTag = (ListTag) compoundTag.get("value");
+                nulls = compoundTag.getIntArray("nulls");
+            } else {
                 return data;
             }
+
+            if (listTag == null) {
+                return data;
+            }
+
+            final int length = listTag.size() + nulls.length;
+            if (data == null || data.length != length) {
+                data = (Object[]) Array.newInstance(componentType, length);
+            }
+
+            for (int i = 0; i < length; i++) {
+                if (nullsIndex < nulls.length && i == nulls[nullsIndex]) {
+                    nullsIndex++;
+                    continue;
+                }
+
+                final Tag itemTag = listTag.get(i - nullsIndex);
+                if (itemTag == null) {
+                    continue;
+                }
+
+                data[i] = componentDeserializer.deserialize(itemTag, componentType, data[i]);
+            }
+
+            return data;
         }
 
         @Override
@@ -475,6 +493,39 @@ public final class NBTSerialization {
                 System.arraycopy(serializedData, 0, data, 0, serializedData.length);
             }
             return data;
+        }
+    }
+
+    private static final class ColorDataArraySerializer implements ArraySerializer {
+        @Override
+        public Tag serialize(final Object obj) {
+            final var input = (Terminal.ColorData[]) obj;
+            final IntArrayList values = new IntArrayList();
+
+            for (var x: input) {
+                values.add(ColorDataSerializer.toInt(x));
+            }
+
+            return new IntArrayTag(values);
+        }
+
+        @Override
+        @Nullable
+        public Object deserialize(final Tag tag, final Class<?> type, @Nullable final Object into) {
+            Terminal.ColorData[] data = (Terminal.ColorData[]) into;
+            if (tag instanceof final IntArrayTag intArrayTag) {
+                final int[] serializedData = intArrayTag.getAsIntArray();
+                if (data == null || data.length != serializedData.length) {
+                    data = new Terminal.ColorData[serializedData.length];
+                }
+                for (int i = 0; i < data.length; i++) {
+                    data[i] = ColorDataSerializer.toColorData(serializedData[i]);
+                }
+                return data;
+            } else {
+                // Legacy
+                return Deserializer.getGenericArray(tag, Terminal.ColorData.class, into);
+            }
         }
     }
 
