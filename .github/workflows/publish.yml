@@ -39,6 +39,7 @@ jobs:
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
           RELEASE_TYPE: ${{ env.RELEASE_TYPE }}
           CHANGELOG: ${{ github.event.release.body }}
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Add Artifacts to Github Release
         uses: alexellis/upload-assets@0.4.1
