@@ -16,6 +16,7 @@ import com.mojang.blaze3d.vertex.*;
 import com.mojang.math.Axis;
 import li.cil.oc2.api.API;
 import net.minecraft.client.DeltaTracker;
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
@@ -61,7 +62,7 @@ import static org.lwjgl.opengl.GL11.glDrawBuffer;
 import static org.lwjgl.opengl.GL30.GL_FRAMEBUFFER;
 import static org.lwjgl.opengl.GL30.glBindFramebuffer;
 
-@EventBusSubscriber(modid = API.MOD_ID)
+@EventBusSubscriber(modid = API.MOD_ID, value=Dist.CLIENT)
 public final class ProjectorDepthRenderer {
     private static final int DEPTH_CAPTURE_SIZE = 256;
 
