@@ -300,7 +300,7 @@ curseforge {
         addGameVersion getCurseforgeSDKValue(minecraft_sdk)
         addGameVersion minecraft_version
         addGameVersion "Java 17"
-        mainArtifact "build/libs/oc2r-${minecraft_version}-${minecraft_sdk}-${version}-all.jar"
+        mainArtifact "build/libs/oc2r-${minecraft_version}-${minecraft_sdk}-${version}.jar"
         relations {
             requiredDependency "markdown-manual-reimagined"
             requiredDependency "packet-fixer"
@@ -312,7 +312,7 @@ modrinth {
     token = System.getenv("MODRINTH_TOKEN")
     projectId = modrinth_project_id
     versionType = System.getenv('RELEASE_TYPE') ?: "alpha"
-    uploadFile = "build/libs/oc2r-${minecraft_version}-${minecraft_sdk}-${version}-all.jar"
+    uploadFile = "build/libs/oc2r-${minecraft_version}-${minecraft_sdk}-${version}.jar"
     gameVersions = [minecraft_version]
     loaders = [minecraft_sdk]
     changelog = System.getenv("CHANGELOG") ?: "Changelog not available."
