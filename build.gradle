@@ -185,8 +185,8 @@ dependencies {
 
     implementation "curse.maven:architectury-api-${architectury_project_id}:${architectury_file_id}"
     // TODO: Change back to curse.maven dependency once markdown manual 1.21.1 is pushed to curseforge
-    //implementation "curse.maven:markdownmanual-${markdownmanual_project_id}:${markdownmanual_file_id}"
-    implementation "markdownmanual:markdown_manual-1.21.1-neoforge"
+    implementation "curse.maven:markdownmanual-${markdownmanual_project_id}:${markdownmanual_file_id}"
+    //implementation "markdownmanual:markdown_manual-1.21.1-neoforge"
 
     compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
     compileOnly "mezz.jei:jei-${minecraft_version}-${minecraft_sdk}-api:${jei_version}"
