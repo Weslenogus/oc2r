@@ -302,7 +302,7 @@ curseforge {
         addGameVersion "Java 17"
         mainArtifact "build/libs/oc2r-${minecraft_version}-${minecraft_sdk}-${version}-all.jar"
         relations {
-            requiredDependency "markdownmanual"
+            requiredDependency "markdown-manual-reimagined"
             requiredDependency "packet-fixer"
         }
     }
@@ -317,7 +317,7 @@ modrinth {
     loaders = [minecraft_sdk]
     changelog = System.getenv("CHANGELOG") ?: "Changelog not available."
     dependencies {
-        required.project "markdownmanual"
+        required.project "markdown-manual-reimagined"
         required.project "packet-fixer"
     }
 }
