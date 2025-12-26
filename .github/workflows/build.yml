@@ -4,14 +4,14 @@ name: build
 on:
   workflow_dispatch:
   push:
-    branches: [ '1.20.1' ]
+    branches: [ '1.21.1' ]
 
 jobs:
   build:
     strategy:
       matrix:
-        java: [ 17 ]
-        os: [ ubuntu-22.04 ]
+        java: [ 21 ]
+        os: [ ubuntu-24.04 ]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: 'temurin' # See 'Supported distributions' for available options
-          java-version: '17'
+          java-version: '21'
       - uses: actions/cache@v4
         with:
           path: |
