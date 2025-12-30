@@ -24,6 +24,37 @@
     "IBI"
   ],
   "result": {
+    "components": {
+      "oc2r:restricted_container": {
+        "items": {
+          "oc2r:devices/cpu": [
+            {}
+          ],
+          "oc2r:devices/flash_memory": [
+            {
+              "count": 1,
+              "id": "oc2r:flash_memory_custom"
+            }
+          ],
+          "oc2r:devices/hard_drive": [
+            {},
+            {}
+          ],
+          "oc2r:devices/memory": [
+            {},
+            {},
+            {},
+            {}
+          ],
+          "oc2r:devices/robot_module": [
+            {},
+            {},
+            {},
+            {}
+          ]
+        }
+      }
+    },
     "count": 1,
     "id": "oc2r:robot"
   }

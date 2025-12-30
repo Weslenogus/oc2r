@@ -2,7 +2,9 @@
 
 package li.cil.oc2.data;
 
+import li.cil.oc2.common.block.ComputerBlock;
 import li.cil.oc2.common.item.Items;
+import li.cil.oc2.common.item.RobotItem;
 import li.cil.oc2.common.item.crafting.WrenchRecipe;
 import net.minecraft.advancements.Criterion;
 import net.minecraft.advancements.critereon.InventoryChangeTrigger;
@@ -23,7 +25,7 @@ public final class ModRecipesProvider extends RecipeProvider {
     @Override
     protected void buildRecipes(final RecipeOutput consumer) {
         ShapedRecipeBuilder
-            .shaped(RecipeCategory.MISC, Items.COMPUTER.get())
+            .shaped(RecipeCategory.MISC, ComputerBlock.getComputerWithFlash())
             .pattern("ICI")
             .pattern("XTX")
             .pattern("IBI")
@@ -174,7 +176,7 @@ public final class ModRecipesProvider extends RecipeProvider {
             .save(consumer);
 
         ShapedRecipeBuilder
-            .shaped(RecipeCategory.MISC, Items.ROBOT.get())
+            .shaped(RecipeCategory.MISC, RobotItem.getRobotWithFlash())
             .pattern("ICI")
             .pattern("PTP")
             .pattern("IBI")
