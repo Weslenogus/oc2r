@@ -207,6 +207,14 @@ public abstract class AbstractBlockDeviceBusElement extends AbstractGroupingDevi
         }
 
         @Override
+        public Optional<String> getLegacyDeviceDataKey() {
+            if (dataKey != null) {
+                return Optional.of("oc2r:block_device_provider");
+            }
+            return Optional.empty();
+        }
+
+        @Override
         public int getDeviceEnergyConsumption() {
             return deviceInfo.getEnergyConsumption();
         }
