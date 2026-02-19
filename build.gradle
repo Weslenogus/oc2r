@@ -225,7 +225,6 @@ tasks.register('packageScripts', Zip) {
     archiveFileName = "scripts.zip"
     destinationDirectory = file("${layout.buildDirectory.get()}/resources/main/data/oc2r/file_systems")
     from "src/main/scripts"
-    filter { line -> line }
 }
 
 tasks.register('copyLicensesToResources', Copy) {
