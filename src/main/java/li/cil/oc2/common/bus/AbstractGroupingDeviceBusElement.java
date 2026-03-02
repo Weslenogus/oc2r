@@ -7,9 +7,12 @@ import li.cil.oc2.common.util.NBTTagIds;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 
 import javax.annotation.Nullable;
 import java.util.*;
+
+import static li.cil.oc2.common.util.OptionalUtils.instanceOf;
 
 public abstract class AbstractGroupingDeviceBusElement<TEntry extends AbstractGroupingDeviceBusElement.Entry, TQuery> extends AbstractDeviceBusElement {
     private static final String GROUPS_TAG_NAME = "groups";
@@ -25,6 +28,7 @@ public abstract class AbstractGroupingDeviceBusElement<TEntry extends AbstractGr
 
     protected interface Entry {
         Optional<String> getDeviceDataKey();
+        Optional<String> getLegacyDeviceDataKey();
 
         int getDeviceEnergyConsumption();
 
@@ -93,11 +97,14 @@ public abstract class AbstractGroupingDeviceBusElement<TEntry extends AbstractGr
             // Immediately load data into devices, if we already have some.
             for (final TEntry entry : groups.get(i)) {
                 final CompoundTag devicesTag = groupData[i];
-                entry.getDeviceDataKey().ifPresent(key -> {
-                    if (devicesTag.contains(key, NBTTagIds.TAG_COMPOUND)) {
-                        entry.getDevice().deserializeNBT(registries, devicesTag.getCompound(key));
-                    }
-                });
+                entry.getDeviceDataKey().map(devicesTag::get)
+                    .or(() ->
+                        // Older versions of the mod used a different id that often collided between devices during save
+                        // Try loading from that if we can't load normally
+                        entry.getLegacyDeviceDataKey().map(devicesTag::get)
+                    )
+                    .flatMap(instanceOf(CompoundTag.class))
+                    .ifPresent(deviceTag -> entry.getDevice().deserializeNBT(registries, deviceTag));
             }
         }
     }
@@ -198,6 +205,12 @@ public abstract class AbstractGroupingDeviceBusElement<TEntry extends AbstractGr
                     entry.getDevice().deserializeNBT(registries, devicesTag.getCompound(key));
                 } else {
                     devicesTag.remove(key);
+                    // Older versions of the mod used a different id that often collided between devices during save
+                    // Try loading from that if we can't load normally
+                    entry.getLegacyDeviceDataKey()
+                        .map(devicesTag::get)
+                        .flatMap(instanceOf(CompoundTag.class))
+                        .ifPresent(deviceTag -> entry.getDevice().deserializeNBT(registries, deviceTag));
                 }
             });
         }

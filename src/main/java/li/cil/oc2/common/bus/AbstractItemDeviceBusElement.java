@@ -21,6 +21,7 @@ import net.minecraft.world.item.ItemStack;
 import javax.annotation.Nullable;
 import java.util.*;
 
+import static li.cil.oc2.common.util.OptionalUtils.instanceOf;
 import static li.cil.oc2.common.util.RegistryUtils.optionalKey;
 
 public abstract class AbstractItemDeviceBusElement extends AbstractGroupingDeviceBusElement<AbstractItemDeviceBusElement.ItemEntry, ItemDeviceQuery> {
@@ -113,11 +114,14 @@ public abstract class AbstractItemDeviceBusElement extends AbstractGroupingDevic
         final CompoundTag exportedTag = ItemDeviceUtils.getItemDeviceData(query.getItemStack());
         if (!exportedTag.isEmpty()) {
             for (final ItemEntry entry : entries) {
-                entry.getDeviceDataKey().ifPresent(key -> {
-                    if (exportedTag.contains(key, NBTTagIds.TAG_COMPOUND)) {
-                        entry.deviceInfo.device.importFromItemStack(exportedTag.getCompound(key));
-                    }
-                });
+                entry.getDeviceDataKey().map(exportedTag::get)
+                    .or(() ->
+                        // Older versions of the mod used a different id that often collided between devices during save
+                        // Try loading from that if we can't load normally
+                        entry.getLegacyDeviceDataKey().map(exportedTag::get)
+                    )
+                    .flatMap(instanceOf(CompoundTag.class))
+                    .ifPresent(deviceTag -> entry.deviceInfo.device.importFromItemStack(deviceTag));
             }
         }
     }
@@ -149,6 +153,14 @@ public abstract class AbstractItemDeviceBusElement extends AbstractGroupingDevic
         @Override
         public Optional<String> getDeviceDataKey() {
             return optionalKey(deviceInfo.provider);
+        }
+
+        @Override
+        public Optional<String> getLegacyDeviceDataKey() {
+            if (deviceInfo.provider != null) {
+                return Optional.of("oc2r:item_device_provider");
+            }
+            return Optional.empty();
         }
 
         @Override
