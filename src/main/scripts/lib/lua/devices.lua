@@ -279,4 +279,4 @@ function DeviceBus:invoke(deviceId, methodName, ...)
   end
 end
 
-return DeviceBus:new("/dev/hvc0")
+return DeviceBus:new(os.getenv("OC2R_BUS_PATH") or "/dev/hvc0")
