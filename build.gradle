@@ -136,6 +136,8 @@ dependencies {
     implementation fileTree(dir: 'libs', include: '*.jar')
     // implementation "curse.maven:sedna-511276:3885542"
     minecraftLibrary "org.apache.commons:commons-collections4:${apache_commons_version}"
+    // Pure-Java Lua 5.2 VM backing the OpenComputers 1 compatible Lua runtime.
+    minecraftLibrary "org.luaj:luaj-jse:${luaj_version}"
 
     implementation fg.deobf("curse.maven:architectury-api-${architectury_project_id}:${architectury_file_id}")
     implementation fg.deobf("curse.maven:markdownmanual-${markdownmanual_project_id}:${markdownmanual_file_id}")
@@ -168,6 +170,10 @@ dependencies {
 
     jarJar(group: 'libs', name: 'sedna', version: '[]') {
         jarJar.pin(it, "")
+    }
+
+    jarJar(group: 'org.luaj', name: 'luaj-jse', version: "[${luaj_version},3.1)") {
+        jarJar.pin(it, luaj_version)
     }
 
     testImplementation "org.mockito:mockito-inline:${mockito_version}"
