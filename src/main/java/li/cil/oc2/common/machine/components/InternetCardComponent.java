@@ -11,7 +11,6 @@ import li.cil.oc2.common.machine.net.HttpRequestValue;
 import li.cil.oc2.common.machine.net.InternetPolicy;
 import li.cil.oc2.common.machine.net.TcpSocketValue;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -133,14 +132,12 @@ public final class InternetCardComponent extends AbstractLuaComponent {
             return new Object[]{null, "invalid port"};
         }
 
-        try {
-            final TcpSocketValue handle = new TcpSocketValue(policy, host, port);
-            handles.add(handle);
-            return new Object[]{handle};
-        } catch (final IOException e) {
-            final String message = e.getMessage();
-            return new Object[]{null, message == null || message.isEmpty() ? "connection failed" : message};
-        }
+        // Both the policy check, which resolves the host name, and the connect itself happen on a
+        // worker; the handle reports progress through finishConnect. Doing either here would mean
+        // a tick waiting on DNS and then on a remote peer.
+        final TcpSocketValue handle = new TcpSocketValue(REQUEST_WORKERS, policy, host, port);
+        handles.add(handle);
+        return new Object[]{handle};
     }
 
     ///////////////////////////////////////////////////////////////////

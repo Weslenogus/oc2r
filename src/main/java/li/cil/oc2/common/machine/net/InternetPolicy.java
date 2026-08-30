@@ -99,6 +99,16 @@ public interface InternetPolicy {
         }
     }
 
+    private static boolean matchesSuffix(final String host, final List<String> suffixes) {
+        final String lower = host.toLowerCase();
+        for (final String suffix : suffixes) {
+            if (lower.equals(suffix) || lower.endsWith("." + suffix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * A policy allowing everything except the reserved ranges, optionally narrowed by a list of
      * permitted host name suffixes.
@@ -124,19 +134,16 @@ public interface InternetPolicy {
                 if (host.isEmpty()) {
                     return "invalid address";
                 }
+                // The allow list first: it is a string comparison, while the reserved range check
+                // has to resolve the name, and there is no point paying for DNS to reject a host
+                // the operator never permitted in the first place.
+                if (!allowedHostSuffixes.isEmpty() && !matchesSuffix(host, allowedHostSuffixes)) {
+                    return "address is not allowed";
+                }
                 if (isReservedAddress(host)) {
                     return "address is not allowed";
                 }
-                if (allowedHostSuffixes.isEmpty()) {
-                    return null;
-                }
-                final String lower = host.toLowerCase();
-                for (final String suffix : allowedHostSuffixes) {
-                    if (lower.equals(suffix) || lower.endsWith("." + suffix)) {
-                        return null;
-                    }
-                }
-                return "address is not allowed";
+                return null;
             }
         };
     }
