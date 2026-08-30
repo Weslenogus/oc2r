@@ -333,18 +333,23 @@ public final class LuaMachine implements Machine {
             return;
         }
 
+        if (state == State.STOPPING) {
+            stop();
+            return;
+        }
+        if (state == State.RESTARTING) {
+            stop();
+            start();
+            return;
+        }
+
+        // Rescan here rather than in each branch below: it is safe only because no slice is in
+        // flight, having returned at the top of this method if one were, so a component cannot be
+        // detached out from under a call that is using it.
+        bus.setComponents(host.getComponents());
+
         switch (state) {
-            case STOPPING -> {
-                stop();
-                return;
-            }
-            case RESTARTING -> {
-                stop();
-                start();
-                return;
-            }
             case STARTING -> {
-                bus.setComponents(host.getComponents());
                 if (!architecture.initialize()) {
                     crashMessage.set("failed initializing machine");
                     return;
@@ -352,18 +357,17 @@ public final class LuaMachine implements Machine {
                 state = State.RUNNING;
             }
             case SYNCHRONIZED_CALL -> {
-                bus.setComponents(host.getComponents());
                 architecture.runSynchronized();
                 state = State.RUNNING;
             }
             case SLEEPING -> {
-                bus.setComponents(host.getComponents());
                 if (signals.isEmpty() && uptimeTicks < wakeAtTick) {
                     return;
                 }
                 state = State.RUNNING;
             }
-            default -> bus.setComponents(host.getComponents());
+            default -> {
+            }
         }
 
         scheduleSlice();

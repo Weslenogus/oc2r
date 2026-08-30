@@ -322,6 +322,75 @@ public class LuaMachineTest {
             "the sandbox exposes something it should not");
     }
 
+    @Test
+    void aChunkWithItsOwnEnvironmentStillGetsPreempted() throws Exception {
+        final TestMachineHost host = new TestMachineHost();
+        final CallCounter counter = new CallCounter();
+        host.add(eepromWith("""
+            -- An operating system runs its programs with their own environment. If that were
+            -- enough to escape the CPU limiter, every program would simply do it.
+            local chunk = assert(load("local t = 0 for i = 1, 2000000 do t = t + i end", "=p", "t", {}))
+            chunk()
+            component.invoke(component.list("counter")(), "tick")
+            computer.shutdown()
+            """));
+        host.add(counter);
+
+        final LuaMachine machine = new LuaMachine(host, UUID.randomUUID().toString(),
+            m -> new LuaJArchitecture(m, TimeUnit.MILLISECONDS.toNanos(1), TimeUnit.SECONDS.toNanos(30)));
+        machine.start();
+        final int ticks = TestMachineHost.run(machine, 6000);
+
+        assertEquals(List.of(), host.getCrashes());
+        assertEquals(1, counter.direct + counter.synchronized_, "the chunk never finished");
+        assertTrue(ticks > 10, "a chunk with its own environment escaped preemption; it ran in "
+            + ticks + " tick(s)");
+    }
+
+    @Test
+    void aCustomEnvironmentBehavesLikeAnOrdinaryTable() throws Exception {
+        final Recorder recorder = new Recorder();
+        final TestMachineHost host = new TestMachineHost();
+        host.add(eepromWith("""
+            local address = component.list("recorder")()
+            local function note(text) component.invoke(address, "note", text) end
+
+            local env = {seed = 1}
+            local chunk = assert(load("answer = seed + 41 return answer", "=p", "t", env))
+            note("returned " .. tostring(chunk()))
+
+            -- The environment table is the storage, so the value has to be visible through it and
+            -- through every raw accessor, not just through the chunk.
+            note("index " .. tostring(env.answer))
+            note("rawget " .. tostring(rawget(env, "answer")))
+
+            local keys = {}
+            for k in pairs(env) do keys[#keys + 1] = k end
+            table.sort(keys)
+            note("pairs " .. table.concat(keys, ","))
+
+            -- Loading a second chunk against the same table must reuse the same wrapper, or the
+            -- two would stop seeing each other's globals.
+            local other = assert(load("return answer", "=q", "t", env))
+            note("shared " .. tostring(other()))
+
+            computer.shutdown()
+            """));
+        host.add(recorder);
+
+        final LuaMachine machine = new LuaMachine(host);
+        machine.start();
+        TestMachineHost.run(machine, 300);
+
+        assertEquals(List.of(), host.getCrashes());
+        assertEquals(List.of(
+            "returned 42",
+            "index 42",
+            "rawget 42",
+            "pairs answer,seed",
+            "shared 42"), recorder.notes);
+    }
+
     ///////////////////////////////////////////////////////////////////
 
     private static String row(final TextBuffer buffer, final int y) {

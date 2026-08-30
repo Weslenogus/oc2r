@@ -147,6 +147,7 @@ public final class InternetCardComponent extends AbstractLuaComponent {
      * another. Pruning here rather than on a timer means a well behaved program that closes its
      * handles never hits the limit at all.
      */
+    @javax.annotation.Nullable
     private String pruneAndCheckCapacity() {
         handles.removeIf(handle -> handle instanceof final TcpSocketValue socket && socket.isClosed());
         return handles.size() >= policy.getMaxConnections() ? "too many open connections" : null;

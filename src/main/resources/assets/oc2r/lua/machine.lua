@@ -100,9 +100,11 @@ sandbox._VERSION = "Lua 5.2"
 -------------------------------------------------------------------------------
 -- Environments.
 
--- Maps a wrapper back to the table it stands in for. Weak keyed, so wrapping an environment does
--- not keep it alive.
-local environments = raw_setmetatable({}, {__mode = "k"})
+-- Two maps, kept apart on purpose. Conflating them would make unwrap() answer with the wrapper
+-- when handed the very table it stands in for, which is the opposite of what it is for. Both are
+-- weak keyed, so wrapping an environment does not keep it alive.
+local unwrapped = raw_setmetatable({}, {__mode = "k"})  -- wrapper -> real table
+local wrappers = raw_setmetatable({}, {__mode = "k"})   -- real table -> wrapper
 
 --- Wraps a plain table so it can serve as a chunk environment.
 -- The wrapper is a Globals object, which is what makes LuaJ run debug hooks in the chunk, with a
@@ -115,12 +117,15 @@ local function asEnvironment(env)
   if raw_type(env) ~= "table" then
     raw_error("bad argument #4 (table expected, got " .. raw_type(env) .. ")", 3)
   end
-  if env == sandbox or environments[env] then
+  -- The sandbox is already a Globals, and a wrapper must not be wrapped again.
+  if env == sandbox or unwrapped[env] then
     return env
   end
 
-  local existing = environments[env]
+  local existing = wrappers[env]
   if existing then
+    -- The same table has to keep the same wrapper, or two chunks sharing an environment would
+    -- stop seeing each other's globals.
     return existing
   end
 
@@ -130,8 +135,8 @@ local function asEnvironment(env)
     __newindex = env,
     __len = function() return raw_rawlen(env) end,
   })
-  environments[wrapper] = env
-  environments[env] = wrapper
+  unwrapped[wrapper] = env
+  wrappers[env] = wrapper
   return wrapper
 end
 
@@ -139,7 +144,7 @@ end
 -- next or pairs would find the empty wrapper instead of its variables.
 local function unwrap(value)
   if raw_type(value) == "table" then
-    return environments[value] or value
+    return unwrapped[value] or value
   end
   return value
 end

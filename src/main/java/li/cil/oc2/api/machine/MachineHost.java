@@ -16,6 +16,11 @@ public interface MachineHost {
     /**
      * The components currently reachable from this host, including those contributed by adjacent
      * blocks and installed cards. Queried whenever the machine rescans its bus.
+     * <p>
+     * Instances must be stable: a component that is still attached has to be returned as the same
+     * object every time. The bus diffs by identity, so a host that rebuilt its list each tick
+     * would look like every device being unplugged and plugged back in, and a machine would spend
+     * its life processing {@code component_removed} and {@code component_added}.
      *
      * @return the attached components.
      */
