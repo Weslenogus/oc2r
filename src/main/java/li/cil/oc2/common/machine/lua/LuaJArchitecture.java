@@ -49,16 +49,12 @@ import java.util.concurrent.TimeUnit;
  * to bounce through. The Lua side only has to bubble system yields out through nested coroutines,
  * which is what the {@code coroutine} wrapper in {@code machine.lua} does.
  * <p>
- * Four things can end a time slice, distinguished by the value yielded to Java:
- * <ul>
- * <li>a number: {@code computer.pullSignal} wants to sleep for that many seconds;</li>
- * <li>a boolean: {@code computer.shutdown}, {@code true} to reboot;</li>
- * <li>{@link #syncCallSentinel}: an indirect component call is waiting for the server thread;</li>
- * <li>{@link #preemptSentinel}: the time slice ran out and the debug hook forced a yield;</li>
- * <li>{@link #killSentinel}: the machine used up its no-yield budget and is being killed.</li>
- * </ul>
- * Neither sentinel is reachable from the sandbox, so identity comparison is enough to tell an
- * internal yield from anything user code could produce.
+ * A slice ends when the kernel yields a {@link SystemYield} kind. The sandbox's coroutine library
+ * prepends {@code nil} to every user yield, so a non-nil kind can only have come from the kernel.
+ * <p>
+ * A deferred component call yields from Lua rather than from Java, even though this backend could
+ * do it either way. That keeps one kernel script working for both this and a native Lua, where
+ * yielding across the Java call boundary is not possible at all.
  */
 public final class LuaJArchitecture implements LuaArchitecture {
     private static final Logger LOGGER = LogManager.getLogger();
@@ -95,10 +91,13 @@ public final class LuaJArchitecture implements LuaArchitecture {
     private final long hardDeadlineNanos;
 
     @Nullable private Globals globals;
-    @Nullable private LuaThread kernel;
-    @Nullable private LuaTable preemptSentinel;
-    @Nullable private LuaTable syncCallSentinel;
-    @Nullable private LuaTable killSentinel;
+
+    /**
+     * The resume function {@code machine.lua} hands back, and the only entry point into the
+     * machine. Deliberately not a global: a program able to reach it could re-enter itself.
+     */
+    @Nullable private LuaValue resume;
+
     @Nullable private LuaValue deadlineHook;
 
     private long sliceStart;
@@ -130,6 +129,12 @@ public final class LuaJArchitecture implements LuaArchitecture {
     @Nullable private volatile Object[] syncResults;
     @Nullable private volatile String syncError;
 
+    /**
+     * Whether the kernel is parked on a deferred component call, so the next resume carries its
+     * answer rather than a signal.
+     */
+    private boolean syncPending;
+
     ///////////////////////////////////////////////////////////////////
 
     public LuaJArchitecture(final LuaMachine machine) {
@@ -160,9 +165,6 @@ public final class LuaJArchitecture implements LuaArchitecture {
             final Globals globals = createGlobals();
             this.globals = globals;
 
-            preemptSentinel = new LuaTable();
-            syncCallSentinel = new LuaTable();
-            killSentinel = new LuaTable();
             deadlineHook = new DeadlineHook();
 
             globals.set("_JAVA", createNativeApi());
@@ -172,7 +174,7 @@ public final class LuaJArchitecture implements LuaArchitecture {
                 chunk = globals.load(stream, "=machine", "t", globals);
             }
 
-            // machine.lua builds the sandbox and hands back the kernel entry point. It captures
+            // machine.lua builds the sandbox and hands back its resume function. It captures
             // everything it needs from _JAVA into locals, so the table can go away afterwards and
             // sandboxed code has no path back to the natives except through the sandbox itself.
             final LuaValue entryPoint = chunk.call();
@@ -183,9 +185,7 @@ public final class LuaJArchitecture implements LuaArchitecture {
                 return false;
             }
 
-            final LuaThread kernel = new LuaThread(globals, entryPoint);
-            installHook(kernel);
-            this.kernel = kernel;
+            resume = entryPoint;
             acceptingSignals = false;
 
             return true;
@@ -198,7 +198,7 @@ public final class LuaJArchitecture implements LuaArchitecture {
 
     @Override
     public boolean isInitialized() {
-        return kernel != null;
+        return resume != null;
     }
 
     @Override
@@ -207,17 +207,15 @@ public final class LuaJArchitecture implements LuaArchitecture {
         // references is the supported way out: LuaJ's coroutine threads wake periodically, notice
         // their LuaThread has been collected and throw OrphanedThread, which unwinds them. Holding
         // on to any of this would keep those threads parked forever.
-        kernel = null;
+        resume = null;
         globals = null;
         deadlineHook = null;
-        preemptSentinel = null;
-        syncCallSentinel = null;
-        killSentinel = null;
         pendingComponent = null;
         pendingMethod = null;
         pendingArguments = null;
         syncResults = null;
         syncError = null;
+        syncPending = false;
         acceptingSignals = false;
         nonYieldingNanos = 0;
     }
@@ -229,8 +227,8 @@ public final class LuaJArchitecture implements LuaArchitecture {
 
     @Override
     public ExecutionResult runThreaded(@Nullable final Signal signal) {
-        final LuaThread kernel = this.kernel;
-        if (kernel == null) {
+        final LuaValue trampoline = this.resume;
+        if (trampoline == null) {
             return new ExecutionResult.Error("machine is not initialized");
         }
 
@@ -238,12 +236,19 @@ public final class LuaJArchitecture implements LuaArchitecture {
         sliceStart = now;
         sliceDeadline = now + sliceBudgetNanos;
 
-        final Varargs resumeArgs = acceptingSignals && signal != null
-            ? toVarargs(signal)
-            : LuaValue.NONE;
+        final Varargs resumeArgs;
+        if (syncPending) {
+            // Answering the deferred component call the kernel is parked on.
+            syncPending = false;
+            resumeArgs = takeSyncResult();
+        } else if (acceptingSignals && signal != null) {
+            resumeArgs = toVarargs(signal);
+        } else {
+            resumeArgs = LuaValue.NONE;
+        }
         acceptingSignals = false;
 
-        final ExecutionResult result = resume(kernel, resumeArgs);
+        final ExecutionResult result = resume(trampoline, resumeArgs);
 
         // Preemption means the machine still has not yielded, so its budget keeps running.
         // Anything else means it reached a point of its own choosing, and the clock resets.
@@ -256,10 +261,10 @@ public final class LuaJArchitecture implements LuaArchitecture {
         return result;
     }
 
-    private ExecutionResult resume(final LuaThread kernel, final Varargs resumeArgs) {
+    private ExecutionResult resume(final LuaValue trampoline, final Varargs resumeArgs) {
         final Varargs result;
         try {
-            result = kernel.resume(resumeArgs);
+            result = trampoline.invoke(resumeArgs);
         } catch (final OrphanedThread e) {
             return new ExecutionResult.Shutdown(false);
         } catch (final LuaError e) {
@@ -269,37 +274,36 @@ public final class LuaJArchitecture implements LuaArchitecture {
             return new ExecutionResult.Error(String.valueOf(e.getMessage()));
         }
 
+        // machine.lua answers (ok, kind, payload).
         if (!result.arg1().toboolean()) {
-            return new ExecutionResult.Error(result.arg(2).tojstring());
+            return new ExecutionResult.Error(result.arg(3).tojstring());
         }
 
-        if (kernel.state.status == LuaThread.STATUS_DEAD) {
+        final LuaValue kind = result.arg(2);
+        if (kind.isnil()) {
             return new ExecutionResult.Shutdown(false);
         }
 
-        final LuaValue sysval = result.arg(2);
-
-        if (sysval == preemptSentinel) {
-            return ExecutionResult.Preempted.INSTANCE;
-        }
-        if (sysval == syncCallSentinel) {
-            return ExecutionResult.SynchronizedCall.INSTANCE;
-        }
-        if (sysval == killSentinel) {
-            return new ExecutionResult.Error("too long without yielding");
-        }
-        if (sysval.type() == LuaValue.TBOOLEAN) {
-            return new ExecutionResult.Shutdown(sysval.toboolean());
-        }
-        if (sysval.type() == LuaValue.TNUMBER) {
-            acceptingSignals = true;
-            return new ExecutionResult.Sleep(secondsToTicks(sysval.todouble()));
-        }
-
-        // A bare yield from the kernel is not something machine.lua produces, but treating it as
-        // "run me again shortly" keeps a misbehaving kernel from wedging the host.
-        acceptingSignals = true;
-        return new ExecutionResult.Sleep(0);
+        final LuaValue payload = result.arg(3);
+        return switch (kind.toint()) {
+            case SystemYield.SLEEP -> {
+                acceptingSignals = true;
+                yield new ExecutionResult.Sleep(secondsToTicks(payload.todouble()));
+            }
+            case SystemYield.SHUTDOWN -> new ExecutionResult.Shutdown(payload.toboolean());
+            case SystemYield.SYNCHRONIZED_CALL -> {
+                syncPending = true;
+                yield ExecutionResult.SynchronizedCall.INSTANCE;
+            }
+            case SystemYield.PREEMPT -> ExecutionResult.Preempted.INSTANCE;
+            case SystemYield.KILL -> new ExecutionResult.Error("too long without yielding");
+            default -> {
+                // Not something machine.lua produces, but treating it as "run me again shortly"
+                // keeps a misbehaving kernel from wedging the host.
+                acceptingSignals = true;
+                yield new ExecutionResult.Sleep(0);
+            }
+        };
     }
 
     @Override
@@ -408,9 +412,9 @@ public final class LuaJArchitecture implements LuaArchitecture {
 
         final Globals environment = new Globals();
         environment.debuglib = globals.debuglib;
-        // Only ever read to look for an error handler, which nothing here installs, so the kernel
-        // thread is as good a stand-in as the coroutine that happens to be running.
-        environment.running = globals.running != null ? globals.running : kernel;
+        // Only ever read to look for an error handler, which nothing here installs, so whichever
+        // thread is running now is as good a stand-in as any.
+        environment.running = globals.running;
         return environment;
     }
 
@@ -458,6 +462,22 @@ public final class LuaJArchitecture implements LuaArchitecture {
             values[i] = args.arg(from + i);
         }
         return LuaValue.varargsOf(values);
+    }
+
+    /**
+     * The answer to a deferred component call, shaped the way the kernel's invoke wrapper reads
+     * it: {@code (true, results...)} or {@code (false, message)}.
+     */
+    private Varargs takeSyncResult() {
+        final String error = syncError;
+        final Object[] results = syncResults;
+        syncError = null;
+        syncResults = null;
+
+        if (error != null) {
+            return LuaValue.varargsOf(LuaValue.FALSE, LuaValue.valueOf(error));
+        }
+        return LuaValue.varargsOf(LuaValue.TRUE, LuaValues.toVarargs(results, this::wrapValue));
     }
 
     private static String describe(final Throwable e) {
@@ -515,6 +535,12 @@ public final class LuaJArchitecture implements LuaArchitecture {
             return LuaValue.NONE;
         }));
         api.set("newenv", fn(args -> createEnvironment()));
+
+        // The kernel yields these back; Java owns the numbering.
+        api.set("KIND_SLEEP", LuaValue.valueOf(SystemYield.SLEEP));
+        api.set("KIND_SHUTDOWN", LuaValue.valueOf(SystemYield.SHUTDOWN));
+        api.set("KIND_SYNCHRONIZED_CALL", LuaValue.valueOf(SystemYield.SYNCHRONIZED_CALL));
+
         return api;
     }
 
@@ -577,37 +603,26 @@ public final class LuaJArchitecture implements LuaArchitecture {
         final Arguments arguments = new LuaArguments(snapshot(args, 3), 0);
 
         if (machine.getDirectCallBudget().tryConsume(address, method)) {
+            // (true, results...) or (false, message): a component that fails should surface at the
+            // call site, and the kernel cannot tell the two apart without the flag.
             try {
-                return LuaValues.toVarargs(
-                    method.invoke(component, machine.getDirectContext(), arguments), this::wrapValue);
+                return LuaValue.varargsOf(LuaValue.TRUE, LuaValues.toVarargs(
+                    method.invoke(component, machine.getDirectContext(), arguments), this::wrapValue));
             } catch (final Throwable e) {
-                throw toLuaError(e);
+                return LuaValue.varargsOf(LuaValue.FALSE, LuaValue.valueOf(describe(e)));
             }
         }
 
         // Either the method is not thread safe or it has used up its direct call allowance for
-        // this tick. Park here and let the server thread run it: because LuaJ coroutines are real
-        // threads, this yield unwinds to the host and comes back to exactly this point.
-        final Globals globals = this.globals;
-        if (globals == null) {
-            throw new LuaError("machine is shutting down");
-        }
-
+        // this tick. Stash it and return no values at all: that is the signal machine.lua turns
+        // into a system yield, which hands the call to the server thread. The yield happens in Lua
+        // rather than here so that the same kernel script also works on a native Lua, where a Java
+        // function cannot yield at all.
         pendingComponent = component;
         pendingMethod = method;
         pendingArguments = arguments;
 
-        globals.yield(LuaValue.varargsOf(new LuaValue[]{syncCallSentinel}));
-
-        final String error = syncError;
-        final Object[] results = syncResults;
-        syncError = null;
-        syncResults = null;
-
-        if (error != null) {
-            throw new LuaError(error);
-        }
-        return LuaValues.toVarargs(results, this::wrapValue);
+        return LuaValue.NONE;
     }
 
     private LuaTable createComputerApi() {
@@ -765,12 +780,14 @@ public final class LuaJArchitecture implements LuaArchitecture {
                 // a program wrapping its main loop in pcall, which OpenOS does, would swallow it
                 // and carry straight on. A yield cannot be caught: it unwinds to Java, which
                 // reports the failure and stops the machine for good.
-                globals.yield(LuaValue.varargsOf(new LuaValue[]{killSentinel}));
+                globals.yield(LuaValue.varargsOf(
+                    LuaValue.valueOf(SystemYield.KILL), LuaValue.NIL));
                 return LuaValue.NONE;
             }
 
             if (now - sliceDeadline >= 0) {
-                globals.yield(LuaValue.varargsOf(new LuaValue[]{preemptSentinel}));
+                globals.yield(LuaValue.varargsOf(
+                    LuaValue.valueOf(SystemYield.PREEMPT), LuaValue.NIL));
             }
 
             return LuaValue.NONE;

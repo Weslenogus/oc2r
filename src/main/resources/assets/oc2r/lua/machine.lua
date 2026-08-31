@@ -2,30 +2,35 @@
 
   Kernel and sandbox for the OpenComputers 1 compatible Lua runtime.
 
-  Java loads this once per machine with the raw natives sitting in the global _JAVA. Everything
-  needed is captured into locals here and Java clears _JAVA immediately afterwards, so the only
-  route from sandboxed code back to Java is through the functions this file chooses to expose.
+  Java loads this once per machine with the raw natives sitting in the global _JAVA, captures what
+  it needs into locals, and hands back a resume function. Java clears _JAVA immediately afterwards,
+  so the only route from sandboxed code back to Java is through what this file chooses to expose.
 
-  Two pieces of machinery are worth understanding.
+  Three things are worth understanding.
 
   1. The yield protocol. Java has to be able to regain control from arbitrarily deep inside a
-     program: to deliver a signal, to run a component call that needs the server thread, or simply
-     because the time slice ran out. Lua coroutines only yield one level, so a nested coroutine's
+     program: to deliver a signal, to run a component call that needs the server thread, or because
+     the machine has had its turn. Lua coroutines only yield one level, so a nested coroutine's
      yield would stop at whoever resumed it.
 
      The fix, taken from OpenComputers 1, is to split yields in two. A system yield passes a
-     non-nil first value and is re-yielded by every resume it passes through until it reaches Java;
-     a user yield passes nil first and is handled by the innermost resume, exactly like a normal
-     coroutine. Sandboxed code only ever sees the user form, because the coroutine table below
-     rewrites it.
+     non-nil kind as its first value and is re-yielded by every resume it passes through until it
+     reaches Java; a user yield passes nil first and is handled by the innermost resume, exactly
+     like an ordinary coroutine. Sandboxed code only ever sees the user form, because the coroutine
+     table below rewrites it.
 
-  2. The environment. LuaJ only runs debug hooks for chunks whose environment is a Globals object,
-     and the debug hook is what enforces the time slice. So the sandbox is not a fresh table: it is
-     the globals table itself, stripped of everything that could reach the host and extended with
-     the OpenComputers libraries. A chunk loaded with its own environment, which is how an
-     operating system isolates the programs it runs, gets that environment wrapped so it is a
-     Globals too. Without this a program could sidestep the CPU limiter entirely by doing its work
-     inside load(code, nil, nil, {}).
+  2. Deferred component calls yield from Lua, not from Java. When Java cannot run a call on the
+     machine thread it returns no values at all, and the wrapper below turns that into a system
+     yield. This matters because on a real Lua the Java side is a C function, and you cannot yield
+     across a C call boundary; doing it this way is what lets the same script drive both a native
+     Lua and a pure Java one.
+
+  3. The environment. Chunks are given an environment through load's fourth argument, and the pure
+     Java backend only runs its debug hook, which enforces the time limit, for chunks whose
+     environment is its globals object. So the sandbox is not a fresh table: it is the globals table
+     itself, stripped of everything that could reach the host. A chunk loaded with its own
+     environment, which is how an operating system isolates the programs it runs, gets that
+     environment wrapped by newenv when the backend asks for it.
 ]]
 
 local raw = _JAVA
@@ -34,6 +39,11 @@ local rawComputer = raw.computer
 local rawUnicode = raw.unicode
 local sethook = raw.sethook
 local newEnvironment = raw.newenv
+
+-- How a system yield tells Java what it wants. Java owns these numbers.
+local KIND_SLEEP = raw.KIND_SLEEP
+local KIND_SHUTDOWN = raw.KIND_SHUTDOWN
+local KIND_SYNCHRONIZED_CALL = raw.KIND_SYNCHRONIZED_CALL
 
 local coroutine_create = coroutine.create
 local coroutine_resume = coroutine.resume
@@ -51,6 +61,7 @@ local raw_getmetatable = getmetatable
 local raw_setmetatable = setmetatable
 local raw_type = type
 local raw_error = error
+local raw_pcall = pcall
 
 local rawOsDate = os.date
 local rawOsTime = os.time
@@ -58,7 +69,7 @@ local rawTraceback = debug.traceback
 local rawGetinfo = debug.getinfo
 
 local table_pack, table_unpack, table_concat = table.pack, table.unpack, table.concat
-local string_format, string_gmatch = string.format, string.gmatch
+local string_format = string.format
 
 local sandbox = _G
 
@@ -70,12 +81,14 @@ sandbox.loadfile = nil
 sandbox.print = nil
 sandbox.io = nil
 sandbox.luajava = nil
--- package and require would hand back the unfiltered debug table through package.loaded, and
--- would let a program load code off the host's class path.
-sandbox.package = nil
 sandbox.require = nil
 sandbox.module = nil
-sandbox.string.dump = nil
+-- package would hand back the unfiltered debug table through package.loaded, and would let a
+-- program load code off the host's class path.
+sandbox.package = nil
+if sandbox.string then
+  sandbox.string.dump = nil
+end
 
 sandbox.os = {
   date = rawOsDate,
@@ -91,11 +104,8 @@ sandbox.debug = {
 }
 
 -- Letting a program call for a full collection whenever it likes is a way to make the server
--- stutter from inside a sandbox. Reporting zero is what a machine with no visibility into the
--- host heap should say anyway.
+-- stutter from inside a sandbox.
 sandbox.collectgarbage = function() return 0 end
-
-sandbox._VERSION = "Lua 5.2"
 
 -------------------------------------------------------------------------------
 -- Environments.
@@ -107,9 +117,9 @@ local unwrapped = raw_setmetatable({}, {__mode = "k"})  -- wrapper -> real table
 local wrappers = raw_setmetatable({}, {__mode = "k"})   -- real table -> wrapper
 
 --- Wraps a plain table so it can serve as a chunk environment.
--- The wrapper is a Globals object, which is what makes LuaJ run debug hooks in the chunk, with a
--- metatable pointing every read and write straight back at the original table. The wrapper itself
--- stays empty, so __index and __newindex always fire and the real table remains the only storage.
+-- Only the pure Java backend needs this, and only because it runs its debug hook exclusively for
+-- chunks whose environment is a globals object. A backend that hooks every chunk returns nil from
+-- newenv and the table is used as it is.
 local function asEnvironment(env)
   if env == nil then
     return sandbox
@@ -117,7 +127,6 @@ local function asEnvironment(env)
   if raw_type(env) ~= "table" then
     raw_error("bad argument #4 (table expected, got " .. raw_type(env) .. ")", 3)
   end
-  -- The sandbox is already a Globals, and a wrapper must not be wrapped again.
   if env == sandbox or unwrapped[env] then
     return env
   end
@@ -130,6 +139,10 @@ local function asEnvironment(env)
   end
 
   local wrapper = newEnvironment()
+  if wrapper == nil then
+    return env
+  end
+
   raw_setmetatable(wrapper, {
     __index = env,
     __newindex = env,
@@ -219,8 +232,9 @@ local function bubble(co, ...)
         -- Returned normally. Its results start right after the success flag.
         return true, table_unpack(result, 2, result.n)
       elseif result[2] ~= nil then
-        -- System yield. Pass it further out and hand whatever comes back down again.
-        args = table_pack(coroutine_yield(result[2]))
+        -- System yield. Pass the kind and its payload further out, and hand whatever comes back
+        -- down to the coroutine that asked.
+        args = table_pack(coroutine_yield(result[2], result[3]))
       else
         -- User yield. The leading nil is the marker, so the real values start at 3.
         return true, table_unpack(result, 3, result.n)
@@ -235,8 +249,8 @@ local sandboxCoroutine = {
   create = function(f)
     checkArg(1, f, "function")
     local co = coroutine_create(f)
-    -- Hooks are per coroutine, so every one of them needs its own or a program could dodge
-    -- preemption simply by doing its work inside a coroutine.
+    -- On the pure Java backend hooks are per coroutine, so every one needs its own or a program
+    -- could dodge the time limit by doing its work inside a coroutine.
     sethook(co)
     return co
   end,
@@ -255,7 +269,7 @@ local sandboxCoroutine = {
 
   running = coroutine_running,
 
-  isyieldable = function()
+  isyieldable = coroutine.isyieldable or function()
     return coroutine_running() ~= nil
   end,
 }
@@ -290,7 +304,7 @@ function computer.pullSignal(seconds)
   local deadline = computer.uptime() +
     (raw_type(seconds) == "number" and seconds or math.huge)
   repeat
-    local signal = table_pack(coroutine_yield(deadline - computer.uptime()))
+    local signal = table_pack(coroutine_yield(KIND_SLEEP, deadline - computer.uptime()))
     if signal.n > 0 then
       return table_unpack(signal, 1, signal.n)
     end
@@ -298,7 +312,7 @@ function computer.pullSignal(seconds)
 end
 
 function computer.shutdown(reboot)
-  coroutine_yield(reboot ~= nil and reboot ~= false)
+  coroutine_yield(KIND_SHUTDOWN, reboot ~= nil and reboot ~= false)
   -- Java stops resuming us, so this is only reached if something went very wrong.
   raw_error("computer.shutdown did not shut down", 0)
 end
@@ -308,9 +322,30 @@ sandbox.computer = computer
 -------------------------------------------------------------------------------
 -- component
 
+local rawInvoke = rawComponent.invoke
+
+--- Calls a component method.
+-- Java runs the call itself when it is allowed to: the method is thread safe and has not used up
+-- its allowance for this tick. Otherwise it stashes the call, returns no values at all, and the
+-- yield below hands control to the server thread to run it there. Returning nothing is the signal,
+-- because a method that genuinely returns nothing still has somewhere to say so: it comes back
+-- through the yield instead.
+local function invoke(address, method, ...)
+  local result = table_pack(rawInvoke(address, method, ...))
+  if result.n == 0 then
+    result = table_pack(coroutine_yield(KIND_SYNCHRONIZED_CALL))
+  end
+  if result[1] then
+    return table_unpack(result, 2, result.n)
+  end
+  -- Java reports a failed call as (false, message), so that an error raised by a component
+  -- surfaces at the call site rather than as a stray return value.
+  raw_error(result[2], 2)
+end
+
 local component = {
   doc = rawComponent.doc,
-  invoke = rawComponent.invoke,
+  invoke = invoke,
   methods = rawComponent.methods,
   type = rawComponent.type,
   slot = rawComponent.slot,
@@ -352,7 +387,7 @@ function component.proxy(address)
     -- documentation string. OpenOS's shell relies on this for its help output.
     proxy[method] = raw_setmetatable({}, {
       __call = function(_, ...)
-        return component.invoke(address, method, ...)
+        return invoke(address, method, ...)
       end,
       __tostring = function()
         return component.doc(address, method) or method
@@ -366,15 +401,15 @@ sandbox.component = component
 sandbox.unicode = rawUnicode
 
 -------------------------------------------------------------------------------
--- Kernel entry point. Java runs this as the machine's main coroutine.
+-- Kernel.
 
-return function()
+local function bootstrap()
   local address = component.list("eeprom")()
   if not address then
     raw_error("no bios found; install a configured EEPROM", 0)
   end
 
-  local code = component.invoke(address, "get")
+  local code = invoke(address, "get")
   if not code or #code == 0 then
     raw_error("no bios found; install a configured EEPROM", 0)
   end
@@ -384,7 +419,33 @@ return function()
     raw_error("failed loading bios: " .. tostring(reason), 0)
   end
 
-  -- Run in this coroutine rather than a nested one: a raw yield from anywhere inside reaches
-  -- Java directly, and coroutines the BIOS creates go through the wrapper above, which bubbles.
   return bios()
+end
+
+local kernel
+
+--- The one function Java calls to advance the machine.
+-- Deliberately not a global: a program that could reach this could re-enter its own machine.
+-- Returns (ok, kind, payload); kind is nil when the machine has finished.
+return function(...)
+  if not kernel then
+    kernel = coroutine_create(bootstrap)
+    sethook(kernel)
+  end
+
+  if coroutine_status(kernel) == "dead" then
+    return true, KIND_SHUTDOWN, false
+  end
+
+  local result = table_pack(coroutine_resume(kernel, ...))
+  if not result[1] then
+    return false, nil, tostring(result[2])
+  end
+
+  if coroutine_status(kernel) == "dead" then
+    -- The BIOS returned, which for a computer means it has finished.
+    return true, KIND_SHUTDOWN, false
+  end
+
+  return true, result[2], result[3]
 end
