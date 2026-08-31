@@ -164,6 +164,13 @@ public final class LuaMachine implements Machine {
         return synchronizedContext;
     }
 
+    /**
+     * The Lua dialect this machine runs, as {@code computer.getArchitecture} reports it.
+     */
+    public String getArchitectureName() {
+        return architecture.getName();
+    }
+
     public State getState() {
         return state;
     }

@@ -391,6 +391,89 @@ public class LuaMachineTest {
             "shared 42"), recorder.notes);
     }
 
+    @Test
+    void reportsTheArchitectureProgramsBranchOn() throws Exception {
+        final Recorder recorder = new Recorder();
+        final TestMachineHost host = new TestMachineHost();
+        host.add(eepromWith("""
+            local address = component.list("recorder")()
+            local function note(text) component.invoke(address, "note", text) end
+
+            note("arch " .. tostring(computer.getArchitecture()))
+            note("list " .. table.concat(computer.getArchitectures(), ","))
+            note("set-known " .. tostring(computer.setArchitecture("Lua 5.2")))
+            note("set-unknown " .. tostring(computer.setArchitecture("Lua 5.3")))
+
+            -- The shape MineOS's colour library uses to pick a code path. On this VM it has to
+            -- take the else branch, because the fast path it would otherwise compile is written
+            -- in Lua 5.3 syntax that a 5.2 parser cannot read.
+            if computer.getArchitecture and computer.getArchitecture() ~= "Lua 5.2" then
+              note("would compile the 5.3 fast path")
+            else
+              note("takes the 5.2 fallback")
+            end
+
+            computer.shutdown()
+            """));
+        host.add(recorder);
+
+        final LuaMachine machine = new LuaMachine(host);
+        machine.start();
+        TestMachineHost.run(machine, 120);
+
+        assertEquals(List.of(), host.getCrashes());
+        assertEquals(List.of(
+            "arch Lua 5.2",
+            "list Lua 5.2",
+            "set-known true",
+            "set-unknown nil",
+            "takes the 5.2 fallback"), recorder.notes);
+    }
+
+    @Test
+    void documentsTheParserLimitThatBlocksMineOS() throws Exception {
+        // LuaJ's parser checks its local variable limit against the running total across every
+        // enclosing function, where real Lua subtracts the enclosing function's base:
+        //
+        //   luaj     checklimit(dyd.n_actvar + 1,                   MAXVARS, "local variables")
+        //   lua 5.3  checklimit(dyd->n_actvar + 1 - fs->firstlocal, MAXVARS, "local variables")
+        //
+        // So a file whose functions are each well inside the limit is rejected once their totals
+        // add up. Real Lua 5.2 and 5.3 both accept the chunk built below; LuaJ does not, and that
+        // is what stops MineOS's GUI library, a 5000 line file of nested closures, from loading.
+        //
+        // If this test starts failing, the backend has gained a fixed parser and can load chunks
+        // it previously could not. That is the good outcome: flip the assertion.
+        final StringBuilder nested = new StringBuilder();
+        for (int i = 0; i < 150; i++) {
+            nested.append("local a").append(i).append(" = ").append(i).append('\n');
+        }
+        nested.append("local f = function()\n");
+        for (int i = 0; i < 60; i++) {
+            nested.append("  local b").append(i).append(" = ").append(i).append('\n');
+        }
+        nested.append("  return b0\nend\nreturn f() + a0\n");
+
+        final String program =
+            "local address = component.list(\"recorder\")()\n"
+                + "local chunk = load([==[\n" + nested + "]==], \"=nested\", \"t\")\n"
+                + "component.invoke(address, \"note\", chunk and \"compiled\" or \"rejected\")\n"
+                + "computer.shutdown()\n";
+
+        final Recorder recorder = new Recorder();
+        final TestMachineHost host = new TestMachineHost();
+        host.add(eepromWith(program));
+        host.add(recorder);
+
+        final LuaMachine machine = new LuaMachine(host);
+        machine.start();
+        TestMachineHost.run(machine, 120);
+
+        assertEquals(List.of(), host.getCrashes());
+        assertEquals(List.of("rejected"), recorder.notes,
+            "the LuaJ parser limit appears to be fixed; MineOS's GUI library may now load");
+    }
+
     ///////////////////////////////////////////////////////////////////
 
     private static String row(final TextBuffer buffer, final int y) {

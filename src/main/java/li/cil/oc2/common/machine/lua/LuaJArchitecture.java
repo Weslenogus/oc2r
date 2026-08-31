@@ -144,6 +144,16 @@ public final class LuaJArchitecture implements LuaArchitecture {
 
     ///////////////////////////////////////////////////////////////////
 
+    /**
+     * LuaJ implements Lua 5.2. Reporting anything else would be a lie programs act on.
+     */
+    public static final String ARCHITECTURE_NAME = "Lua 5.2";
+
+    @Override
+    public String getName() {
+        return ARCHITECTURE_NAME;
+    }
+
     @Override
     public boolean initialize() {
         try {
@@ -642,6 +652,25 @@ public final class LuaJArchitecture implements LuaArchitecture {
             }
             return result;
         }));
+
+        // Programs use these to decide which dialect to emit. MineOS in particular compiles a
+        // bitwise fast path when the architecture is not Lua 5.2, so answering honestly is what
+        // keeps it on the code path this VM can actually run.
+        api.set("getArchitecture", fn(args -> LuaValue.valueOf(machine.getArchitectureName())));
+        api.set("getArchitectures", fn(args -> {
+            final LuaTable result = new LuaTable();
+            result.set(1, LuaValue.valueOf(machine.getArchitectureName()));
+            return result;
+        }));
+        api.set("setArchitecture", fn(args -> {
+            // There is only one, so this either changes nothing or asks for something that does
+            // not exist. Either way the machine does not reboot.
+            final String requested = args.checkjstring(1);
+            return requested.equals(machine.getArchitectureName())
+                ? LuaValue.TRUE
+                : LuaValue.varargsOf(LuaValue.NIL, LuaValue.valueOf("unknown architecture"));
+        }));
+        api.set("getProgramLocations", fn(args -> new LuaTable()));
 
         api.set("users", fn(args -> LuaValue.varargsOf(
             machine.getUsers().stream().map(LuaValue::valueOf).toArray(LuaValue[]::new))));

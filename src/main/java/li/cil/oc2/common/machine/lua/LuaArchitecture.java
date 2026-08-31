@@ -17,6 +17,18 @@ import javax.annotation.Nullable;
  */
 public interface LuaArchitecture {
     /**
+     * The name of the Lua dialect this backend implements, as {@code computer.getArchitecture}
+     * reports it.
+     * <p>
+     * Programs branch on this. MineOS's colour library, for one, compiles a bitwise fast path with
+     * {@code load} when the answer is not {@code "Lua 5.2"}, and falls back to arithmetic when it
+     * is, so reporting the wrong dialect hands it code the VM cannot parse.
+     *
+     * @return the architecture name.
+     */
+    String getName();
+
+    /**
      * Builds the Lua state and loads the kernel. Called from the server thread when the machine
      * boots.
      *
