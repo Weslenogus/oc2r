@@ -4,6 +4,9 @@ package li.cil.oc2.common.blockentity;
 
 import li.cil.oc2.common.machine.components.KeyboardComponent;
 import li.cil.oc2.common.machine.components.ScreenComponent;
+import li.cil.oc2.common.machine.screen.CanvasBuffer;
+import li.cil.oc2.common.machine.screen.CanvasBufferDelta;
+import li.cil.oc2.common.machine.screen.ScreenMode;
 import li.cil.oc2.common.machine.screen.TextBuffer;
 import li.cil.oc2.common.machine.screen.TextBufferDelta;
 import li.cil.oc2.common.machine.serialization.MachineSerialization;
@@ -26,6 +29,8 @@ import net.minecraft.world.level.block.state.BlockState;
  * cursor costs a handful of bytes per second; one that has not been drawn to costs nothing at all.
  */
 public final class LuaScreenBlockEntity extends ModBlockEntity implements TickableBlockEntity {
+    private static final byte[] EMPTY = new byte[0];
+
     private static final String SCREEN_TAG_NAME = "screen";
     private static final String KEYBOARD_TAG_NAME = "keyboard";
 
@@ -70,19 +75,17 @@ public final class LuaScreenBlockEntity extends ModBlockEntity implements Tickab
             return;
         }
 
+        final ScreenMode mode;
         final byte[] payload;
         synchronized (screen.getLock()) {
-            final TextBuffer buffer = screen.getBuffer();
-            if (!buffer.isDirty()) {
-                return;
-            }
-            payload = TextBufferDelta.encode(buffer);
+            mode = screen.getMode();
+            payload = encode(mode, false);
             // Cleared only after encoding, so a frame cannot be lost between the two.
-            buffer.clearDirty();
+            clearDirty(mode);
         }
 
         if (payload.length > 0) {
-            Network.sendToClientsTrackingBlockEntity(new LuaScreenDeltaMessage(this, payload), this);
+            Network.sendToClientsTrackingBlockEntity(new LuaScreenDeltaMessage(this, mode, payload), this);
         }
     }
 
@@ -91,16 +94,47 @@ public final class LuaScreenBlockEntity extends ModBlockEntity implements Tickab
      * and has nothing to apply deltas to.
      */
     public void sendFullSync(final ServerPlayer player) {
+        final ScreenMode mode;
         final byte[] payload;
         synchronized (screen.getLock()) {
-            final TextBuffer buffer = screen.getBuffer();
-            buffer.markAllDirty();
-            payload = TextBufferDelta.encode(buffer);
-            buffer.clearDirty();
+            mode = screen.getMode();
+            payload = encode(mode, true);
+            clearDirty(mode);
         }
 
         if (payload.length > 0) {
-            Network.sendToClient(new LuaScreenDeltaMessage(this, payload), player);
+            Network.sendToClient(new LuaScreenDeltaMessage(this, mode, payload), player);
+        }
+    }
+
+    /**
+     * Encodes whichever buffer is on show.
+     * <p>
+     * Only the visible one is sent. A screen that has been flipped to its canvas is not also paying
+     * to keep a hidden text grid up to date on every client watching it; switching back marks that
+     * buffer whole, which is what makes the first frame after a switch a full one.
+     */
+    private byte[] encode(final ScreenMode mode, final boolean full) {
+        if (mode == ScreenMode.CANVAS) {
+            final CanvasBuffer canvas = screen.getOrCreateCanvas();
+            if (full) {
+                canvas.markAll();
+            }
+            return canvas.isDirty() ? CanvasBufferDelta.encode(canvas) : EMPTY;
+        }
+
+        final TextBuffer buffer = screen.getBuffer();
+        if (full) {
+            buffer.markAllDirty();
+        }
+        return buffer.isDirty() ? TextBufferDelta.encode(buffer) : EMPTY;
+    }
+
+    private void clearDirty(final ScreenMode mode) {
+        if (mode == ScreenMode.CANVAS) {
+            screen.getOrCreateCanvas().clearDirty();
+        } else {
+            screen.getBuffer().clearDirty();
         }
     }
 
@@ -139,11 +173,36 @@ public final class LuaScreenBlockEntity extends ModBlockEntity implements Tickab
     }
 
     /**
-     * Applies a delta received from the server. Client side only.
+     * Asks the server for the whole screen again.
+     * <p>
+     * The client's copy is only ever built from deltas, so once it has drifted there is nothing on
+     * this side that can put it right.
      */
-    public void applyDeltaClient(final byte[] payload) {
+    public void requestFullSync() {
+        if (level != null && level.isClientSide()) {
+            Network.sendToServer(new li.cil.oc2.common.network.message.LuaScreenRequestMessage(this));
+        }
+    }
+
+    /**
+     * Applies a delta received from the server. Client side only.
+     * <p>
+     * A payload that will not decode leaves the buffer alone and asks for the whole thing again.
+     * That happens when a client's copy has drifted, most often because it started tracking the
+     * block part way through a frame, and carrying on with a buffer that no longer matches the
+     * server's would leave it wrong until something happened to overwrite every pixel of it.
+     */
+    public void applyDeltaClient(final ScreenMode mode, final byte[] payload) {
+        final boolean applied;
         synchronized (screen.getLock()) {
-            TextBufferDelta.apply(payload, screen.getBuffer());
+            screen.setMode(mode);
+            applied = mode == ScreenMode.CANVAS
+                ? CanvasBufferDelta.apply(payload, screen.getOrCreateCanvas())
+                : TextBufferDelta.apply(payload, screen.getBuffer());
+        }
+
+        if (!applied) {
+            requestFullSync();
         }
     }
 

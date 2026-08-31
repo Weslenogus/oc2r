@@ -7,6 +7,9 @@ import li.cil.oc2.common.machine.components.DriveComponent;
 import li.cil.oc2.common.machine.components.EepromComponent;
 import li.cil.oc2.common.machine.components.ScreenComponent;
 import li.cil.oc2.common.machine.lua.LuaMachine;
+import li.cil.oc2.common.machine.screen.CanvasBuffer;
+import li.cil.oc2.common.machine.screen.CanvasBufferDelta;
+import li.cil.oc2.common.machine.screen.ScreenMode;
 import li.cil.oc2.common.machine.screen.TextBuffer;
 import li.cil.oc2.common.machine.screen.TextBufferDelta;
 import li.cil.oc2.common.util.NBTTagIds;
@@ -49,6 +52,8 @@ public final class MachineSerialization {
     private static final String READ_ONLY_TAG_NAME = "readOnly";
 
     private static final String BUFFER_TAG_NAME = "buffer";
+    private static final String CANVAS_TAG_NAME = "canvas";
+    private static final String MODE_TAG_NAME = "mode";
     private static final String IS_ON_TAG_NAME = "isOn";
 
     // Discriminators for the signal argument union. Written as bytes rather than inferred from the
@@ -286,6 +291,17 @@ public final class MachineSerialization {
             // One encoding to get right rather than two.
             buffer.markAllDirty();
             tag.putByteArray(BUFFER_TAG_NAME, TextBufferDelta.encode(buffer));
+
+            tag.putByte(MODE_TAG_NAME, (byte) screen.getMode().ordinal());
+
+            // Only written when there is one. A screen that has only ever shown text does not carry
+            // a quarter of a megabyte of blank canvas around in its tag for the rest of the save's
+            // life, and the same encoding compresses it when it does.
+            final CanvasBuffer canvas = screen.getCanvas();
+            if (canvas != null) {
+                canvas.markAll();
+                tag.putByteArray(CANVAS_TAG_NAME, CanvasBufferDelta.encode(canvas));
+            }
         }
 
         return tag;
@@ -296,11 +312,18 @@ public final class MachineSerialization {
         if (tag.contains(IS_ON_TAG_NAME, NBTTagIds.TAG_BYTE)) {
             screen.setOn(tag.getBoolean(IS_ON_TAG_NAME));
         }
-        if (!tag.contains(BUFFER_TAG_NAME, NBTTagIds.TAG_BYTE_ARRAY)) {
-            return;
-        }
         synchronized (screen.getLock()) {
-            TextBufferDelta.apply(tag.getByteArray(BUFFER_TAG_NAME), screen.getBuffer());
+            if (tag.contains(BUFFER_TAG_NAME, NBTTagIds.TAG_BYTE_ARRAY)) {
+                TextBufferDelta.apply(tag.getByteArray(BUFFER_TAG_NAME), screen.getBuffer());
+            }
+            if (tag.contains(CANVAS_TAG_NAME, NBTTagIds.TAG_BYTE_ARRAY)) {
+                CanvasBufferDelta.apply(tag.getByteArray(CANVAS_TAG_NAME), screen.getOrCreateCanvas());
+            }
+            // Last, because switching modes marks the buffer now on show as needing to be sent, and
+            // both of them have just been written.
+            if (tag.contains(MODE_TAG_NAME, NBTTagIds.TAG_BYTE)) {
+                screen.setMode(ScreenMode.fromOrdinal(tag.getByte(MODE_TAG_NAME)));
+            }
         }
     }
 

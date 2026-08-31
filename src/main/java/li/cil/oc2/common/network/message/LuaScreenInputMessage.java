@@ -3,6 +3,8 @@
 package li.cil.oc2.common.network.message;
 
 import li.cil.oc2.common.blockentity.LuaScreenBlockEntity;
+import li.cil.oc2.common.machine.screen.CanvasBuffer;
+import li.cil.oc2.common.machine.screen.ScreenMode;
 import li.cil.oc2.common.machine.screen.TextBuffer;
 import li.cil.oc2.common.network.MessageUtils;
 import net.minecraft.core.BlockPos;
@@ -151,10 +153,24 @@ public final class LuaScreenInputMessage extends AbstractMessage {
      */
     private static int[] clampToScreen(final LuaScreenBlockEntity screen, final int x, final int y) {
         synchronized (screen.getScreen().getLock()) {
-            final TextBuffer buffer = screen.getBuffer();
+            // Whichever buffer is on show decides what a coordinate means: a cell in text mode, a
+            // pixel in canvas mode. Clamping against the wrong one would put a click on a 320 by
+            // 200 canvas somewhere in the first fifty rows.
+            final int width;
+            final int height;
+            if (screen.getScreen().getMode() == ScreenMode.CANVAS) {
+                final CanvasBuffer canvas = screen.getScreen().getOrCreateCanvas();
+                width = canvas.getWidth();
+                height = canvas.getHeight();
+            } else {
+                final TextBuffer buffer = screen.getBuffer();
+                width = buffer.getWidth();
+                height = buffer.getHeight();
+            }
+
             return new int[]{
-                Math.max(1, Math.min(buffer.getWidth(), x + 1)),
-                Math.max(1, Math.min(buffer.getHeight(), y + 1)),
+                Math.max(1, Math.min(width, x + 1)),
+                Math.max(1, Math.min(height, y + 1)),
             };
         }
     }

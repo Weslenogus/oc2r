@@ -58,6 +58,15 @@ public final class ClientSetup {
 
             // We need to register this manually, because static init throws errors when running data generation.
             MinecraftForge.EVENT_BUS.register(ProjectorDepthRenderer.class);
+
+            // Canvas screens hold a GPU texture each. Leaving them behind on world unload would
+            // leak video memory for every server the player visits.
+            MinecraftForge.EVENT_BUS.addListener(
+                (final net.minecraftforge.event.level.LevelEvent.Unload unload) -> {
+                    if (unload.getLevel().isClientSide()) {
+                        li.cil.oc2.client.renderer.CanvasPainter.clear();
+                    }
+                });
         });
     }
 

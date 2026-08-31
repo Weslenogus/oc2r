@@ -7,6 +7,7 @@ import li.cil.oc2.api.machine.Callback;
 import li.cil.oc2.api.machine.Context;
 import li.cil.oc2.api.machine.LuaComponent;
 import li.cil.oc2.common.machine.screen.ColorDepth;
+import li.cil.oc2.common.machine.screen.ScreenMode;
 import li.cil.oc2.common.machine.screen.TextBuffer;
 
 import javax.annotation.Nullable;
@@ -331,6 +332,9 @@ public final class GraphicsCardComponent extends AbstractLuaComponent {
         final boolean vertical = args.optBoolean(3, false);
 
         synchronized (bound.getLock()) {
+            // Drawing text is what puts a screen back into text mode, the same way drawing pixels
+            // is what takes it out. A program that has finished with a canvas simply prints again.
+            bound.setMode(ScreenMode.TEXT);
             return new Object[]{bound.getBuffer().set(x, y, value, vertical)};
         }
     }
@@ -349,6 +353,7 @@ public final class GraphicsCardComponent extends AbstractLuaComponent {
         }
 
         synchronized (bound.getLock()) {
+            bound.setMode(ScreenMode.TEXT);
             return new Object[]{bound.getBuffer().fill(x, y, width, height, (char) value.codePointAt(0))};
         }
     }
@@ -364,6 +369,7 @@ public final class GraphicsCardComponent extends AbstractLuaComponent {
         final int deltaY = args.checkInteger(5);
 
         synchronized (bound.getLock()) {
+            bound.setMode(ScreenMode.TEXT);
             return new Object[]{bound.getBuffer().copy(x, y, width, height, deltaX, deltaY)};
         }
     }

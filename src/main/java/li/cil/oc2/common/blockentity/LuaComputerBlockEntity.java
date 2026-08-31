@@ -7,6 +7,7 @@ import li.cil.oc2.api.machine.MachineHost;
 import li.cil.oc2.common.block.LuaComputerBlock;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.energy.FixedEnergyStorage;
+import li.cil.oc2.common.machine.components.CanvasCardComponent;
 import li.cil.oc2.common.machine.components.ComputerComponent;
 import li.cil.oc2.common.machine.components.EepromComponent;
 import li.cil.oc2.common.machine.components.FilesystemComponent;
@@ -77,6 +78,13 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
 
     private final EepromComponent eeprom = new EepromComponent(UUID.randomUUID().toString());
     private final GraphicsCardComponent gpu = new GraphicsCardComponent(UUID.randomUUID().toString());
+
+    /**
+     * The Tier 4 card. Present alongside the text card rather than instead of it, because a screen
+     * shows one buffer at a time but a program may want both: a terminal to print to and a canvas
+     * to draw on, switched between by drawing.
+     */
+    private final CanvasCardComponent canvas = new CanvasCardComponent(UUID.randomUUID().toString());
     private final FilesystemComponent disk;
     private final FilesystemComponent tmpfs;
     private final ComputerComponent self;
@@ -136,6 +144,7 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
         components.add(self);
         components.add(eeprom);
         components.add(gpu);
+        components.add(canvas);
         components.add(disk);
         components.add(tmpfs);
 

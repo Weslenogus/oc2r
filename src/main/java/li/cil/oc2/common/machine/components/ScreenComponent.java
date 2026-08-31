@@ -6,8 +6,12 @@ import li.cil.oc2.api.machine.Arguments;
 import li.cil.oc2.api.machine.Callback;
 import li.cil.oc2.api.machine.Context;
 import li.cil.oc2.api.machine.LuaComponent;
+import li.cil.oc2.common.machine.screen.CanvasBuffer;
 import li.cil.oc2.common.machine.screen.ColorDepth;
+import li.cil.oc2.common.machine.screen.ScreenMode;
 import li.cil.oc2.common.machine.screen.TextBuffer;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +39,21 @@ public final class ScreenComponent extends AbstractLuaComponent {
     private final TextBuffer buffer;
     private final Object lock = new Object();
     private final List<KeyboardComponent> keyboards = new ArrayList<>();
+
+    /**
+     * The pixel buffer, built the first time a canvas card asks for one.
+     * <p>
+     * Lazily, because it is a quarter of a megabyte and the overwhelming majority of screens will
+     * only ever show text. A screen that has never had a canvas card pointed at it does not pay
+     * for the possibility.
+     */
+    @Nullable private CanvasBuffer canvas;
+
+    /**
+     * Which buffer the screen is showing. A screen has both and displays one; a card switches it
+     * by drawing, and a text card switches it back the same way.
+     */
+    private ScreenMode mode = ScreenMode.TEXT;
 
     private boolean isOn = true;
     private boolean isPrecise;
@@ -66,6 +85,59 @@ public final class ScreenComponent extends AbstractLuaComponent {
      */
     public Object getLock() {
         return lock;
+    }
+
+    /**
+     * Which of the two buffers the screen is currently showing.
+     */
+    public ScreenMode getMode() {
+        return mode;
+    }
+
+    /**
+     * Switches what the screen displays.
+     * <p>
+     * Switching does not clear anything: both buffers keep their contents, so a program that flips
+     * to a canvas to draw a splash and back to text finds its terminal where it left it. What it
+     * does do is mark the buffer now on show as needing a full send, because clients have been
+     * watching the other one and know nothing about this one's current state.
+     */
+    public void setMode(final ScreenMode value) {
+        if (mode == value) {
+            return;
+        }
+        mode = value;
+        if (value == ScreenMode.CANVAS) {
+            getOrCreateCanvas().markAll();
+        } else {
+            buffer.markAllDirty();
+        }
+    }
+
+    /**
+     * The pixel buffer, or null if nothing has ever drawn pixels to this screen.
+     */
+    @Nullable
+    public CanvasBuffer getCanvas() {
+        return canvas;
+    }
+
+    /**
+     * The pixel buffer, built on demand. Callers must hold {@link #getLock()}.
+     */
+    public CanvasBuffer getOrCreateCanvas() {
+        if (canvas == null) {
+            canvas = new CanvasBuffer();
+        }
+        return canvas;
+    }
+
+    /**
+     * Replaces the pixel buffer, used when restoring a saved screen or applying a full frame on a
+     * client.
+     */
+    public void setCanvas(final CanvasBuffer value) {
+        canvas = value;
     }
 
     public boolean isOn() {

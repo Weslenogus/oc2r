@@ -3,9 +3,12 @@
 package li.cil.oc2.client.gui;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import li.cil.oc2.client.renderer.CanvasPainter;
 import li.cil.oc2.client.renderer.LuaScreenPainter;
 import li.cil.oc2.common.blockentity.LuaScreenBlockEntity;
 import li.cil.oc2.common.machine.input.KeyboardMap;
+import li.cil.oc2.common.machine.screen.CanvasBuffer;
+import li.cil.oc2.common.machine.screen.ScreenMode;
 import li.cil.oc2.common.machine.screen.TextBuffer;
 import li.cil.oc2.common.network.Network;
 import li.cil.oc2.common.network.message.LuaScreenInputMessage;
@@ -93,9 +96,14 @@ public final class LuaTerminalScreen extends Screen {
         // The lock covers reading and drawing the buffer only. Holding it across the widget
         // rendering below would block the machine thread on unrelated work.
         synchronized (screen.getScreen().getLock()) {
+            final boolean isCanvas = screen.getScreen().getMode() == ScreenMode.CANVAS;
+            final CanvasBuffer canvas = isCanvas ? screen.getScreen().getOrCreateCanvas() : null;
             final TextBuffer buffer = screen.getBuffer();
-            final float gridWidth = LuaScreenPainter.widthOf(buffer);
-            final float gridHeight = LuaScreenPainter.heightOf(buffer);
+
+            // Both modes are laid out the same way: work out the picture's size in its own units,
+            // fit it to the window, and draw. Only the last step differs.
+            final float gridWidth = canvas != null ? canvas.getWidth() : LuaScreenPainter.widthOf(buffer);
+            final float gridHeight = canvas != null ? canvas.getHeight() : LuaScreenPainter.heightOf(buffer);
             if (gridWidth <= 0 || gridHeight <= 0) {
                 gridScale = 0;
                 super.render(graphics, mouseX, mouseY, partialTicks);
@@ -117,7 +125,13 @@ public final class LuaTerminalScreen extends Screen {
             pose.pushPose();
             pose.translate(gridLeft, gridTop, 0);
             pose.scale(gridScale, gridScale, 1);
-            LuaScreenPainter.draw(buffer, pose, graphics.bufferSource(), LightTexture.FULL_BRIGHT);
+            if (canvas != null) {
+                // The painter draws into a unit square, so give it the whole area to fill.
+                pose.scale(gridWidth, gridHeight, 1);
+                CanvasPainter.draw(screen, canvas, pose, graphics.bufferSource(), LightTexture.FULL_BRIGHT);
+            } else {
+                LuaScreenPainter.draw(buffer, pose, graphics.bufferSource(), LightTexture.FULL_BRIGHT);
+            }
             pose.popPose();
             graphics.flush();
         }
@@ -259,6 +273,21 @@ public final class LuaTerminalScreen extends Screen {
      * fact.
      */
     private int[] toCell(final double mouseX, final double mouseY) {
+        synchronized (screen.getScreen().getLock()) {
+            if (screen.getScreen().getMode() == ScreenMode.CANVAS) {
+                // In canvas mode a click is a pixel, not a cell. A program drawing its own widgets
+                // has no character grid to hit test against, so handing it cell coordinates would
+                // make everything it draws unclickable.
+                final CanvasBuffer canvas = screen.getScreen().getOrCreateCanvas();
+                final int px = (int) ((mouseX - gridLeft) / gridScale);
+                final int py = (int) ((mouseY - gridTop) / gridScale);
+                if (px < 0 || py < 0 || px >= canvas.getWidth() || py >= canvas.getHeight()) {
+                    return null;
+                }
+                return new int[]{px, py};
+            }
+        }
+
         final int x = (int) ((mouseX - gridLeft) / (LuaScreenPainter.CELL_WIDTH * gridScale));
         final int y = (int) ((mouseY - gridTop) / (LuaScreenPainter.CELL_HEIGHT * gridScale));
 

@@ -4,9 +4,12 @@ package li.cil.oc2.client.renderer.blockentity;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
+import li.cil.oc2.client.renderer.CanvasPainter;
 import li.cil.oc2.client.renderer.LuaScreenPainter;
 import li.cil.oc2.common.block.LuaScreenBlock;
 import li.cil.oc2.common.blockentity.LuaScreenBlockEntity;
+import li.cil.oc2.common.machine.screen.CanvasBuffer;
+import li.cil.oc2.common.machine.screen.ScreenMode;
 import li.cil.oc2.common.machine.screen.TextBuffer;
 import li.cil.oc2.common.network.Network;
 import li.cil.oc2.common.network.message.LuaScreenRequestMessage;
@@ -87,23 +90,43 @@ public final class LuaScreenRenderer implements BlockEntityRenderer<LuaScreenBlo
         stack.scale(-1, -1, -1);
 
         synchronized (screen.getScreen().getLock()) {
-            final TextBuffer buffer = screen.getBuffer();
-            final float width = LuaScreenPainter.widthOf(buffer);
-            final float height = LuaScreenPainter.heightOf(buffer);
+            final float width;
+            final float height;
+            final CanvasBuffer canvas;
+
+            if (screen.getScreen().getMode() == ScreenMode.CANVAS) {
+                canvas = screen.getScreen().getOrCreateCanvas();
+                width = canvas.getWidth();
+                height = canvas.getHeight();
+            } else {
+                canvas = null;
+                final TextBuffer buffer = screen.getBuffer();
+                width = LuaScreenPainter.widthOf(buffer);
+                height = LuaScreenPainter.heightOf(buffer);
+            }
+
             if (width <= 0 || height <= 0) {
                 stack.popPose();
                 return;
             }
 
-            // Fit the grid to the block face, leaving a small margin so the text does not run into
-            // the bezel. Uniform scale, so a 160 by 50 screen keeps its aspect ratio.
+            // Fit to the block face, leaving a small margin so the picture does not run into the
+            // bezel. Uniform scale, so a 160 by 50 grid or a 320 by 200 canvas keeps its aspect
+            // ratio rather than being stretched square.
             final float margin = 0.05f;
             final float scale = Math.min((1 - margin * 2) / width, (1 - margin * 2) / height);
             stack.translate((1 - width * scale) / 2, (1 - height * scale) / 2, 0);
             stack.scale(scale, scale, scale);
 
             // Screens are self lit: a terminal in a dark room is still readable.
-            LuaScreenPainter.draw(buffer, stack, bufferSource, LightTexture.FULL_BRIGHT);
+            if (canvas != null) {
+                // The painter draws into a unit square, so undo the per pixel scale it does not
+                // need and hand it the whole area instead.
+                stack.scale(width, height, 1);
+                CanvasPainter.draw(screen, canvas, stack, bufferSource, LightTexture.FULL_BRIGHT);
+            } else {
+                LuaScreenPainter.draw(screen.getBuffer(), stack, bufferSource, LightTexture.FULL_BRIGHT);
+            }
         }
 
         stack.popPose();
