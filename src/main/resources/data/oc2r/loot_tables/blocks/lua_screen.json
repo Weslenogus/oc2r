@@ -1,0 +1,38 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "rolls": 1.0,
+      "bonus_rolls": 0.0,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "functions": [
+            {
+              "function": "minecraft:copy_nbt",
+              "source": "block_entity",
+              "ops": [
+                {
+                  "source": "screen",
+                  "target": "BlockEntityTag.screen",
+                  "op": "replace"
+                },
+                {
+                  "source": "keyboard",
+                  "target": "BlockEntityTag.keyboard",
+                  "op": "replace"
+                }
+              ]
+            }
+          ],
+          "name": "oc2r:lua_screen"
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ]
+    }
+  ]
+}

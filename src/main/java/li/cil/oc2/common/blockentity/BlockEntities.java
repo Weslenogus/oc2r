@@ -35,6 +35,9 @@ public final class BlockEntities {
 
     public static final RegistryObject<BlockEntityType<InternetGateWayBlockEntity>> INTERNET_GATEWAY = register(Blocks.INTERNET_GATEWAY, InternetGateWayBlockEntity::new);
 
+    public static final RegistryObject<BlockEntityType<LuaComputerBlockEntity>> LUA_COMPUTER = register(Blocks.LUA_COMPUTER, LuaComputerBlockEntity::new);
+    public static final RegistryObject<BlockEntityType<LuaScreenBlockEntity>> LUA_SCREEN = register(Blocks.LUA_SCREEN, LuaScreenBlockEntity::new);
+
     ///////////////////////////////////////////////////////////////////
 
     public static void initialize(FMLJavaModLoadingContext context) {

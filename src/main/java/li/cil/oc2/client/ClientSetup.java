@@ -43,6 +43,7 @@ public final class ClientSetup {
         BlockEntityRenderers.register(BlockEntities.CHARGER.get(), ChargerRenderer::new);
         BlockEntityRenderers.register(BlockEntities.PROJECTOR.get(), ProjectorRenderer::new);
         BlockEntityRenderers.register(BlockEntities.INTERNET_GATEWAY.get(), InternetGateWayRenderer::new);
+        BlockEntityRenderers.register(BlockEntities.LUA_SCREEN.get(), LuaScreenRenderer::new);
 
         event.enqueueWork(() -> {
             CustomItemModelProperties.initialize();
@@ -57,6 +58,15 @@ public final class ClientSetup {
 
             // We need to register this manually, because static init throws errors when running data generation.
             MinecraftForge.EVENT_BUS.register(ProjectorDepthRenderer.class);
+
+            // Canvas screens hold a GPU texture each. Leaving them behind on world unload would
+            // leak video memory for every server the player visits.
+            MinecraftForge.EVENT_BUS.addListener(
+                (final net.minecraftforge.event.level.LevelEvent.Unload unload) -> {
+                    if (unload.getLevel().isClientSide()) {
+                        li.cil.oc2.client.renderer.CanvasPainter.clear();
+                    }
+                });
         });
     }
 

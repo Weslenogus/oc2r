@@ -5,6 +5,7 @@ import net.minecraftforge.common.ForgeConfigSpec;
 public class CommonSpec {
     public static final ForgeConfigSpec CONFIG_SPEC;
     private static final VMSpec vmSpec;
+    private static final LuaMachineSpec luaMachineSpec;
     private static final EnergySpec energySpec;
     private static final GameplaySpec gameplaySpec;
     private static final AdminSpec adminSpec;
@@ -17,6 +18,11 @@ public class CommonSpec {
         // VM CONFIGURATION //
         builder.push("vm");
         vmSpec = new VMSpec(builder);
+        builder.pop();
+
+        // LUA MACHINE CONFIGURATION //
+        builder.push("lua_machine");
+        luaMachineSpec = new LuaMachineSpec(builder);
         builder.pop();
 
         // ENERGY CONFIGURATION //
@@ -50,6 +56,8 @@ public class CommonSpec {
     public static void loadValues() {
         // VM CONFIGURATION //
         vmSpec.loadValues();
+        // LUA MACHINE CONFIGURATION //
+        luaMachineSpec.loadValues();
         // ENERGY CONFIGURATION //
         energySpec.loadValues();
         // GAMEPLAY CONFIGURATION //

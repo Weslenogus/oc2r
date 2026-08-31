@@ -36,6 +36,8 @@ public final class ItemGroup {
             output.accept(Items.NETWORK_HUB.get());
             output.accept(Items.PROJECTOR.get());
             output.accept(Items.MONITOR.get());
+            output.accept(Items.LUA_COMPUTER.get());
+            output.accept(Items.LUA_SCREEN.get());
             output.accept(Items.REDSTONE_INTERFACE.get());
             output.accept(Items.WRENCH.get());
             output.accept(Items.MANUAL.get());

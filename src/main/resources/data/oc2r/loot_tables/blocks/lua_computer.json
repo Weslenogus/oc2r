@@ -1,0 +1,53 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "rolls": 1.0,
+      "bonus_rolls": 0.0,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "functions": [
+            {
+              "function": "minecraft:copy_nbt",
+              "source": "block_entity",
+              "ops": [
+                {
+                  "source": "machine",
+                  "target": "BlockEntityTag.machine",
+                  "op": "replace"
+                },
+                {
+                  "source": "eeprom",
+                  "target": "BlockEntityTag.eeprom",
+                  "op": "replace"
+                },
+                {
+                  "source": "disk",
+                  "target": "BlockEntityTag.disk",
+                  "op": "replace"
+                },
+                {
+                  "source": "diskAddress",
+                  "target": "BlockEntityTag.diskAddress",
+                  "op": "replace"
+                },
+                {
+                  "source": "energy",
+                  "target": "BlockEntityTag.energy",
+                  "op": "replace"
+                }
+              ]
+            }
+          ],
+          "name": "oc2r:lua_computer"
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ]
+    }
+  ]
+}

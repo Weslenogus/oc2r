@@ -43,6 +43,11 @@ public final class ModBlockStateProvider extends BlockStateProvider {
         horizontalBlock(Blocks.CHARGER, Items.CHARGER, CHARGER_MODEL);
         horizontalBlock(Blocks.COMPUTER, Items.COMPUTER, COMPUTER_MODEL);
         horizontalBlock(Blocks.MONITOR, Items.MONITOR, MONITOR_MODEL);
+        // The Lua machine reuses the existing computer and monitor models. It is a different
+        // runtime, not a different-looking machine, and inventing textures for it would be a
+        // cosmetic change dressed up as a functional one.
+        horizontalBlock(Blocks.LUA_COMPUTER, Items.LUA_COMPUTER, COMPUTER_MODEL);
+        horizontalBlock(Blocks.LUA_SCREEN, Items.LUA_SCREEN, MONITOR_MODEL);
         simpleBlock(Blocks.CREATIVE_ENERGY, Items.CREATIVE_ENERGY);
         horizontalBlock(Blocks.DISK_DRIVE, Items.DISK_DRIVE, DISK_DRIVE_MODEL);
         horizontalBlock(Blocks.KEYBOARD, Items.KEYBOARD, KEYBOARD_MODEL);

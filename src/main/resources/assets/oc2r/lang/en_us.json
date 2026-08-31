@@ -28,6 +28,10 @@
   "block.oc2r.keyboard.desc": "Allows keyboard input when using a projector.",
   "block.oc2r.internet_gateway": "Internet Gateway",
   "block.oc2r.internet_gateway.desc": "Gives access to the Internet.",
+  "block.oc2r.lua_computer": "Lua Computer",
+  "block.oc2r.lua_computer.desc": "Runs the OpenComputers 1 Lua environment, for software such as OpenOS and MineOS.",
+  "block.oc2r.lua_screen": "Lua Screen",
+  "block.oc2r.lua_screen.desc": "A tier 3 text display for a Lua Computer. Right click to open it.",
 
   "item.oc2r.wrench": "Scrench",
   "item.oc2r.wrench.desc": "Configures devices and dismantles them (while sneaking).",
@@ -102,6 +106,11 @@
   "gui.oc2r.computer.bus_state.multiple_controllers": "Multiple Bus Controllers",
   "gui.oc2r.computer.error.not_enough_energy": "Not Enough Energy",
   "gui.oc2r.computer.error.missing_cpu": "Missing CPU",
+
+  "gui.oc2r.lua_terminal": "Lua Terminal",
+  "gui.oc2r.lua_terminal.capture_input": "Capture Input",
+  "gui.oc2r.lua_terminal.release_input": "Release Input",
+  "gui.oc2r.lua_terminal.input_released": "Input released; press Escape to close.",
 
   "gui.oc2r.computer.capture_input.capt": "Capture Input",
   "gui.oc2r.computer.capture_input.desc": "When enabled, as long as the mouse cursor is hovering the terminal contents, all input will be captured, including the escape key.",
