@@ -18,6 +18,25 @@ public final class Config {
     public static long maxAllocatedMemory = 512 * Constants.MEGABYTE;
     public static int diskSizeFactor = 2 * Constants.MEGABYTE;
 
+    // Limits for the OpenComputers 1 compatible Lua machines. Kept here rather than in the
+    // machine package because that package is deliberately free of Minecraft types, which is what
+    // lets the runtime be unit tested without a server; the block entity reads these and answers
+    // for them through MachineHost.
+    public static int luaDefaultRam = 16 * Constants.MEGABYTE;
+    public static int luaMaxRam = 64 * Constants.MEGABYTE;
+    public static int luaCpuTimeoutMs = 5000;
+    public static int luaCpuSliceMs = 100;
+    public static int luaMaxDiskSize = 8 * Constants.MEGABYTE;
+    public static int luaDirectCallsPerTickFactor = 8;
+
+    /**
+     * Memory a Lua machine actually gets, which is what it asks for or the ceiling, whichever is
+     * smaller.
+     */
+    public static int luaRam() {
+        return Math.min(luaDefaultRam, luaMaxRam);
+    }
+
     public static double busCableEnergyPerTick = 0.1;
     public static double busInterfaceEnergyPerTick = 0.5;
     public static int computerEnergyPerTick = 10;

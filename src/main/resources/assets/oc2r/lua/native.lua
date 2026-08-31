@@ -12,6 +12,11 @@
   is what the pure Java backend does, is not an option here: a Lua hook runs inside a C call, and
   Lua will not yield across one.
 
+  Java decides which of those two an error is. Running out of time is fatal and takes the re-arm;
+  running out of memory is not, and is raised as an ordinary error the program may catch and
+  recover from, which is how it behaves in OpenComputers 1 and what an operating system there is
+  written to expect.
+
   newenv. Real Lua runs its hook for whatever code the coroutine is executing, whatever environment
   that code was loaded with, so a chunk with its own environment needs no wrapping and this answers
   nothing. The pure Java backend hands back a stand-in instead.
@@ -26,9 +31,13 @@ local checkDeadline = raw.checkdeadline
 local interval = raw.HOOK_INTERVAL
 
 local function hook()
-  local reason = checkDeadline()
+  local reason, fatal = checkDeadline()
   if reason then
-    debug_sethook(coroutine_running(), hook, "", 1)
+    if fatal then
+      -- Re-arm to fire on the very next instruction. A program can catch the error, but the
+      -- instruction after the handler raises it again, so it cannot get anywhere.
+      debug_sethook(coroutine_running(), hook, "", 1)
+    end
     error(reason, 0)
   end
 end

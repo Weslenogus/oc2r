@@ -35,6 +35,48 @@ public interface MachineHost {
     int getMemorySize();
 
     /**
+     * How long the machine may run without yielding before it is stopped with
+     * "too long without yielding", in milliseconds.
+     * <p>
+     * This kills the machine, so it wants to sit well clear of any legitimate workload; it is not
+     * the knob for bounding how long a turn takes, which is {@link #getCpuSliceMillis()}.
+     *
+     * @return the no-yield budget in milliseconds.
+     */
+    default int getCpuTimeoutMillis() {
+        return 5000;
+    }
+
+    /**
+     * How long one slice of execution may run before the machine is preempted and rescheduled, in
+     * milliseconds. Unlike {@link #getCpuTimeoutMillis()} this is not an error: the machine carries
+     * on from where it stood.
+     * <p>
+     * Only a backend that can interrupt running code honours this. Real Lua cannot, because its
+     * hook runs inside a C call and Lua will not yield across one, so there a slice runs until the
+     * program yields of its own accord.
+     *
+     * @return the slice length in milliseconds.
+     */
+    default int getCpuSliceMillis() {
+        return 100;
+    }
+
+    /**
+     * Multiplier on how many {@link Callback#direct() direct} calls a component method may serve
+     * per tick before further calls are promoted to the synchronized path.
+     * <p>
+     * The per method allowances are sized for OpenComputers 1's 80x25 screens. A host driving
+     * something larger, or simply running on hardware from this century, raises this so an
+     * operating system redrawing itself is not spending its life waiting for ticks.
+     *
+     * @return the multiplier, at least 1.
+     */
+    default int getDirectCallsPerTickFactor() {
+        return 1;
+    }
+
+    /**
      * Energy currently stored, in whatever unit the host's energy system uses.
      *
      * @return the stored energy.

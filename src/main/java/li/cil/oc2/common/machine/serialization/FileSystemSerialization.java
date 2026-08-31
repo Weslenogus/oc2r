@@ -7,9 +7,12 @@ import li.cil.oc2.common.machine.fs.VirtualFileSystem;
 import li.cil.oc2.common.util.NBTTagIds;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtIo;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -28,6 +31,7 @@ import java.util.Deque;
 public final class FileSystemSerialization {
     private static final Logger LOGGER = LogManager.getLogger();
 
+    private static final String PACKED_TAG_NAME = "packed";
     private static final String ENTRIES_TAG_NAME = "entries";
     private static final String PATH_TAG_NAME = "path";
     private static final String DATA_TAG_NAME = "data";
@@ -38,7 +42,18 @@ public final class FileSystemSerialization {
      * unbounded blob, and a disk this large is a sign something has gone wrong rather than a
      * legitimate use.
      */
-    private static final long MAX_TOTAL_BYTES = 16L * 1024 * 1024;
+    private static final long MAX_TOTAL_BYTES = 64L * 1024 * 1024;
+
+    /**
+     * What Minecraft will read back off the network in one tag, from
+     * {@code FriendlyByteBuf.readNbt}.
+     * <p>
+     * It matters here because a computer's disk travels in the dropped item's NBT, and an item is
+     * sent to clients. A disk that packs to more than this cannot survive being mined: the client
+     * receiving it throws rather than truncating. Compression is what keeps an ordinary operating
+     * system install, which is nearly all text, well inside it.
+     */
+    private static final int NETWORK_TAG_LIMIT = 2 * 1024 * 1024;
 
     private FileSystemSerialization() {
     }
@@ -77,8 +92,7 @@ public final class FileSystemSerialization {
                 if (total + size > MAX_TOTAL_BYTES) {
                     LOGGER.warn("Refusing to save file system contents beyond {} bytes; [{}] and " +
                         "anything after it were dropped.", MAX_TOTAL_BYTES, child);
-                    tag.put(ENTRIES_TAG_NAME, entries);
-                    return tag;
+                    return pack(tag, entries);
                 }
                 total += size;
 
@@ -94,12 +108,46 @@ public final class FileSystemSerialization {
             }
         }
 
-        tag.put(ENTRIES_TAG_NAME, entries);
-        return tag;
+        return pack(tag, entries);
+    }
+
+    /**
+     * Compresses the entry list into a single byte array.
+     * <p>
+     * A disk is mostly source code, which is four to five times smaller compressed, and it has to
+     * pass through both a region file and, when the computer is mined, an item's NBT on its way to
+     * a client. Storing the tree as tags rather than bytes would spend the whole budget on
+     * structure that gzip removes for nothing.
+     */
+    private static CompoundTag pack(final CompoundTag tag, final ListTag entries) {
+        final CompoundTag inner = new CompoundTag();
+        inner.put(ENTRIES_TAG_NAME, entries);
+
+        try {
+            final ByteArrayOutputStream out = new ByteArrayOutputStream();
+            NbtIo.writeCompressed(inner, out);
+            final byte[] packed = out.toByteArray();
+
+            if (packed.length > NETWORK_TAG_LIMIT) {
+                LOGGER.warn("A file system packs to {} bytes, over the {} byte limit on a tag sent "
+                        + "to a client. It is safe where it is, but a computer holding it cannot be "
+                        + "mined without disconnecting whoever picks it up. Lower maxDiskSize, or "
+                        + "keep less on the disk.",
+                    packed.length, NETWORK_TAG_LIMIT);
+            }
+
+            tag.putByteArray(PACKED_TAG_NAME, packed);
+            return tag;
+        } catch (final IOException e) {
+            // Nothing sensible to do but fall back to the uncompressed form, which still reads.
+            LOGGER.warn("Could not compress file system contents: {}", e.getMessage());
+            tag.put(ENTRIES_TAG_NAME, entries);
+            return tag;
+        }
     }
 
     public static void deserialize(final CompoundTag tag, final VirtualFileSystem fileSystem) {
-        final ListTag entries = tag.getList(ENTRIES_TAG_NAME, NBTTagIds.TAG_COMPOUND);
+        final ListTag entries = readEntries(tag);
         for (int i = 0; i < entries.size(); i++) {
             final CompoundTag entry = entries.getCompound(i);
             final String path = entry.getString(PATH_TAG_NAME);
@@ -119,6 +167,24 @@ public final class FileSystemSerialization {
             } catch (final IOException | IllegalArgumentException e) {
                 LOGGER.warn("Skipping unreadable file system entry [{}]: {}", path, e.getMessage());
             }
+        }
+    }
+
+    /**
+     * Reads the entry list, compressed or not. The plain list is what disks written before
+     * compression carry, and reading both is what lets one be loaded and saved back compressed.
+     */
+    private static ListTag readEntries(final CompoundTag tag) {
+        if (!tag.contains(PACKED_TAG_NAME, NBTTagIds.TAG_BYTE_ARRAY)) {
+            return tag.getList(ENTRIES_TAG_NAME, NBTTagIds.TAG_COMPOUND);
+        }
+        try {
+            final CompoundTag inner = NbtIo.readCompressed(
+                new ByteArrayInputStream(tag.getByteArray(PACKED_TAG_NAME)));
+            return inner.getList(ENTRIES_TAG_NAME, NBTTagIds.TAG_COMPOUND);
+        } catch (final IOException e) {
+            LOGGER.warn("Could not read compressed file system contents: {}", e.getMessage());
+            return new ListTag();
         }
     }
 

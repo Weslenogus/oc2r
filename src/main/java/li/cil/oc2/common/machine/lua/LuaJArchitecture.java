@@ -62,16 +62,14 @@ public final class LuaJArchitecture implements LuaArchitecture {
     private static final String MACHINE_SCRIPT = "/assets/oc2r/lua/machine.lua";
 
     /**
-     * How long a single slice of Lua execution may run before the debug hook preempts it. Half a
-     * tick, leaving the server thread room for everything else it has to do.
+     * Slice length used until the first slice has asked the host for its own figure, which is
+     * where the server config's answer arrives. Only ever in force for a machine whose host does
+     * not override {@link li.cil.oc2.api.machine.MachineHost#getCpuSliceMillis()}.
      */
     private static final long DEFAULT_SLICE_BUDGET_NANOS = TimeUnit.MILLISECONDS.toNanos(50);
 
     /**
-     * How much execution time the machine may accumulate without yielding of its own accord before
-     * it is killed. Generous, because legitimate work such as unpacking an operating system image
-     * takes a while, but finite, because a {@code while true do end} would otherwise sit there
-     * burning a worker thread for as long as its chunk stays loaded.
+     * No-yield budget used until the first slice has asked the host, as above.
      * <p>
      * Measured as time actually spent executing rather than wall clock, so a machine is judged on
      * the work it did and not on how often the server got round to scheduling it.
@@ -87,8 +85,20 @@ public final class LuaJArchitecture implements LuaArchitecture {
     ///////////////////////////////////////////////////////////////////
 
     private final LuaMachine machine;
-    private final long sliceBudgetNanos;
-    private final long hardDeadlineNanos;
+
+    /**
+     * Explicit budgets, or zero to take the host's. Tests pin them; a machine in the world asks the
+     * host every slice, so changing the server config takes effect without a restart.
+     */
+    private final long sliceBudgetOverrideNanos;
+    private final long hardDeadlineOverrideNanos;
+
+    /**
+     * The budgets in force for the slice currently running, read once at its start so the hook does
+     * not go back to the host every ten thousand instructions.
+     */
+    private long sliceBudgetNanos = DEFAULT_SLICE_BUDGET_NANOS;
+    private long hardDeadlineNanos = DEFAULT_HARD_DEADLINE_NANOS;
 
     @Nullable private Globals globals;
 
@@ -138,13 +148,13 @@ public final class LuaJArchitecture implements LuaArchitecture {
     ///////////////////////////////////////////////////////////////////
 
     public LuaJArchitecture(final LuaMachine machine) {
-        this(machine, DEFAULT_SLICE_BUDGET_NANOS, DEFAULT_HARD_DEADLINE_NANOS);
+        this(machine, 0, 0);
     }
 
     public LuaJArchitecture(final LuaMachine machine, final long sliceBudgetNanos, final long hardDeadlineNanos) {
         this.machine = machine;
-        this.sliceBudgetNanos = sliceBudgetNanos;
-        this.hardDeadlineNanos = hardDeadlineNanos;
+        this.sliceBudgetOverrideNanos = sliceBudgetNanos;
+        this.hardDeadlineOverrideNanos = hardDeadlineNanos;
     }
 
     ///////////////////////////////////////////////////////////////////
@@ -231,6 +241,11 @@ public final class LuaJArchitecture implements LuaArchitecture {
         if (trampoline == null) {
             return new ExecutionResult.Error("machine is not initialized");
         }
+
+        sliceBudgetNanos = sliceBudgetOverrideNanos > 0 ? sliceBudgetOverrideNanos
+            : TimeUnit.MILLISECONDS.toNanos(machine.getHost().getCpuSliceMillis());
+        hardDeadlineNanos = hardDeadlineOverrideNanos > 0 ? hardDeadlineOverrideNanos
+            : TimeUnit.MILLISECONDS.toNanos(machine.getHost().getCpuTimeoutMillis());
 
         final long now = System.nanoTime();
         sliceStart = now;

@@ -78,10 +78,30 @@ public final class NativeLuaArchitecture implements LuaArchitecture {
      */
     private static final int HOOK_INTERVAL = 10_000;
 
+    /**
+     * Shortest gap between forced collections when the heap is over its ceiling.
+     */
+    private static final long COLLECT_INTERVAL_NANOS = TimeUnit.MILLISECONDS.toNanos(250);
+
     ///////////////////////////////////////////////////////////////////
 
     private final LuaMachine machine;
-    private final long hardDeadlineNanos;
+
+    /**
+     * An explicit no-yield budget, or zero to take the host's. Tests pin it; a machine in the world
+     * asks the host at the start of every slice, so changing the server config takes effect
+     * without a restart.
+     */
+    private final long hardDeadlineOverrideNanos;
+
+    /**
+     * The budget in force for the slice currently running, and the memory ceiling alongside it,
+     * both read once at its start so the hook does not go back to the host every ten thousand
+     * instructions.
+     */
+    private long hardDeadlineNanos = DEFAULT_HARD_DEADLINE_NANOS;
+    private int memoryCeiling = Integer.MAX_VALUE;
+
     private final NativeLuaValues values = new NativeLuaValues(this::pushValue);
 
     /**
@@ -97,6 +117,12 @@ public final class NativeLuaArchitecture implements LuaArchitecture {
     private boolean closeRequested;
 
     private long sliceStart;
+
+    /**
+     * When the heap was last collected on purpose, so a machine sitting at its ceiling does not
+     * spend its whole slice collecting.
+     */
+    private long lastCollect;
 
     /**
      * Set by the hook when it decides the machine is finished. Java reports the crash whatever the
@@ -124,12 +150,12 @@ public final class NativeLuaArchitecture implements LuaArchitecture {
     ///////////////////////////////////////////////////////////////////
 
     public NativeLuaArchitecture(final LuaMachine machine) {
-        this(machine, DEFAULT_HARD_DEADLINE_NANOS);
+        this(machine, 0);
     }
 
     public NativeLuaArchitecture(final LuaMachine machine, final long hardDeadlineNanos) {
         this.machine = machine;
-        this.hardDeadlineNanos = hardDeadlineNanos;
+        this.hardDeadlineOverrideNanos = hardDeadlineNanos;
     }
 
     /**
@@ -276,8 +302,13 @@ public final class NativeLuaArchitecture implements LuaArchitecture {
     }
 
     private ExecutionResult slice(final Lua state, @Nullable final Signal signal) {
+        hardDeadlineNanos = hardDeadlineOverrideNanos > 0 ? hardDeadlineOverrideNanos
+            : TimeUnit.MILLISECONDS.toNanos(machine.getHost().getCpuTimeoutMillis());
+        memoryCeiling = getMemoryTotal();
+
         sliceStart = System.nanoTime();
         deadlineTripped = false;
+        lastCollect = 0;
 
         state.setTop(0);
         state.refGet(trampolineRef);
@@ -520,12 +551,15 @@ public final class NativeLuaArchitecture implements LuaArchitecture {
         state.setField(-2, "unicode");
 
         state.push(fn(inner -> {
-            final String reason = deadlineReason();
+            final String reason = deadlineReason(inner);
             if (reason == null) {
                 return 0;
             }
+            // (message, fatal): a fatal reason has the hook re-arm itself so the error cannot be
+            // caught, which is the only way to stop a program that will not stop itself.
             values.pushString(inner, reason);
-            return 1;
+            inner.push(deadlineTripped);
+            return 2;
         }));
         state.setField(-2, "checkdeadline");
 
@@ -542,21 +576,75 @@ public final class NativeLuaArchitecture implements LuaArchitecture {
     }
 
     /**
-     * Why the machine should stop, or null to carry on. Asked by the deadline hook.
+     * Why the machine should stop, or null to carry on. Asked by the hook every
+     * {@link #HOOK_INTERVAL} instructions.
+     * <p>
+     * Sets {@link #deadlineTripped} for the reasons the machine does not get to survive; a reason
+     * raised without it is an ordinary Lua error the program may catch, which is how running out
+     * of memory behaves in OpenComputers 1 and what operating systems there expect.
      */
     @Nullable
-    private String deadlineReason() {
+    private String deadlineReason(final Lua state) {
         if (closeRequested) {
             // The host tore the machine down while this slice was running. Unwinding is how the
             // worker thread lets go of a state that is about to be closed.
             deadlineTripped = true;
             return "machine stopped";
         }
+
         if (System.nanoTime() - sliceStart >= hardDeadlineNanos) {
             deadlineTripped = true;
             return "too long without yielding";
         }
+
+        if (isOverMemoryCeiling(state)) {
+            return "not enough memory";
+        }
+
         return null;
+    }
+
+    /**
+     * Whether the Lua heap has outgrown the machine's installed memory.
+     * <p>
+     * There is no way to hand a real Lua an allocator that refuses, so the ceiling has to be
+     * checked rather than imposed. That makes it worth being sure before acting on it: a heap over
+     * the line is usually a heap that simply has not been collected yet, so the reading only counts
+     * once a full collection has failed to bring it back. Collections are rate limited, because one
+     * every ten thousand instructions would cost far more than the memory it saves.
+     * <p>
+     * Without this {@code computer.totalMemory} would be a number the machine reports and nothing
+     * honours, and a single Lua program could take as much of the server's memory as it liked.
+     */
+    private boolean isOverMemoryCeiling(final Lua state) {
+        sample(state);
+        if (memoryUsed <= memoryCeiling) {
+            return false;
+        }
+
+        final long now = System.nanoTime();
+        if (lastCollect != 0 && now - lastCollect < COLLECT_INTERVAL_NANOS) {
+            // Already collected recently and still over; say so without paying for it again.
+            return true;
+        }
+
+        return collect(state) > memoryCeiling;
+    }
+
+    /**
+     * Collects the Lua heap and returns what is left, in bytes.
+     */
+    private int collect(final Lua state) {
+        lastCollect = System.nanoTime();
+        try {
+            ((Lua53Natives) state.getLuaNatives())
+                .lua_gc(state.getPointer(), Lua53Consts.LUA_GCCOLLECT, 0);
+        } catch (final Throwable e) {
+            LOGGER.debug("Failed collecting the Lua heap.", e);
+            return 0;
+        }
+        sample(state);
+        return memoryUsed;
     }
 
     private void pushComponentApi(final Lua state) {
@@ -689,6 +777,13 @@ public final class NativeLuaArchitecture implements LuaArchitecture {
             // does so from inside a slice, and a slice can allocate a great deal without ever
             // reaching the point where the cached figure is refreshed.
             sample(inner);
+            if (memoryUsed > memoryCeiling) {
+                // Over the line, which is usually a heap that has not been collected rather than
+                // one that is actually full. A program asking this question has just freed
+                // something and wants to know whether it worked, so answer it properly: this is an
+                // explicit call, not the hook, so it can afford the collection.
+                collect(inner);
+            }
             return push(inner, Math.max(0, getMemoryTotal() - getMemoryUsed()));
         });
         pushFunction(state, "energy", inner -> push(inner, machine.getHost().getEnergyStored()));

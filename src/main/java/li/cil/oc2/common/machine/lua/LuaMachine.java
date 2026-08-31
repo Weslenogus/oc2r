@@ -96,7 +96,7 @@ public final class LuaMachine implements Machine {
     private final MachineHost host;
     private final ComponentBus bus;
     private final SignalQueue signals = new SignalQueue();
-    private final DirectCallBudget directCallBudget = new DirectCallBudget();
+    private final DirectCallBudget directCallBudget;
     private final LuaArchitecture architecture;
     private final Context directContext = new MachineContext(false);
     private final Context synchronizedContext = new MachineContext(true);
@@ -133,6 +133,7 @@ public final class LuaMachine implements Machine {
         this.host = host;
         this.address = address;
         this.bus = new ComponentBus(this);
+        this.directCallBudget = new DirectCallBudget(host.getDirectCallsPerTickFactor());
         this.architecture = architectureFactory.apply(this);
     }
 

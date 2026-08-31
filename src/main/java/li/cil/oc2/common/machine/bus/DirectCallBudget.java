@@ -20,6 +20,26 @@ public final class DirectCallBudget {
     private final Map<String, AtomicInteger> counters = new ConcurrentHashMap<>();
 
     /**
+     * Multiplier on every method's declared allowance.
+     * <p>
+     * The allowances themselves come from OpenComputers 1, where a screen was 80x25. Repainting a
+     * 160x50 one a cell at a time is 8000 gpu calls, which at the stock 256 per tick would take an
+     * operating system two thirds of a second of waiting for ticks to get one frame out. Direct
+     * calls never touch the server thread, so the host is free to say that its hardware can take
+     * rather more of them than a 2015 mod assumed.
+     */
+    private final int factor;
+
+    /**
+     * @param factor the host's multiplier; anything below one is treated as one, so a
+     *               misconfigured server gets the stock allowances rather than a machine that
+     *               cannot call anything.
+     */
+    public DirectCallBudget(final int factor) {
+        this.factor = Math.max(1, factor);
+    }
+
+    /**
      * Tries to spend one direct call for the given component method.
      *
      * @param address the address of the component being called.
@@ -33,7 +53,10 @@ public final class DirectCallBudget {
         }
         final AtomicInteger counter = counters.computeIfAbsent(
             address + '\0' + method.getName(), ignored -> new AtomicInteger());
-        return counter.incrementAndGet() <= method.getLimit();
+        // Saturating, so a host with a large factor and a method with a large allowance cannot
+        // wrap into a negative limit and refuse every call.
+        final long limit = (long) method.getLimit() * factor;
+        return counter.incrementAndGet() <= limit;
     }
 
     /**

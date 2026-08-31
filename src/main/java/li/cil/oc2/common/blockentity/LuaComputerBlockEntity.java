@@ -4,7 +4,6 @@ package li.cil.oc2.common.blockentity;
 
 import li.cil.oc2.api.machine.LuaComponent;
 import li.cil.oc2.api.machine.MachineHost;
-import li.cil.oc2.common.Constants;
 import li.cil.oc2.common.block.LuaComputerBlock;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.energy.FixedEnergyStorage;
@@ -60,15 +59,17 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
     private static final String ENERGY_TAG_NAME = "energy";
 
     /**
-     * Capacity of the built-in disk. Large enough for an operating system and a working set of
-     * programs, small enough that a chunk carrying one is not unreasonable.
+     * Share of the disk's capacity the temporary filesystem gets. An operating system unpacks
+     * downloads and holds working files there, so it has to scale with the disk rather than sit at
+     * some fixed figure that was generous when disks were a megabyte.
      */
-    private static final int DISK_CAPACITY = Constants.MEGABYTE;
+    private static final int TMPFS_FRACTION = 8;
 
     /**
-     * Capacity of the temporary filesystem, which lives only in memory.
+     * Floor under the above, so a server that has configured a tiny disk still leaves room for the
+     * scratch space every operating system assumes exists.
      */
-    private static final int TMPFS_CAPACITY = 256 * 1024;
+    private static final int MIN_TMPFS_CAPACITY = 256 * 1024;
 
     ///////////////////////////////////////////////////////////////////
 
@@ -94,10 +95,12 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
     public LuaComputerBlockEntity(final BlockPos pos, final BlockState state) {
         super(BlockEntities.LUA_COMPUTER.get(), pos, state);
 
+        // Both grow as they are used rather than up front, so these are ceilings and not a cost.
+        final int diskCapacity = Config.luaMaxDiskSize;
         disk = new FilesystemComponent(UUID.randomUUID().toString(),
-            new RamFileSystem(DISK_CAPACITY), "disk");
+            new RamFileSystem(diskCapacity), "disk");
         tmpfs = new FilesystemComponent(UUID.randomUUID().toString(),
-            new RamFileSystem(TMPFS_CAPACITY), "tmpfs");
+            new RamFileSystem(Math.max(MIN_TMPFS_CAPACITY, diskCapacity / TMPFS_FRACTION)), "tmpfs");
 
         machine = new LuaMachine(this);
         self = new ComputerComponent(machine.getAddress());
@@ -153,10 +156,25 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
     public int getMemorySize() {
         // OpenComputers 1 tops out at two Tier 3.5 sticks, about 3.5MB, and MineOS asks for that
         // maximum. Measured here, MineOS's libraries take 1.4MB just to compile, before any of
-        // them has run, so 2MB would leave a computer that boots and then runs out of memory
-        // doing anything. There is no container to upgrade, so the fixed configuration has to be
-        // the one that works.
-        return 4 * Constants.MEGABYTE;
+        // them has run, so anything near that leaves a computer which boots and then runs out of
+        // memory doing anything. There is no container to upgrade, so the configuration has to be
+        // the one that works; the server owner decides how much further to go.
+        return Config.luaRam();
+    }
+
+    @Override
+    public int getCpuTimeoutMillis() {
+        return Config.luaCpuTimeoutMs;
+    }
+
+    @Override
+    public int getCpuSliceMillis() {
+        return Config.luaCpuSliceMs;
+    }
+
+    @Override
+    public int getDirectCallsPerTickFactor() {
+        return Config.luaDirectCallsPerTickFactor;
     }
 
     @Override

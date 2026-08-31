@@ -24,6 +24,10 @@ public final class TestMachineHost implements MachineHost {
     private final List<String> beeps = new ArrayList<>();
 
     private double energy = 5000;
+    private int memorySize = 2 * 1024 * 1024;
+    private int cpuTimeoutMillis = 5000;
+    private int cpuSliceMillis = 100;
+    private int directCallsPerTickFactor = 1;
 
     public void add(final LuaComponent component) {
         components.add(component);
@@ -48,7 +52,38 @@ public final class TestMachineHost implements MachineHost {
 
     @Override
     public int getMemorySize() {
-        return 2 * 1024 * 1024;
+        return memorySize;
+    }
+
+    public void setMemorySize(final int value) {
+        memorySize = value;
+    }
+
+    @Override
+    public int getCpuTimeoutMillis() {
+        return cpuTimeoutMillis;
+    }
+
+    public void setCpuTimeoutMillis(final int value) {
+        cpuTimeoutMillis = value;
+    }
+
+    @Override
+    public int getCpuSliceMillis() {
+        return cpuSliceMillis;
+    }
+
+    public void setCpuSliceMillis(final int value) {
+        cpuSliceMillis = value;
+    }
+
+    @Override
+    public int getDirectCallsPerTickFactor() {
+        return directCallsPerTickFactor;
+    }
+
+    public void setDirectCallsPerTickFactor(final int value) {
+        directCallsPerTickFactor = value;
     }
 
     @Override

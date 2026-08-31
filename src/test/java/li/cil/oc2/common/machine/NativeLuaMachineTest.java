@@ -343,6 +343,7 @@ public class NativeLuaMachineTest {
     void reportsRealMemoryUse() throws Exception {
         final LuaMachineTest.Recorder recorder = new LuaMachineTest.Recorder();
         final TestMachineHost host = new TestMachineHost();
+        host.setMemorySize(16 * 1024 * 1024);
         host.add(eepromWith("""
             local address = component.list("recorder")()
             local before = computer.freeMemory()
@@ -361,7 +362,74 @@ public class NativeLuaMachineTest {
 
         assertEquals(List.of(), host.getCrashes());
         // A real figure, not the fixed fraction the Java backend has to invent.
-        assertEquals(List.of("total 2097152", "spent true"), recorder.notes);
+        assertEquals(List.of("total " + host.getMemorySize(), "spent true"), recorder.notes);
+    }
+
+    @Test
+    void memoryReportingScalesWithInstalledMemory() throws Exception {
+        // The Java backend has to invent a fixed fraction here. A real Lua knows what its heap
+        // holds, which is what makes a modern memory budget worth configuring at all.
+        for (final int megabytes : new int[]{4, 16, 32, 64}) {
+            final LuaMachineTest.Recorder recorder = new LuaMachineTest.Recorder();
+            final TestMachineHost host = new TestMachineHost();
+            host.setMemorySize(megabytes * 1024 * 1024);
+            host.add(eepromWith("""
+                local address = component.list("recorder")()
+                component.invoke(address, "note", computer.totalMemory() .. " " .. computer.freeMemory())
+                computer.shutdown()
+                """));
+            host.add(recorder);
+
+            final LuaMachine machine = native_(host);
+            machine.start();
+            TestMachineHost.run(machine, 200);
+
+            assertEquals(List.of(), host.getCrashes());
+            final String[] parts = recorder.notes.get(0).split(" ");
+            final long total = Long.parseLong(parts[0]);
+            final long free = Long.parseLong(parts[1]);
+
+            assertEquals(megabytes * 1024L * 1024L, total);
+            // An idle machine has the sandbox and the kernel loaded and very little else, so nearly
+            // all of a modern budget should still be there. If this starts failing, something is
+            // reporting a fixed fraction again rather than measuring.
+            assertTrue(free > total * 9 / 10,
+                "at " + megabytes + "MB only " + free + " of " + total + " bytes were free");
+        }
+    }
+
+    @Test
+    void enforcesTheMemoryCeilingAndLetsAProgramRecover() throws Exception {
+        // There is no way to hand a real Lua an allocator that refuses, so the ceiling has to be
+        // checked from the hook. Without this computer.totalMemory() would be a number the machine
+        // reports and nothing honours, and one Lua program could take the whole server's memory.
+        final LuaMachineTest.Recorder recorder = new LuaMachineTest.Recorder();
+        final TestMachineHost host = new TestMachineHost();
+        host.setMemorySize(16 * 1024 * 1024);
+        host.add(eepromWith("""
+            local address = component.list("recorder")()
+            local function note(text) component.invoke(address, "note", text) end
+
+            local keep = {}
+            local ok, err = pcall(function()
+              for i = 1, 4000000 do keep[i] = ("x"):rep(200) end
+            end)
+            note("stopped " .. tostring(ok) .. " " .. tostring(err))
+
+            -- Running out of memory is an ordinary error, not the uncatchable timeout, so a
+            -- program that frees what it was holding carries on. MineOS closes windows here.
+            keep = nil
+            note("recovered " .. tostring(computer.freeMemory() > 8 * 1024 * 1024))
+            computer.shutdown()
+            """));
+        host.add(recorder);
+
+        final LuaMachine machine = native_(host);
+        machine.start();
+        TestMachineHost.run(machine, 2000);
+
+        assertEquals(List.of("stopped false not enough memory", "recovered true"), recorder.notes);
+        assertEquals(List.of(), host.getCrashes(), "running out of memory must not kill the machine");
     }
 
     @Test
