@@ -80,6 +80,9 @@ sandbox.dofile = nil
 sandbox.loadfile = nil
 sandbox.print = nil
 sandbox.io = nil
+-- The two names a Java hosted Lua uses for its interop table. Either one is a way out of the
+-- sandbox and straight into the host: java.import("java.lang.Runtime") and you own the server.
+sandbox.java = nil
 sandbox.luajava = nil
 sandbox.require = nil
 sandbox.module = nil

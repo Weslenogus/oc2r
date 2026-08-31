@@ -120,6 +120,14 @@ repositories {
 
 }
 
+configurations {
+    // Merged into the mod jar rather than nested with jarJar. The loader that finds the Lua
+    // shared library reads it with SharedLibraryLoader.class.getResourceAsStream, which only
+    // ever looks inside that class's own module; a nested jar would put the library in a
+    // different one and the lookup would come back empty.
+    shade
+}
+
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     annotationProcessor "org.spongepowered:mixin:0.8.5:processor"
@@ -138,6 +146,17 @@ dependencies {
     minecraftLibrary "org.apache.commons:commons-collections4:${apache_commons_version}"
     // Pure-Java Lua 5.2 VM backing the OpenComputers 1 compatible Lua runtime.
     minecraftLibrary "org.luaj:luaj-jse:${luaj_version}"
+    // Real Lua 5.3 through JNI, which is what the same runtime prefers when the natives load:
+    // LuaJ's compiler counts local variables across the whole enclosing chain, so it rejects
+    // several of MineOS's libraries that the standard compiler accepts.
+    minecraftLibrary "party.iroiro.luajava:luajava:${luajava_version}"
+    minecraftLibrary "party.iroiro.luajava:lua53:${luajava_version}"
+    minecraftLibrary "com.badlogicgames.gdx:gdx-jnigen-loader:${gdx_jnigen_version}"
+    minecraftLibrary "party.iroiro.luajava:lua53-platform:${luajava_version}:natives-desktop"
+    shade "party.iroiro.luajava:luajava:${luajava_version}"
+    shade "party.iroiro.luajava:lua53:${luajava_version}"
+    shade "com.badlogicgames.gdx:gdx-jnigen-loader:${gdx_jnigen_version}"
+    shade "party.iroiro.luajava:lua53-platform:${luajava_version}:natives-desktop"
 
     implementation fg.deobf("curse.maven:architectury-api-${architectury_project_id}:${architectury_file_id}")
     implementation fg.deobf("curse.maven:markdownmanual-${markdownmanual_project_id}:${markdownmanual_file_id}")
@@ -198,7 +217,15 @@ tasks.register('copyLicensesToResources', Copy) {
 processResources.dependsOn(packageScripts)
 processResources.dependsOn(copyLicensesToResources)
 
-tasks.named('jarJar'){
+// The shipped artifact. jarJar builds it from the source sets rather than from the jar task's
+// output, so the merge has to be repeated here or the distributed jar would be the one
+// without a Lua in it.
+tasks.named('jarJar') {
+    from({ project.configurations.shade.collect { it.isDirectory() ? it : zipTree(it) } }) {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        exclude "META-INF/MANIFEST.MF", "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA",
+            "META-INF/versions/**", "module-info.class"
+    }
 }
 
 minecraft {
@@ -256,6 +283,12 @@ tasks.register('copyGeneratedResources', Copy) {
 
 jar {
     finalizedBy "reobfJar"
+
+    from({ project.configurations.shade.collect { it.isDirectory() ? it : zipTree(it) } }) {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        exclude "META-INF/MANIFEST.MF", "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA",
+            "META-INF/versions/**", "module-info.class"
+    }
 
     manifest {
         attributes([

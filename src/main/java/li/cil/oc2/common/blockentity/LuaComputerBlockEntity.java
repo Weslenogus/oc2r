@@ -151,7 +151,12 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
 
     @Override
     public int getMemorySize() {
-        return 2 * Constants.MEGABYTE;
+        // OpenComputers 1 tops out at two Tier 3.5 sticks, about 3.5MB, and MineOS asks for that
+        // maximum. Measured here, MineOS's libraries take 1.4MB just to compile, before any of
+        // them has run, so 2MB would leave a computer that boots and then runs out of memory
+        // doing anything. There is no container to upgrade, so the fixed configuration has to be
+        // the one that works.
+        return 4 * Constants.MEGABYTE;
     }
 
     @Override

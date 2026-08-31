@@ -36,7 +36,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * End to end coverage of the OpenComputers 1 compatible Lua runtime.
+ * End to end coverage of the OpenComputers 1 compatible Lua runtime, on the pure Java backend.
+ * <p>
+ * Every machine here names {@link LuaJArchitecture} rather than taking whichever backend
+ * {@code LuaArchitectures} prefers, because several of these tests are about that backend in
+ * particular: what its parser refuses, and how it preempts. {@code NativeLuaMachineTest} covers
+ * the same ground on real Lua, where the answers legitimately differ.
  * <p>
  * These boot the real {@code bios.lua} through the real sandbox rather than exercising pieces in
  * isolation, because the parts most likely to break are the seams: a system yield bubbling out of
@@ -134,7 +139,7 @@ public class LuaMachineTest {
         host.add(tmpfs);
         host.setTmpAddress(tmpfs.getComponentAddress());
 
-        final LuaMachine machine = new LuaMachine(host);
+        final LuaMachine machine = new LuaMachine(host, UUID.randomUUID().toString(), LuaJArchitecture::new);
         host.add(new ComputerComponent(machine.getAddress()));
         machine.start();
 
@@ -171,7 +176,7 @@ public class LuaMachineTest {
         final TestMachineHost host = new TestMachineHost();
         host.add(eepromWith(bios()));
 
-        final LuaMachine machine = new LuaMachine(host);
+        final LuaMachine machine = new LuaMachine(host, UUID.randomUUID().toString(), LuaJArchitecture::new);
         machine.start();
         TestMachineHost.run(machine, 60);
 
@@ -192,7 +197,7 @@ public class LuaMachineTest {
             """));
         host.add(counter);
 
-        final LuaMachine machine = new LuaMachine(host);
+        final LuaMachine machine = new LuaMachine(host, UUID.randomUUID().toString(), LuaJArchitecture::new);
         machine.start();
         TestMachineHost.run(machine, 120);
 
@@ -257,7 +262,7 @@ public class LuaMachineTest {
             """));
         host.add(recorder);
 
-        final LuaMachine machine = new LuaMachine(host);
+        final LuaMachine machine = new LuaMachine(host, UUID.randomUUID().toString(), LuaJArchitecture::new);
         machine.start();
         TestMachineHost.run(machine, 300);
 
@@ -313,7 +318,7 @@ public class LuaMachineTest {
             """));
         host.add(recorder);
 
-        final LuaMachine machine = new LuaMachine(host);
+        final LuaMachine machine = new LuaMachine(host, UUID.randomUUID().toString(), LuaJArchitecture::new);
         machine.start();
         TestMachineHost.run(machine, 120);
 
@@ -378,7 +383,7 @@ public class LuaMachineTest {
             """));
         host.add(recorder);
 
-        final LuaMachine machine = new LuaMachine(host);
+        final LuaMachine machine = new LuaMachine(host, UUID.randomUUID().toString(), LuaJArchitecture::new);
         machine.start();
         TestMachineHost.run(machine, 300);
 
@@ -417,7 +422,7 @@ public class LuaMachineTest {
             """));
         host.add(recorder);
 
-        final LuaMachine machine = new LuaMachine(host);
+        final LuaMachine machine = new LuaMachine(host, UUID.randomUUID().toString(), LuaJArchitecture::new);
         machine.start();
         TestMachineHost.run(machine, 120);
 
@@ -465,7 +470,7 @@ public class LuaMachineTest {
         host.add(eepromWith(program));
         host.add(recorder);
 
-        final LuaMachine machine = new LuaMachine(host);
+        final LuaMachine machine = new LuaMachine(host, UUID.randomUUID().toString(), LuaJArchitecture::new);
         machine.start();
         TestMachineHost.run(machine, 120);
 

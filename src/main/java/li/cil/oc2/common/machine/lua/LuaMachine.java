@@ -121,11 +121,11 @@ public final class LuaMachine implements Machine {
     ///////////////////////////////////////////////////////////////////
 
     public LuaMachine(final MachineHost host) {
-        this(host, UUID.randomUUID().toString(), LuaJArchitecture::new);
+        this(host, UUID.randomUUID().toString(), LuaArchitectures.preferred());
     }
 
     public LuaMachine(final MachineHost host, final String address) {
-        this(host, address, LuaJArchitecture::new);
+        this(host, address, LuaArchitectures.preferred());
     }
 
     public LuaMachine(final MachineHost host, final String address,
