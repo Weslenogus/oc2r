@@ -56,6 +56,13 @@ public final class ModLootTableProvider extends LootTableProvider {
             dropSelf(Blocks.NETWORK_HUB.get());
             dropSelf(Blocks.PROJECTOR.get());
             dropSelf(Blocks.REDSTONE_INTERFACE.get());
+            // A Lua computer carries its disk and a screen carries its address, so both are
+            // dropped with those intact: mining a computer and putting it back down should not
+            // wipe the operating system installed on it.
+            add(Blocks.LUA_COMPUTER.get(), block -> droppingWithData(block,
+                LUA_COMPUTER_DATA_TAG_NAMES));
+            add(Blocks.LUA_SCREEN.get(), block -> droppingWithData(block,
+                LUA_SCREEN_DATA_TAG_NAMES));
         }
 
         @Override
@@ -65,6 +72,31 @@ public final class ModLootTableProvider extends LootTableProvider {
                 .filter(blockRegObj -> blockRegObj.get() != Blocks.BUS_CABLE.get())
                 .map(RegistryObject::get)
                 .collect(Collectors.toList());
+        }
+
+        /**
+         * Tags a Lua computer keeps when mined: the disk it was carrying, its EEPROM, the
+         * machine's own address and its stored energy.
+         */
+        private static final String[] LUA_COMPUTER_DATA_TAG_NAMES =
+            {"machine", "eeprom", "disk", "diskAddress", "energy"};
+
+        /**
+         * A screen keeps its addresses and what was on it, so an operating system that recorded
+         * which display it was using still finds it.
+         */
+        private static final String[] LUA_SCREEN_DATA_TAG_NAMES = {"screen", "keyboard"};
+
+        private LootTable.Builder droppingWithData(final Block block, final String[] tagNames) {
+            final CopyNbtFunction.Builder copy = CopyNbtFunction.copyData(ContextNbtProvider.BLOCK_ENTITY);
+            for (final String tagName : tagNames) {
+                copy.copy(tagName, concat(BLOCK_ENTITY_TAG_NAME_IN_ITEM, tagName),
+                    CopyNbtFunction.MergeStrategy.REPLACE);
+            }
+            return LootTable.lootTable()
+                .withPool(applyExplosionCondition(block, LootPool.lootPool()
+                    .setRolls(ConstantValue.exactly(1))
+                    .add(LootItem.lootTableItem(block).apply(copy))));
         }
 
         private LootTable.Builder droppingWithInventory(final Block block) {

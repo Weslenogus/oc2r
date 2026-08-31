@@ -8,6 +8,9 @@ import li.cil.oc2.common.machine.components.EepromComponent;
 import li.cil.oc2.common.machine.components.ScreenComponent;
 import li.cil.oc2.common.machine.lua.LuaMachine;
 import li.cil.oc2.common.machine.screen.TextBuffer;
+import li.cil.oc2.common.machine.fs.RamFileSystem;
+import li.cil.oc2.common.machine.fs.VirtualFileSystem;
+import li.cil.oc2.common.machine.serialization.FileSystemSerialization;
 import li.cil.oc2.common.machine.serialization.MachineSerialization;
 import net.minecraft.nbt.CompoundTag;
 import org.junit.jupiter.api.Test;
@@ -125,6 +128,42 @@ public class MachineSerializationTest {
     }
 
     @Test
+    void roundTripsAFileSystemsContents() throws Exception {
+        final RamFileSystem source = new RamFileSystem(1 << 18);
+        write(source, "/init.lua", "print('hello')".getBytes(StandardCharsets.UTF_8));
+        write(source, "/bin/nested/deep.bin", new byte[]{0, 1, 2, (byte) 0xFF});
+        source.makeDirectory("/empty");
+
+        final CompoundTag tag = FileSystemSerialization.serialize(source);
+
+        final RamFileSystem restored = new RamFileSystem(1 << 18);
+        FileSystemSerialization.deserialize(tag, restored);
+
+        assertEquals("print('hello')", new String(read(restored, "/init.lua"), StandardCharsets.UTF_8));
+        // Binary content has to survive intact; a disk holds whatever a program put on it.
+        assertArrayEquals(new byte[]{0, 1, 2, (byte) 0xFF}, read(restored, "/bin/nested/deep.bin"));
+        assertTrue(restored.isDirectory("/bin/nested"));
+        assertTrue(restored.isDirectory("/empty"), "an empty directory is still a directory");
+    }
+
+    @Test
+    void fileSystemRestoreIgnoresEntriesThatEscapeTheRoot() {
+        // A region file can be hand edited, so a saved path is no more trustworthy than one a
+        // machine passed in.
+        final CompoundTag tag = new CompoundTag();
+        final net.minecraft.nbt.ListTag entries = new net.minecraft.nbt.ListTag();
+        final CompoundTag escaping = new CompoundTag();
+        escaping.putString("path", "../../escaped.txt");
+        escaping.putByteArray("data", new byte[]{1});
+        entries.add(escaping);
+        tag.put("entries", entries);
+
+        final RamFileSystem restored = new RamFileSystem(1 << 16);
+        FileSystemSerialization.deserialize(tag, restored);
+        assertEquals(0, restored.getSpaceUsed());
+    }
+
+    @Test
     void roundTripsAScreenIncludingItsPalette() {
         final ScreenComponent screen = new ScreenComponent("screen-address");
         synchronized (screen.getLock()) {
@@ -148,4 +187,18 @@ public class MachineSerializationTest {
         assertEquals(0xABCDEF, buffer.getPaletteColor(4));
         assertEquals(4, buffer.getForegroundPaletteIndexAt(2, 3));
     }
+    private static void write(final RamFileSystem fs, final String path, final byte[] data)
+        throws java.io.IOException {
+        final int handle = fs.open(path, VirtualFileSystem.Mode.WRITE);
+        fs.write(handle, data);
+        fs.close(handle);
+    }
+
+    private static byte[] read(final RamFileSystem fs, final String path) throws java.io.IOException {
+        final int handle = fs.open(path, VirtualFileSystem.Mode.READ);
+        final byte[] data = fs.read(handle, Long.MAX_VALUE);
+        fs.close(handle);
+        return data;
+    }
+
 }

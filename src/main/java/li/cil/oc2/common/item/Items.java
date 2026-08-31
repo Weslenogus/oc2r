@@ -41,6 +41,8 @@ public final class Items {
     public static final RegistryObject<Item> VXLAN_HUB = register(Blocks.VXLAN_HUB);
     public static final RegistryObject<Item> PCI_CARD_CAGE = register(Blocks.PCI_CARD_CAGE);
     public static final RegistryObject<Item> INTERNET_GATEWAY = register(Blocks.INTERNET_GATEWAY);
+    public static final RegistryObject<Item> LUA_COMPUTER = register(Blocks.LUA_COMPUTER);
+    public static final RegistryObject<Item> LUA_SCREEN = register(Blocks.LUA_SCREEN);
 
     ///////////////////////////////////////////////////////////////////
 

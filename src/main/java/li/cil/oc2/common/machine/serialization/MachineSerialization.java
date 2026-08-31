@@ -243,6 +243,7 @@ public final class MachineSerialization {
     }
 
     public static void deserialize(final CompoundTag tag, final EepromComponent eeprom) {
+        eeprom.setComponentAddress(readAddress(tag));
         eeprom.setCode(tag.getByteArray(CODE_TAG_NAME));
         eeprom.setData(tag.getByteArray(DATA_TAG_NAME));
         if (tag.contains(LABEL_TAG_NAME, NBTTagIds.TAG_STRING)) {
@@ -260,6 +261,7 @@ public final class MachineSerialization {
     }
 
     public static void deserialize(final CompoundTag tag, final DriveComponent drive) {
+        drive.setComponentAddress(readAddress(tag));
         if (tag.contains(LABEL_TAG_NAME, NBTTagIds.TAG_STRING)) {
             drive.setLabel(tag.getString(LABEL_TAG_NAME));
         }
@@ -290,6 +292,10 @@ public final class MachineSerialization {
     }
 
     public static void deserialize(final CompoundTag tag, final ScreenComponent screen) {
+        screen.setComponentAddress(readAddress(tag));
+        if (tag.contains(IS_ON_TAG_NAME, NBTTagIds.TAG_BYTE)) {
+            screen.setOn(tag.getBoolean(IS_ON_TAG_NAME));
+        }
         if (!tag.contains(BUFFER_TAG_NAME, NBTTagIds.TAG_BYTE_ARRAY)) {
             return;
         }

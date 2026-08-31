@@ -32,6 +32,11 @@ public final class Blocks {
 
     public static final RegistryObject<InternetGatewayBlock> INTERNET_GATEWAY = BLOCKS.register("internet_gateway", InternetGatewayBlock::new);
 
+    // The OpenComputers 1 compatible Lua machine, alongside the RISC-V computer rather than
+    // replacing it: the two run different software and a world can hold both.
+    public static final RegistryObject<LuaComputerBlock> LUA_COMPUTER = BLOCKS.register("lua_computer", LuaComputerBlock::new);
+    public static final RegistryObject<LuaScreenBlock> LUA_SCREEN = BLOCKS.register("lua_screen", LuaScreenBlock::new);
+
     ///////////////////////////////////////////////////////////////////
 
     public static void initialize(FMLJavaModLoadingContext context) {

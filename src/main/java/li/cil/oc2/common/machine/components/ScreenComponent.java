@@ -72,6 +72,10 @@ public final class ScreenComponent extends AbstractLuaComponent {
         return isOn;
     }
 
+    public void setOn(final boolean value) {
+        isOn = value;
+    }
+
     /**
      * Attaches a keyboard, which is what makes it show up in {@code screen.getKeyboards} and lets
      * an operating system decide where to send input.

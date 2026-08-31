@@ -16,7 +16,7 @@ import java.util.UUID;
  */
 public abstract class AbstractLuaComponent implements LuaComponent {
     private final String type;
-    private final String address;
+    private String address;
     private int slot = -1;
 
     protected AbstractLuaComponent(final String type) {
@@ -36,6 +36,20 @@ public abstract class AbstractLuaComponent implements LuaComponent {
     @Override
     public final String getComponentAddress() {
         return address;
+    }
+
+    /**
+     * Restores a saved address.
+     * <p>
+     * Components are constructed before their block entity's tag is read, so a component that has
+     * been placed before comes into existence with a fresh address and has to be told the one it
+     * had. Must only be called before the component is attached to a bus: the bus keys on address,
+     * and an operating system has the old one written down.
+     *
+     * @param value the address this component was saved with.
+     */
+    public final void setComponentAddress(final String value) {
+        address = value;
     }
 
     @Override

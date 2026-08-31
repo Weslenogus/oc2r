@@ -43,6 +43,7 @@ public final class ClientSetup {
         BlockEntityRenderers.register(BlockEntities.CHARGER.get(), ChargerRenderer::new);
         BlockEntityRenderers.register(BlockEntities.PROJECTOR.get(), ProjectorRenderer::new);
         BlockEntityRenderers.register(BlockEntities.INTERNET_GATEWAY.get(), InternetGateWayRenderer::new);
+        BlockEntityRenderers.register(BlockEntities.LUA_SCREEN.get(), LuaScreenRenderer::new);
 
         event.enqueueWork(() -> {
             CustomItemModelProperties.initialize();
