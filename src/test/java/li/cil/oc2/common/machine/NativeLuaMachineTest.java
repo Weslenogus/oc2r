@@ -451,6 +451,11 @@ public class NativeLuaMachineTest {
 
     @Test
     void isWhatAMachineChoosesByDefault() {
+        // Not when the backend has been pinned for this run, which is how the suite is taken
+        // through the pure Java one:  ./gradlew test -Poc2r.lua.architecture=luaj
+        assumeTrue(System.getProperty(LuaArchitectures.OVERRIDE_PROPERTY, "").isBlank(),
+            "the backend is pinned for this run");
+
         // LuaArchitectures picks the backend, and a machine built without naming one takes its
         // answer. With the natives loadable that answer has to be real Lua, or every operating
         // system this exists to run would quietly land on the fallback instead.

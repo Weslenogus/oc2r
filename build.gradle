@@ -375,6 +375,12 @@ idea {
 
 test {
     useJUnitPlatform()
+
+    // Lets a run pin the Lua backend, so the suite can be taken through the pure Java one as well
+    // as the native one:  ./gradlew test -Poc2r.lua.architecture=luaj
+    if (project.hasProperty("oc2r.lua.architecture")) {
+        systemProperty "oc2r.lua.architecture", project.property("oc2r.lua.architecture")
+    }
 }
 
 compileJava {

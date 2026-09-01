@@ -31,9 +31,10 @@ public class LuaMachineSpecTest {
 
         assertEquals(16 * Constants.MEGABYTE, spec.defaultRam.getDefault());
         assertEquals(64 * Constants.MEGABYTE, spec.maxRam.getDefault());
-        // Bounded by what a client will read off the network rather than by taste: a computer's
-        // disk rides in the dropped item's NBT. DiskNbtTest is the measurement behind this figure.
-        assertEquals(8 * Constants.MEGABYTE, spec.maxDiskSize.getDefault());
+        // A computer's disk rides in the dropped item's NBT, and is kept out of what that item
+        // sends to clients, so this is bounded by what is reasonable to write into a chunk rather
+        // than by the network. DiskNbtTest holds the two ends of that together.
+        assertEquals(32 * Constants.MEGABYTE, spec.maxDiskSize.getDefault());
 
         assertTrue(spec.defaultRam.getDefault() <= spec.maxRam.getDefault(),
             "a machine would boot with less memory than the config appears to offer");

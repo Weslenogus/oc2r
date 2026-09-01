@@ -16,7 +16,7 @@ import java.util.UUID;
 public final class Config {
     //TODO: Implement configuration of CPU MHzs
     public static long maxAllocatedMemory = 512 * Constants.MEGABYTE;
-    public static int diskSizeFactor = 2 * Constants.MEGABYTE;
+    public static int diskSizeFactor = 8 * Constants.MEGABYTE;
 
     // Limits for the OpenComputers 1 compatible Lua machines. Kept here rather than in the
     // machine package because that package is deliberately free of Minecraft types, which is what
@@ -26,7 +26,7 @@ public final class Config {
     public static int luaMaxRam = 64 * Constants.MEGABYTE;
     public static int luaCpuTimeoutMs = 5000;
     public static int luaCpuSliceMs = 100;
-    public static int luaMaxDiskSize = 8 * Constants.MEGABYTE;
+    public static int luaMaxDiskSize = 32 * Constants.MEGABYTE;
     public static int luaDirectCallsPerTickFactor = 8;
 
     /**

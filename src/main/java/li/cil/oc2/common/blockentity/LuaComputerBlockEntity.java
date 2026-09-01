@@ -13,7 +13,9 @@ import li.cil.oc2.common.machine.components.EepromComponent;
 import li.cil.oc2.common.machine.components.FilesystemComponent;
 import li.cil.oc2.common.machine.components.GraphicsCardComponent;
 import li.cil.oc2.common.machine.fs.RamFileSystem;
+import li.cil.oc2.common.machine.fs.RomFileSystem;
 import li.cil.oc2.common.machine.lua.LuaMachine;
+import li.cil.oc2.common.machine.screen.MachineErrorScreen;
 import li.cil.oc2.common.machine.serialization.FileSystemSerialization;
 import li.cil.oc2.common.machine.serialization.MachineSerialization;
 import li.cil.oc2.common.util.NBTTagIds;
@@ -33,6 +35,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -53,9 +57,27 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
 
     private static final String BIOS_SCRIPT = "/assets/oc2r/lua/bios.lua";
 
-    private static final String MACHINE_TAG_NAME = "machine";
+    /**
+     * Where the built in ROM lives. Every computer gets a copy of this as a read only filesystem,
+     * and the shell on it is what a machine boots when its disk is still empty.
+     */
+    private static final String ROM_RESOURCE_ROOT = "/assets/oc2r/lua/rom";
+
+    /**
+     * The ROM's contents, read once and shared. Handles are not shared: each computer wraps this
+     * image in its own file system, so two machines reading the ROM cannot close each other's
+     * files.
+     */
+    private static final RomFileSystem.Image ROM_IMAGE = loadRom();
+
+    /**
+     * Public because the item form has to know which parts of a saved computer are the bulky ones,
+     * so it can keep them off the network.
+     */
+    public static final String MACHINE_TAG_NAME = "machine";
+    public static final String DISK_TAG_NAME = "disk";
+
     private static final String EEPROM_TAG_NAME = "eeprom";
-    private static final String DISK_TAG_NAME = "disk";
     private static final String DISK_ADDRESS_TAG_NAME = "diskAddress";
     private static final String ENERGY_TAG_NAME = "energy";
 
@@ -87,6 +109,14 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
     private final CanvasCardComponent canvas = new CanvasCardComponent(UUID.randomUUID().toString());
     private final FilesystemComponent disk;
     private final FilesystemComponent tmpfs;
+
+    /**
+     * The built in shell, as a filesystem the BIOS can boot. Read only, and tried only after every
+     * writable disk, so installing an operating system replaces it without anyone having to remove
+     * anything.
+     */
+    private final FilesystemComponent rom = new FilesystemComponent(UUID.randomUUID().toString(),
+        new RomFileSystem(ROM_IMAGE), "rom");
     private final ComputerComponent self;
     private final LuaMachine machine;
 
@@ -147,6 +177,7 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
         components.add(canvas);
         components.add(disk);
         components.add(tmpfs);
+        components.add(rom);
 
         if (level != null) {
             for (final Direction direction : Direction.values()) {
@@ -250,6 +281,23 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
     @Override
     public void onMachineCrashed(@Nullable final String message) {
         LOGGER.debug("Lua computer at {} stopped: {}", getBlockPos(), message);
+
+        if (level == null || level.isClientSide()) {
+            return;
+        }
+
+        // Put it where the player is looking. The log is the wrong place for "you have not
+        // installed an operating system": the only symptom a player sees otherwise is a screen
+        // that stays black, which reads as the mod being broken rather than as a machine with
+        // nothing to boot.
+        final String reason = message == null || message.isBlank() ? "unknown error" : message;
+        for (final Direction direction : Direction.values()) {
+            if (level.getBlockEntity(getBlockPos().relative(direction))
+                instanceof final LuaScreenBlockEntity screen) {
+                MachineErrorScreen.render(screen.getScreen(), "Machine stopped", reason,
+                    "Right click the computer to start it again.");
+            }
+        }
     }
 
     ///////////////////////////////////////////////////////////////////
@@ -323,6 +371,18 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
     }
 
     ///////////////////////////////////////////////////////////////////
+
+    private static RomFileSystem.Image loadRom() {
+        try {
+            return RomFileSystem.load(ROM_RESOURCE_ROOT);
+        } catch (final IOException e) {
+            // An empty ROM is still a working machine, just one with nothing to fall back on, so
+            // this is logged rather than thrown: a mod that refuses to load because a resource is
+            // missing is worse than one whose computers need a disk.
+            LOGGER.error("Could not read the built in ROM.", e);
+            return new RomFileSystem.Image(Map.of(), Set.of(), 0);
+        }
+    }
 
     private static String loadDefaultBios() {
         try (final InputStream stream = LuaComputerBlockEntity.class.getResourceAsStream(BIOS_SCRIPT)) {

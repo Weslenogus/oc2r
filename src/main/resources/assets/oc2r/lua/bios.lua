@@ -63,16 +63,36 @@ if bootAddress and #bootAddress > 0 then
   init, reason = tryLoadFrom(bootAddress)
 end
 
+-- Then everything else, writable media before read only ones. Every computer carries a ROM with a
+-- shell on it, and that shell exists to be the last resort: an operating system installed on the
+-- disk has to win, whichever order the components happen to come back in.
 if not init then
   computer.setBootAddress()
+
+  local writable, readOnly = {}, {}
   for address in component.list("filesystem") do
-    local candidate, candidateReason = tryLoadFrom(address)
-    if candidate then
-      init = candidate
-      computer.setBootAddress(address)
+    local isReadOnly = component.invoke(address, "isReadOnly")
+    local group = isReadOnly and readOnly or writable
+    group[#group + 1] = address
+  end
+
+  for _, group in ipairs({writable, readOnly}) do
+    for _, address in ipairs(group) do
+      local candidate, candidateReason = tryLoadFrom(address)
+      if candidate then
+        init = candidate
+        -- A read only medium is not remembered. Booting the ROM once must not turn into booting
+        -- the ROM forever, or installing an operating system would appear to do nothing.
+        if not component.invoke(address, "isReadOnly") then
+          computer.setBootAddress(address)
+        end
+        break
+      end
+      reason = reason or candidateReason
+    end
+    if init then
       break
     end
-    reason = reason or candidateReason
   end
 end
 

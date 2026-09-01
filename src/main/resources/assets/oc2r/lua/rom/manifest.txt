@@ -1,0 +1,6 @@
+# The files that make up the built in ROM, one path per line.
+#
+# A manifest rather than a directory listing, because at runtime these live inside a jar, where
+# the class loader offers no way to enumerate a directory. Anything added here is visible to a
+# machine as /rom/<path>.
+init.lua
