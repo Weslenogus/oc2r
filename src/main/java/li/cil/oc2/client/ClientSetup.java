@@ -43,7 +43,12 @@ public final class ClientSetup {
         BlockEntityRenderers.register(BlockEntities.CHARGER.get(), ChargerRenderer::new);
         BlockEntityRenderers.register(BlockEntities.PROJECTOR.get(), ProjectorRenderer::new);
         BlockEntityRenderers.register(BlockEntities.INTERNET_GATEWAY.get(), InternetGateWayRenderer::new);
-        BlockEntityRenderers.register(BlockEntities.LUA_SCREEN.get(), LuaScreenRenderer::new);
+        BlockEntityRenderers.register(BlockEntities.LUA_SCREEN.get(),
+            context -> new LuaScreenRenderer<>(context, LuaScreenRenderer.Face.WHOLE_BLOCK));
+        // The computer draws its own screen on its front panel, which is what makes a machine with
+        // nothing else attached to it visibly a machine that is doing something.
+        BlockEntityRenderers.register(BlockEntities.LUA_COMPUTER.get(),
+            context -> new LuaScreenRenderer<>(context, LuaScreenRenderer.Face.COMPUTER_PANEL));
 
         event.enqueueWork(() -> {
             CustomItemModelProperties.initialize();

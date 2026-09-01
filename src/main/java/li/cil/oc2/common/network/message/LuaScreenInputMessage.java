@@ -2,12 +2,13 @@
 
 package li.cil.oc2.common.network.message;
 
-import li.cil.oc2.common.blockentity.LuaScreenBlockEntity;
+import li.cil.oc2.common.blockentity.LuaScreenView;
 import li.cil.oc2.common.machine.screen.CanvasBuffer;
 import li.cil.oc2.common.machine.screen.ScreenMode;
 import li.cil.oc2.common.machine.screen.TextBuffer;
 import li.cil.oc2.common.network.MessageUtils;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
@@ -54,28 +55,28 @@ public final class LuaScreenInputMessage extends AbstractMessage {
         super(buffer);
     }
 
-    public static LuaScreenInputMessage key(final LuaScreenBlockEntity screen, final boolean down,
+    public static LuaScreenInputMessage key(final LuaScreenView screen, final boolean down,
                                             final int codePoint, final int keyCode) {
         final LuaScreenInputMessage message = new LuaScreenInputMessage();
-        message.pos = screen.getBlockPos();
+        message.pos = screen.getViewPos();
         message.type = down ? Type.KEY_DOWN : Type.KEY_UP;
         message.codePoint = codePoint;
         message.keyCode = keyCode;
         return message;
     }
 
-    public static LuaScreenInputMessage clipboard(final LuaScreenBlockEntity screen, final String value) {
+    public static LuaScreenInputMessage clipboard(final LuaScreenView screen, final String value) {
         final LuaScreenInputMessage message = new LuaScreenInputMessage();
-        message.pos = screen.getBlockPos();
+        message.pos = screen.getViewPos();
         message.type = Type.CLIPBOARD;
         message.text = value;
         return message;
     }
 
-    public static LuaScreenInputMessage mouse(final LuaScreenBlockEntity screen, final Type type,
+    public static LuaScreenInputMessage mouse(final LuaScreenView screen, final Type type,
                                               final int x, final int y, final int button) {
         final LuaScreenInputMessage message = new LuaScreenInputMessage();
-        message.pos = screen.getBlockPos();
+        message.pos = screen.getViewPos();
         message.type = type;
         message.x = x;
         message.y = y;
@@ -111,34 +112,39 @@ public final class LuaScreenInputMessage extends AbstractMessage {
 
     @Override
     protected void handleMessage(final NetworkEvent.Context context) {
-        MessageUtils.withNearbyServerBlockEntityForInteraction(context, pos, LuaScreenBlockEntity.class,
-            this::dispatch);
+        // Either kind of display; the block entity behind the position decides which.
+        MessageUtils.withNearbyServerBlockEntityForInteraction(context, pos, BlockEntity.class,
+            (player, blockEntity) -> {
+                if (blockEntity instanceof final LuaScreenView view) {
+                    dispatch(player, view);
+                }
+            });
     }
 
-    private void dispatch(final ServerPlayer player, final LuaScreenBlockEntity screen) {
+    private void dispatch(final ServerPlayer player, final LuaScreenView screen) {
         final String name = player.getGameProfile().getName();
 
         switch (type) {
-            case KEY_DOWN -> screen.signalAttachedMachines("key_down",
+            case KEY_DOWN -> screen.signalMachines("key_down",
                 screen.getKeyboardAddress(), (double) codePoint, (double) keyCode, name);
-            case KEY_UP -> screen.signalAttachedMachines("key_up",
+            case KEY_UP -> screen.signalMachines("key_up",
                 screen.getKeyboardAddress(), (double) codePoint, (double) keyCode, name);
             case CLIPBOARD -> {
                 if (!text.isEmpty()) {
-                    screen.signalAttachedMachines("clipboard",
+                    screen.signalMachines("clipboard",
                         screen.getKeyboardAddress(), text, name);
                 }
             }
             case TOUCH, DRAG, DROP -> {
                 final int[] cell = clampToScreen(screen, x, y);
-                screen.signalAttachedMachines(type.name().toLowerCase(),
+                screen.signalMachines(type.name().toLowerCase(),
                     screen.getScreenAddress(), (double) cell[0], (double) cell[1],
                     (double) keyCode, name);
             }
             case SCROLL -> {
                 final int[] cell = clampToScreen(screen, x, y);
                 // The button field carries the scroll direction here, positive for up.
-                screen.signalAttachedMachines("scroll",
+                screen.signalMachines("scroll",
                     screen.getScreenAddress(), (double) cell[0], (double) cell[1],
                     (double) Integer.signum(keyCode), name);
             }
@@ -151,7 +157,7 @@ public final class LuaScreenInputMessage extends AbstractMessage {
      * The client sends where it thinks the cursor is, and the client is not to be trusted about
      * that. A program reading a touch out of bounds would index past its own buffer.
      */
-    private static int[] clampToScreen(final LuaScreenBlockEntity screen, final int x, final int y) {
+    private static int[] clampToScreen(final LuaScreenView screen, final int x, final int y) {
         synchronized (screen.getScreen().getLock()) {
             // Whichever buffer is on show decides what a coordinate means: a cell in text mode, a
             // pixel in canvas mode. Clamping against the wrong one would put a click on a 320 by

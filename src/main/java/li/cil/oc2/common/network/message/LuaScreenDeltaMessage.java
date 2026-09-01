@@ -2,6 +2,7 @@
 
 package li.cil.oc2.common.network.message;
 
+import li.cil.oc2.common.blockentity.LuaComputerBlockEntity;
 import li.cil.oc2.common.blockentity.LuaScreenBlockEntity;
 import li.cil.oc2.common.machine.screen.ScreenMode;
 import li.cil.oc2.common.network.MessageUtils;
@@ -28,9 +29,8 @@ public final class LuaScreenDeltaMessage extends AbstractMessage {
 
     ///////////////////////////////////////////////////////////////////
 
-    public LuaScreenDeltaMessage(final LuaScreenBlockEntity screen, final ScreenMode mode,
-                                 final byte[] payload) {
-        this.pos = screen.getBlockPos();
+    public LuaScreenDeltaMessage(final BlockPos pos, final ScreenMode mode, final byte[] payload) {
+        this.pos = pos;
         this.mode = mode;
         this.payload = payload;
     }
@@ -59,7 +59,10 @@ public final class LuaScreenDeltaMessage extends AbstractMessage {
 
     @Override
     protected void handleMessage(final NetworkEvent.Context context) {
+        // Either kind of display: the computer's own screen, or a monitor block.
         MessageUtils.withClientBlockEntityAt(pos, LuaScreenBlockEntity.class,
             screen -> screen.applyDeltaClient(mode, payload));
+        MessageUtils.withClientBlockEntityAt(pos, LuaComputerBlockEntity.class,
+            computer -> computer.applyDeltaClient(mode, payload));
     }
 }

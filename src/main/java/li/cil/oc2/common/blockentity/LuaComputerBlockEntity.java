@@ -12,16 +12,21 @@ import li.cil.oc2.common.machine.components.ComputerComponent;
 import li.cil.oc2.common.machine.components.EepromComponent;
 import li.cil.oc2.common.machine.components.FilesystemComponent;
 import li.cil.oc2.common.machine.components.GraphicsCardComponent;
+import li.cil.oc2.common.machine.components.KeyboardComponent;
+import li.cil.oc2.common.machine.components.ScreenComponent;
 import li.cil.oc2.common.machine.fs.RamFileSystem;
 import li.cil.oc2.common.machine.fs.RomFileSystem;
 import li.cil.oc2.common.machine.lua.LuaMachine;
 import li.cil.oc2.common.machine.screen.MachineErrorScreen;
+import li.cil.oc2.common.machine.screen.ScreenMode;
 import li.cil.oc2.common.machine.serialization.FileSystemSerialization;
 import li.cil.oc2.common.machine.serialization.MachineSerialization;
 import li.cil.oc2.common.util.NBTTagIds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.energy.IEnergyStorage;
@@ -52,7 +57,8 @@ import java.util.UUID;
  * to something a region file can reasonably hold, and it means breaking the block takes the disk
  * with it, which is the behaviour a player expects from a computer they just mined.
  */
-public final class LuaComputerBlockEntity extends ModBlockEntity implements TickableBlockEntity, MachineHost {
+public final class LuaComputerBlockEntity extends ModBlockEntity
+    implements TickableBlockEntity, MachineHost, LuaScreenView {
     private static final Logger LOGGER = LogManager.getLogger();
 
     private static final String BIOS_SCRIPT = "/assets/oc2r/lua/bios.lua";
@@ -78,6 +84,8 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
     public static final String DISK_TAG_NAME = "disk";
 
     private static final String EEPROM_TAG_NAME = "eeprom";
+    private static final String SCREEN_TAG_NAME = "screen";
+    private static final String KEYBOARD_TAG_NAME = "keyboard";
     private static final String DISK_ADDRESS_TAG_NAME = "diskAddress";
     private static final String ENERGY_TAG_NAME = "energy";
 
@@ -107,6 +115,18 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
      * to draw on, switched between by drawing.
      */
     private final CanvasCardComponent canvas = new CanvasCardComponent(UUID.randomUUID().toString());
+
+    /**
+     * The computer's own display, the way the RISC-V computer has one.
+     * <p>
+     * Without it a placed computer shows nothing until a second block is put against it, and
+     * nothing on the block says so - which reads as the machine being broken rather than as a
+     * computer with no monitor. A {@link LuaScreenBlockEntity} is still an external display for
+     * anyone who wants a bigger one, or one somewhere else.
+     */
+    private final ScreenComponent screen = new ScreenComponent(UUID.randomUUID().toString());
+    private final KeyboardComponent keyboard = new KeyboardComponent(UUID.randomUUID().toString());
+
     private final FilesystemComponent disk;
     private final FilesystemComponent tmpfs;
 
@@ -140,6 +160,8 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
         tmpfs = new FilesystemComponent(UUID.randomUUID().toString(),
             new RamFileSystem(Math.max(MIN_TMPFS_CAPACITY, diskCapacity / TMPFS_FRACTION)), "tmpfs");
 
+        keyboard.setScreen(screen);
+
         machine = new LuaMachine(this);
         self = new ComputerComponent(machine.getAddress());
 
@@ -166,6 +188,57 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
     }
 
     ///////////////////////////////////////////////////////////////////
+    // LuaScreenView
+
+    @Override
+    public ScreenComponent getScreen() {
+        return screen;
+    }
+
+    @Override
+    public String getKeyboardAddress() {
+        return keyboard.getComponentAddress();
+    }
+
+    @Override
+    public BlockEntity getBlockEntity() {
+        return this;
+    }
+
+    @Override
+    public void signalMachines(final String name, final Object... args) {
+        machine.signal(name, args);
+    }
+
+    @Override
+    public boolean isMachineRunning() {
+        // The client has no machine to ask, and reading the block state answers for both sides: it
+        // carries the lit flag and is synchronized already.
+        if (level != null && level.isClientSide()) {
+            final BlockState state = getBlockState();
+            return state.hasProperty(LuaComputerBlock.LIT) && state.getValue(LuaComputerBlock.LIT);
+        }
+        return machine.isRunning();
+    }
+
+    @Override
+    public void setMachineRunning(final boolean value) {
+        if (value) {
+            start();
+        } else {
+            stop();
+        }
+    }
+
+    public void sendFullSync(final ServerPlayer player) {
+        LuaScreenSync.sendFullSync(this, player);
+    }
+
+    public void applyDeltaClient(final ScreenMode mode, final byte[] payload) {
+        LuaScreenSync.applyDelta(this, mode, payload);
+    }
+
+    ///////////////////////////////////////////////////////////////////
     // MachineHost
 
     @Override
@@ -175,6 +248,8 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
         components.add(eeprom);
         components.add(gpu);
         components.add(canvas);
+        components.add(screen);
+        components.add(keyboard);
         components.add(disk);
         components.add(tmpfs);
         components.add(rom);
@@ -182,9 +257,9 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
         if (level != null) {
             for (final Direction direction : Direction.values()) {
                 if (level.getBlockEntity(getBlockPos().relative(direction))
-                    instanceof final LuaScreenBlockEntity screen) {
-                    components.add(screen.getScreen());
-                    components.add(screen.getKeyboard());
+                    instanceof final LuaScreenBlockEntity external) {
+                    components.add(external.getScreen());
+                    components.add(external.getKeyboard());
                 }
             }
         }
@@ -229,7 +304,11 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
 
     @Override
     public double getEnergyPerTick() {
-        return Config.computerEnergyPerTick;
+        // Its own setting, not the RISC-V computer's, and zero by default. This block has no
+        // inventory screen and no energy bar, so a machine that stops the tick after it starts
+        // because an invisible buffer is empty is indistinguishable from a machine that does not
+        // work at all - which is exactly how it read.
+        return Config.luaComputerEnergyPerTick;
     }
 
     @Override
@@ -291,11 +370,17 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
         // that stays black, which reads as the mod being broken rather than as a machine with
         // nothing to boot.
         final String reason = message == null || message.isBlank() ? "unknown error" : message;
+
+        // Its own screen first: that is the one a player is looking at if they have not placed
+        // anything else.
+        MachineErrorScreen.render(screen, "Machine stopped", reason,
+            "Sneak and right click the computer to start it again.");
+
         for (final Direction direction : Direction.values()) {
             if (level.getBlockEntity(getBlockPos().relative(direction))
-                instanceof final LuaScreenBlockEntity screen) {
-                MachineErrorScreen.render(screen.getScreen(), "Machine stopped", reason,
-                    "Right click the computer to start it again.");
+                instanceof final LuaScreenBlockEntity external) {
+                MachineErrorScreen.render(external.getScreen(), "Machine stopped", reason,
+                    "Sneak and right click the computer to start it again.");
             }
         }
     }
@@ -309,6 +394,10 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
             machine.start();
         }
         machine.tick();
+
+        // After the machine has had its turn, so anything it drew this tick goes out with it
+        // rather than waiting for the next one.
+        LuaScreenSync.tick(this);
     }
 
     @Override
@@ -337,6 +426,10 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
         super.saveAdditional(tag);
         tag.put(MACHINE_TAG_NAME, MachineSerialization.serialize(machine));
         tag.put(EEPROM_TAG_NAME, MachineSerialization.serialize(eeprom));
+        // The screen's addresses have to survive a reload: an operating system remembers which
+        // screen and keyboard it bound to, and would be talking to something that no longer exists.
+        tag.put(SCREEN_TAG_NAME, MachineSerialization.serialize(screen));
+        tag.putString(KEYBOARD_TAG_NAME, keyboard.getComponentAddress());
         tag.put(DISK_TAG_NAME, FileSystemSerialization.serialize(disk.getFileSystem()));
         tag.putString(DISK_ADDRESS_TAG_NAME, disk.getComponentAddress());
         tag.put(ENERGY_TAG_NAME, energy.serializeNBT());
@@ -348,6 +441,13 @@ public final class LuaComputerBlockEntity extends ModBlockEntity implements Tick
 
         if (tag.contains(EEPROM_TAG_NAME, NBTTagIds.TAG_COMPOUND)) {
             MachineSerialization.deserialize(tag.getCompound(EEPROM_TAG_NAME), eeprom);
+        }
+        if (tag.contains(SCREEN_TAG_NAME, NBTTagIds.TAG_COMPOUND)) {
+            MachineSerialization.deserialize(tag.getCompound(SCREEN_TAG_NAME), screen);
+        }
+        final String keyboardAddress = tag.getString(KEYBOARD_TAG_NAME);
+        if (!keyboardAddress.isEmpty()) {
+            keyboard.setComponentAddress(keyboardAddress);
         }
         if (tag.contains(DISK_TAG_NAME, NBTTagIds.TAG_COMPOUND)) {
             FileSystemSerialization.deserialize(tag.getCompound(DISK_TAG_NAME), disk.getFileSystem());

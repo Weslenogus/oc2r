@@ -6,8 +6,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import li.cil.oc2.client.renderer.CanvasPainter;
 import li.cil.oc2.client.renderer.LuaScreenPainter;
-import li.cil.oc2.common.block.LuaScreenBlock;
-import li.cil.oc2.common.blockentity.LuaScreenBlockEntity;
+import li.cil.oc2.common.blockentity.LuaScreenView;
 import li.cil.oc2.common.machine.screen.CanvasBuffer;
 import li.cil.oc2.common.machine.screen.ScreenMode;
 import li.cil.oc2.common.machine.screen.TextBuffer;
@@ -19,6 +18,8 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Map;
@@ -33,7 +34,20 @@ import java.util.WeakHashMap;
  * has not seen, and then occasionally afterwards so a dropped delta cannot leave the display wrong
  * indefinitely.
  */
-public final class LuaScreenRenderer implements BlockEntityRenderer<LuaScreenBlockEntity> {
+public final class LuaScreenRenderer<T extends BlockEntity & LuaScreenView> implements BlockEntityRenderer<T> {
+    /**
+     * Where on the front of the block the picture goes, in block face coordinates: left, top, width
+     * and height with the origin at the top left corner, and how far to inset it from the face.
+     * <p>
+     * The monitor's whole face is the screen. The computer's is a strip across its front panel,
+     * which is where its display actually is on the model, and where the RISC-V computer draws its
+     * own terminal.
+     */
+    public record Face(float left, float top, float width, float height, float depth) {
+        public static final Face WHOLE_BLOCK = new Face(0.05f, 0.05f, 0.9f, 0.9f, 0.005f);
+        public static final Face COMPUTER_PANEL = new Face(0.06f, 0.14f, 0.88f, 0.22f, 0.068f);
+    }
+
     /**
      * How long between the keep-alive requests that repair a screen which has drifted out of step.
      * Long enough to be negligible traffic, short enough that a wrong display fixes itself before
@@ -45,24 +59,29 @@ public final class LuaScreenRenderer implements BlockEntityRenderer<LuaScreenBlo
      * Last time a full copy was asked for, per screen. Weak keyed so a screen going out of range
      * does not keep its block entity alive.
      */
-    private static final Map<LuaScreenBlockEntity, Long> lastSyncRequest = new WeakHashMap<>();
+    private static final Map<LuaScreenView, Long> lastSyncRequest = new WeakHashMap<>();
 
     private final BlockEntityRenderDispatcher renderer;
+    private final Face face;
 
     ///////////////////////////////////////////////////////////////////
 
-    public LuaScreenRenderer(final BlockEntityRendererProvider.Context context) {
+    public LuaScreenRenderer(final BlockEntityRendererProvider.Context context, final Face face) {
         this.renderer = context.getBlockEntityRenderDispatcher();
+        this.face = face;
     }
 
     ///////////////////////////////////////////////////////////////////
 
     @Override
-    public void render(final LuaScreenBlockEntity screen, final float partialTicks, final PoseStack stack,
+    public void render(final T screen, final float partialTicks, final PoseStack stack,
                        final MultiBufferSource bufferSource, final int light, final int overlay) {
-        final Direction facing = screen.getBlockState().getValue(LuaScreenBlock.FACING);
+        if (!screen.getBlockState().hasProperty(HorizontalDirectionalBlock.FACING)) {
+            return;
+        }
+        final Direction facing = screen.getBlockState().getValue(HorizontalDirectionalBlock.FACING);
         final Vec3 cameraPosition = renderer.camera.getEntity().getEyePosition(partialTicks);
-        final Vec3 blockCenter = Vec3.atCenterOf(screen.getBlockPos());
+        final Vec3 blockCenter = Vec3.atCenterOf(screen.getViewPos());
 
         if (cameraPosition.distanceToSqr(blockCenter) > LuaScreenPainter.MAX_RENDER_DISTANCE_SQUARED) {
             return;
@@ -86,7 +105,7 @@ public final class LuaScreenRenderer implements BlockEntityRenderer<LuaScreenBlo
 
         // Flip so the grid runs top left to bottom right, and sit just proud of the block face so
         // the text does not z-fight with it.
-        stack.translate(1, 1, -0.005f);
+        stack.translate(1, 1, -face.depth());
         stack.scale(-1, -1, -1);
 
         synchronized (screen.getScreen().getLock()) {
@@ -110,12 +129,12 @@ public final class LuaScreenRenderer implements BlockEntityRenderer<LuaScreenBlo
                 return;
             }
 
-            // Fit to the block face, leaving a small margin so the picture does not run into the
+            // Fit to the part of the face that is display, so the picture does not run into the
             // bezel. Uniform scale, so a 160 by 50 grid or a 320 by 200 canvas keeps its aspect
             // ratio rather than being stretched square.
-            final float margin = 0.05f;
-            final float scale = Math.min((1 - margin * 2) / width, (1 - margin * 2) / height);
-            stack.translate((1 - width * scale) / 2, (1 - height * scale) / 2, 0);
+            final float scale = Math.min(face.width() / width, face.height() / height);
+            stack.translate(face.left() + (face.width() - width * scale) / 2,
+                face.top() + (face.height() - height * scale) / 2, 0);
             stack.scale(scale, scale, scale);
 
             // Screens are self lit: a terminal in a dark room is still readable.
@@ -133,7 +152,7 @@ public final class LuaScreenRenderer implements BlockEntityRenderer<LuaScreenBlo
     }
 
     @Override
-    public boolean shouldRenderOffScreen(final LuaScreenBlockEntity screen) {
+    public boolean shouldRenderOffScreen(final T screen) {
         return false;
     }
 
@@ -144,13 +163,13 @@ public final class LuaScreenRenderer implements BlockEntityRenderer<LuaScreenBlo
 
     ///////////////////////////////////////////////////////////////////
 
-    private static void requestResyncIfDue(final LuaScreenBlockEntity screen) {
+    private static void requestResyncIfDue(final LuaScreenView screen) {
         final long now = System.currentTimeMillis();
         final Long last = lastSyncRequest.get(screen);
         if (last != null && now - last < RESYNC_INTERVAL_MILLIS) {
             return;
         }
         lastSyncRequest.put(screen, now);
-        Network.sendToServer(new LuaScreenRequestMessage(screen));
+        Network.sendToServer(new LuaScreenRequestMessage(screen.getViewPos()));
     }
 }

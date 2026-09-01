@@ -114,11 +114,9 @@
   "gui.oc2r.computer.hint.capture_input": "Press the input button on the left to type here.",
 
   "gui.oc2r.lua_terminal": "Lua Terminal",
-  "gui.oc2r.lua_terminal.capture_input": "Capture Input",
-  "gui.oc2r.lua_terminal.release_input": "Release Input",
-  "gui.oc2r.lua_terminal.input_released": "Input released; press Escape to close.",
-  "gui.oc2r.lua_terminal.hint.power": "Right click the Lua Computer to switch it on.",
-  "gui.oc2r.lua_terminal.hint.no_computer": "Place a Lua Computer against this screen.",
+  "gui.oc2r.lua_terminal.hint.power": "Press the power button to switch this computer on.",
+  "gui.oc2r.lua_terminal.hint.capture": "Press the input button to type here.",
+  "gui.oc2r.lua_terminal.hint.hover": "Hold the pointer over the screen to type; move it away and Escape closes.",
 
   "gui.oc2r.computer.capture_input.capt": "Capture Input",
   "gui.oc2r.computer.capture_input.desc": "When enabled, as long as the mouse cursor is hovering the terminal contents, all input will be captured, including the escape key.",

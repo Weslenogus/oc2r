@@ -180,6 +180,32 @@ public final class RomShellTest {
     }
 
     @Test
+    void aComputerWithAnEmptyEnergyBufferStillBoots() throws Exception {
+        // What a freshly placed computer is: nothing has charged it yet. It used to start, fail to
+        // pay for its first tick, and stop with "not enough energy" before anything reached the
+        // screen - which a player experiences as a block that does nothing when right clicked. The
+        // shipped cost is zero for exactly that reason.
+        final Computer computer = new Computer(new RamFileSystem(1 << 20));
+        computer.host.setEnergy(0);
+        computer.run(200);
+
+        final String text = computer.screenText();
+        assertEquals(List.of(), computer.host.getCrashes(), () -> "machine crashed: " + text);
+        assertTrue(text.contains("/disk > "), () -> "no prompt on screen:\n" + text);
+    }
+
+    @Test
+    void aComputerThatIsChargedForItsPowerStopsWithoutIt() throws Exception {
+        // And the cost still works when a server turns it on: the machine stops, and says why.
+        final Computer computer = new Computer(new RamFileSystem(1 << 20));
+        computer.host.setEnergy(0);
+        computer.host.setEnergyPerTick(10);
+        computer.run(200);
+
+        assertEquals(List.of("not enough energy"), computer.host.getCrashes());
+    }
+
+    @Test
     void typingAtThePromptRunsCommands() throws Exception {
         final Computer computer = new Computer(new RamFileSystem(1 << 20));
         computer.enter("echo the keyboard works");

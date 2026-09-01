@@ -2,7 +2,7 @@
 
 package li.cil.oc2.client.gui;
 
-import li.cil.oc2.common.blockentity.LuaScreenBlockEntity;
+import li.cil.oc2.common.blockentity.LuaScreenView;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -19,7 +19,7 @@ public final class LuaTerminalScreens {
     private LuaTerminalScreens() {
     }
 
-    public static void open(final LuaScreenBlockEntity screen) {
-        Minecraft.getInstance().setScreen(new LuaTerminalScreen(screen));
+    public static void open(final LuaScreenView view) {
+        Minecraft.getInstance().setScreen(new LuaTerminalScreen(view));
     }
 }

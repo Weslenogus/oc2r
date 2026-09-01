@@ -28,6 +28,7 @@ public final class Config {
     public static int luaCpuSliceMs = 100;
     public static int luaMaxDiskSize = 32 * Constants.MEGABYTE;
     public static int luaDirectCallsPerTickFactor = 8;
+    public static int luaComputerEnergyPerTick = 0;
 
     /**
      * Memory a Lua machine actually gets, which is what it asks for or the ceiling, whichever is

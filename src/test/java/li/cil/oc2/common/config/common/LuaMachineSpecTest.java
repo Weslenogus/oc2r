@@ -38,6 +38,12 @@ public class LuaMachineSpecTest {
 
         assertTrue(spec.defaultRam.getDefault() <= spec.maxRam.getDefault(),
             "a machine would boot with less memory than the config appears to offer");
+
+        // A Lua computer has no inventory screen and no energy bar. Charging it for its uptime out
+        // of a buffer nothing shows you means a placed computer starts, cannot pay for its first
+        // tick, and stops before anything reaches the screen - indistinguishable from a block that
+        // does not work. Off unless a server turns it on.
+        assertEquals(0, spec.energyPerTick.getDefault());
     }
 
     @Test
