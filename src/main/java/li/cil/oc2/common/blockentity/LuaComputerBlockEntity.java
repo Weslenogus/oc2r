@@ -426,9 +426,15 @@ public final class LuaComputerBlockEntity extends ModBlockEntity
         super.saveAdditional(tag);
         tag.put(MACHINE_TAG_NAME, MachineSerialization.serialize(machine));
         tag.put(EEPROM_TAG_NAME, MachineSerialization.serialize(eeprom));
-        // The screen's addresses have to survive a reload: an operating system remembers which
-        // screen and keyboard it bound to, and would be talking to something that no longer exists.
-        tag.put(SCREEN_TAG_NAME, MachineSerialization.serialize(screen));
+        // Only the addresses. They have to survive a reload, because an operating system
+        // remembers which screen and keyboard it bound to and would otherwise be talking to
+        // components that no longer exist.
+        //
+        // Not the contents: the machine does not persist its Lua state, so it reboots and redraws,
+        // and a whole screen buffer is tens of kilobytes written into the chunk on every save. It
+        // would also leave the buffer marked dirty, which is a full resend to every client watching
+        // the block each time the world saves.
+        tag.putString(SCREEN_TAG_NAME, screen.getComponentAddress());
         tag.putString(KEYBOARD_TAG_NAME, keyboard.getComponentAddress());
         tag.put(DISK_TAG_NAME, FileSystemSerialization.serialize(disk.getFileSystem()));
         tag.putString(DISK_ADDRESS_TAG_NAME, disk.getComponentAddress());
@@ -442,8 +448,9 @@ public final class LuaComputerBlockEntity extends ModBlockEntity
         if (tag.contains(EEPROM_TAG_NAME, NBTTagIds.TAG_COMPOUND)) {
             MachineSerialization.deserialize(tag.getCompound(EEPROM_TAG_NAME), eeprom);
         }
-        if (tag.contains(SCREEN_TAG_NAME, NBTTagIds.TAG_COMPOUND)) {
-            MachineSerialization.deserialize(tag.getCompound(SCREEN_TAG_NAME), screen);
+        final String screenAddress = tag.getString(SCREEN_TAG_NAME);
+        if (!screenAddress.isEmpty()) {
+            screen.setComponentAddress(screenAddress);
         }
         final String keyboardAddress = tag.getString(KEYBOARD_TAG_NAME);
         if (!keyboardAddress.isEmpty()) {
