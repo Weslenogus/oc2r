@@ -21,7 +21,7 @@ The name change is simply an attempt to ensure it is well known that [Sangar (fn
 For documentation on how the to get computers up and running, and how to use them, see the [documentation]. It is available as a manual item in the game.
 
 ### Lua computers
-Alongside the RISC-V computer there is a second machine, the **Lua Computer**, which runs the OpenComputers 1 Lua environment on real Lua 5.3 - the environment software such as OpenOS and MineOS is written against. Place one, put a **Lua Screen** against it, give it power, and right click it to switch it on; right click the screen to open its terminal. A computer with an empty disk boots the small shell in its ROM, so there is a prompt to type at from the start. The walkthrough is [here][lua documentation], and in the in-game manual.
+Alongside the RISC-V computer there is a second machine, the **Lua Computer**, which runs the OpenComputers 1 Lua environment on real Lua 5.3 - the environment software such as OpenOS and MineOS is written against. Place one and right click it: it has a screen, a disk and a shell of its own, needs no power and no parts, and a computer with an empty disk boots the shell in its ROM, so there is a prompt to type at from the start. Sneak and right click switches it on and off, and a **Lua Screen** placed against it is an external monitor. The walkthrough is [here][lua documentation], and in the in-game manual.
 
 ## Development Documentation
 The original section that was found here is preserved below, however it should be taken with a grain of salt as the current team has a ways to go in being 100% up to speed with where the device APIs are at the moment. So everything below is subject to change, though it is likely to remain mostly the same.

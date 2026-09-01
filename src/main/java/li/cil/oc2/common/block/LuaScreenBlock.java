@@ -7,6 +7,7 @@ import li.cil.oc2.common.blockentity.BlockEntities;
 import li.cil.oc2.common.blockentity.LuaScreenBlockEntity;
 import li.cil.oc2.common.blockentity.TickableBlockEntity;
 import li.cil.oc2.common.integration.Wrenches;
+import li.cil.oc2.common.util.VoxelShapeUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
@@ -27,6 +28,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
@@ -41,12 +43,19 @@ import javax.annotation.Nullable;
  * a desktop that expects a mouse; a full window is the only way either is usable.
  */
 public final class LuaScreenBlock extends HorizontalDirectionalBlock implements EntityBlock {
-    // A shallow panel rather than a full cube, so the screen reads as a display and so things can
-    // still be placed behind it.
-    private static final VoxelShape NEG_Z_SHAPE = Block.box(0, 0, 12, 16, 16, 16);
-    private static final VoxelShape POS_Z_SHAPE = Block.box(0, 0, 0, 16, 16, 4);
-    private static final VoxelShape NEG_X_SHAPE = Block.box(12, 0, 0, 16, 16, 16);
-    private static final VoxelShape POS_X_SHAPE = Block.box(0, 0, 0, 4, 16, 16);
+    // A whole block, with the screen's indent bitten out of the front. The same shape the Monitor
+    // uses, and for the same reason: a shallow panel leaves most of the block empty, and Minecraft
+    // will happily let you place something else inside what looks like a solid screen.
+    private static final VoxelShape NEG_Z_SHAPE = Shapes.or(
+        Block.box(0, 0, 1, 16, 16, 16),  // main body
+        Block.box(0, 15, 0, 16, 16, 1),  // across top
+        Block.box(0, 0, 0, 16, 4, 1),    // across bottom
+        Block.box(0, 0, 0, 2, 16, 1),    // up left
+        Block.box(14, 0, 0, 16, 16, 1)   // up right
+    );
+    private static final VoxelShape NEG_X_SHAPE = VoxelShapeUtils.rotateHorizontalClockwise(NEG_Z_SHAPE);
+    private static final VoxelShape POS_Z_SHAPE = VoxelShapeUtils.rotateHorizontalClockwise(NEG_X_SHAPE);
+    private static final VoxelShape POS_X_SHAPE = VoxelShapeUtils.rotateHorizontalClockwise(POS_Z_SHAPE);
 
     ///////////////////////////////////////////////////////////////////
 

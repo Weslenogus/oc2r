@@ -80,6 +80,7 @@ public final class Network {
         registerMessage(LuaScreenDeltaMessage.class, LuaScreenDeltaMessage::new, NetworkDirection.PLAY_TO_CLIENT);
         registerMessage(LuaScreenRequestMessage.class, LuaScreenRequestMessage::new, NetworkDirection.PLAY_TO_SERVER);
         registerMessage(LuaScreenInputMessage.class, LuaScreenInputMessage::new, NetworkDirection.PLAY_TO_SERVER);
+        registerMessage(LuaScreenPowerMessage.class, LuaScreenPowerMessage::new, NetworkDirection.PLAY_TO_SERVER);
 
         registerMessage(NetworkInterfaceCardConfigurationMessage.class, NetworkInterfaceCardConfigurationMessage::new, NetworkDirection.PLAY_TO_SERVER);
         registerMessage(NetworkTunnelLinkMessage.class, NetworkTunnelLinkMessage::new, NetworkDirection.PLAY_TO_SERVER);

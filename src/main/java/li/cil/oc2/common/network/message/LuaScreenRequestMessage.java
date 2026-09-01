@@ -2,6 +2,7 @@
 
 package li.cil.oc2.common.network.message;
 
+import li.cil.oc2.common.blockentity.LuaComputerBlockEntity;
 import li.cil.oc2.common.blockentity.LuaScreenBlockEntity;
 import li.cil.oc2.common.network.MessageUtils;
 import net.minecraft.core.BlockPos;
@@ -20,8 +21,8 @@ public final class LuaScreenRequestMessage extends AbstractMessage {
 
     ///////////////////////////////////////////////////////////////////
 
-    public LuaScreenRequestMessage(final LuaScreenBlockEntity screen) {
-        this.pos = screen.getBlockPos();
+    public LuaScreenRequestMessage(final BlockPos pos) {
+        this.pos = pos;
     }
 
     public LuaScreenRequestMessage(final FriendlyByteBuf buffer) {
@@ -47,5 +48,7 @@ public final class LuaScreenRequestMessage extends AbstractMessage {
         // Range checked, so a client cannot use this to read screens across the world.
         MessageUtils.withNearbyServerBlockEntityForInteraction(context, pos, LuaScreenBlockEntity.class,
             (player, screen) -> screen.sendFullSync(player));
+        MessageUtils.withNearbyServerBlockEntityForInteraction(context, pos, LuaComputerBlockEntity.class,
+            (player, computer) -> computer.sendFullSync(player));
     }
 }

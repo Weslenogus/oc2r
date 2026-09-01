@@ -20,6 +20,7 @@ public class LuaMachineSpec {
     public final ForgeConfigSpec.IntValue cpuSliceMs;
     public final ForgeConfigSpec.IntValue maxDiskSize;
     public final ForgeConfigSpec.IntValue directCallsPerTickFactor;
+    public final ForgeConfigSpec.IntValue energyPerTick;
 
     LuaMachineSpec(ForgeConfigSpec.Builder builder) {
         defaultRam = builder.comment(
@@ -83,6 +84,18 @@ public class LuaMachineSpec {
             "do not touch the server thread, so raising this costs the calling machine's own worker",
             "thread and nothing else; runaway loops are caught by cpuTimeoutMs, not by this."
         ).defineInRange("directCallsPerTickFactor", 8, 1, 1024);
+
+        energyPerTick = builder.comment(
+            "Energy a running Lua computer draws per tick. Zero means it needs no power at all,",
+            "which is the default.",
+            "",
+            "Unlike the RISC-V computer, a Lua computer has no inventory screen and no energy bar:",
+            "it is a block you place and use. Charging one for ten seconds of uptime, from a buffer",
+            "nothing on the block shows you, is a puzzle with no clue attached - the machine simply",
+            "stops the tick after it starts and the screen stays dark. So the cost is off unless a",
+            "server turns it on. The block still accepts energy from any side, so a charger or a",
+            "cable works the moment it is worth anything."
+        ).defineInRange("energyPerTick", 0, 0, 4096);
     }
 
     public void loadValues() {
@@ -92,5 +105,6 @@ public class LuaMachineSpec {
         Config.luaCpuSliceMs = cpuSliceMs.get();
         Config.luaMaxDiskSize = maxDiskSize.get();
         Config.luaDirectCallsPerTickFactor = directCallsPerTickFactor.get();
+        Config.luaComputerEnergyPerTick = energyPerTick.get();
     }
 }

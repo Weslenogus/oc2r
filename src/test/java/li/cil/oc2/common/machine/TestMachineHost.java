@@ -24,6 +24,7 @@ public final class TestMachineHost implements MachineHost {
     private final List<String> beeps = new ArrayList<>();
 
     private double energy = 5000;
+    private double energyPerTick = 0;
     private int memorySize = 2 * 1024 * 1024;
     private int cpuTimeoutMillis = 5000;
     private int cpuSliceMillis = 100;
@@ -43,6 +44,19 @@ public final class TestMachineHost implements MachineHost {
 
     public void setEnergy(final double value) {
         energy = value;
+    }
+
+    /**
+     * What running costs. Zero by default, which is both the interface default and what a Lua
+     * computer ships with; a test that wants the machine to run out of power sets it.
+     */
+    public void setEnergyPerTick(final double value) {
+        energyPerTick = value;
+    }
+
+    @Override
+    public double getEnergyPerTick() {
+        return energyPerTick;
     }
 
     @Override

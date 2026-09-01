@@ -2,6 +2,7 @@
 
 package li.cil.oc2.common.block;
 
+import li.cil.oc2.client.gui.LuaTerminalScreens;
 import li.cil.oc2.common.blockentity.BlockEntities;
 import li.cil.oc2.common.blockentity.LuaComputerBlockEntity;
 import li.cil.oc2.common.blockentity.TickableBlockEntity;
@@ -33,6 +34,7 @@ import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.fml.DistExecutor;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -76,14 +78,27 @@ public final class LuaComputerBlock extends HorizontalDirectionalBlock implement
             return super.use(state, level, pos, player, hand, hit);
         }
 
-        if (!level.isClientSide()) {
+        // The same two gestures the RISC-V computer uses, so one habit works on both: use it to
+        // look at the screen, sneak and use it to switch it on or off. Toggling power on a plain
+        // right click, which is what this used to do, gives no sign of having done anything - the
+        // block lights up and there is nothing to look at.
+        if (player.isShiftKeyDown()) {
+            if (!level.isClientSide()) {
+                final BlockEntity blockEntity = level.getBlockEntity(pos);
+                if (blockEntity instanceof final LuaComputerBlockEntity computer) {
+                    if (computer.isRunning()) {
+                        computer.stop();
+                    } else {
+                        computer.start();
+                    }
+                }
+            }
+        } else if (level.isClientSide()) {
             final BlockEntity blockEntity = level.getBlockEntity(pos);
             if (blockEntity instanceof final LuaComputerBlockEntity computer) {
-                if (computer.isRunning()) {
-                    computer.stop();
-                } else {
-                    computer.start();
-                }
+                // Through DistExecutor so the client-only screen class is never resolved on a
+                // dedicated server, where loading it would fail at verification time.
+                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> LuaTerminalScreens.open(computer));
             }
         }
 
