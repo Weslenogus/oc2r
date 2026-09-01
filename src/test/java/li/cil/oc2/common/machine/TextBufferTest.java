@@ -287,4 +287,26 @@ public class TextBufferTest {
         assertNotEquals(new ColorFormat(ColorDepth.EIGHT_BIT).getPaletteColor(0),
             buffer.getPaletteColor(0));
     }
+
+    @Test
+    void knowsWhetherAnythingHasBeenDrawnOnIt() {
+        // What decides whether the terminal window may put a hint on the screen. Getting it wrong
+        // in one direction covers a program's output; in the other it leaves a player staring at a
+        // black rectangle with no idea that their computer is switched off.
+        final TextBuffer buffer = tierThree();
+        assertTrue(buffer.isBlank());
+
+        buffer.set(0, 0, " ", false);
+        assertTrue(buffer.isBlank(), "spaces are not output");
+
+        buffer.set(80, 25, "x", false);
+        assertFalse(buffer.isBlank());
+
+        buffer.clearAll();
+        assertTrue(buffer.isBlank());
+
+        // A wide glyph writes a continuation into the cell after it, which is not text of its own.
+        buffer.set(10, 10, "\u4f60", false);
+        assertFalse(buffer.isBlank());
+    }
 }

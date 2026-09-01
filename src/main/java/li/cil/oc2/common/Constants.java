@@ -48,6 +48,8 @@ public final class Constants {
     public static final String COMPUTER_SCREEN_POWER_CAPTION = key("gui.{mod}.computer.power.capt");
     public static final String COMPUTER_SCREEN_POWER_DESCRIPTION = key("gui.{mod}.computer.power.desc");
     public static final String COMPUTER_ERROR_UNKNOWN = key("gui.{mod}.computer.error.unknown");
+    public static final String COMPUTER_HINT_PRESS_POWER = key("gui.{mod}.computer.hint.press_power");
+    public static final String COMPUTER_HINT_CAPTURE_INPUT = key("gui.{mod}.computer.hint.capture_input");
     public static final String COMPUTER_ERROR_MISSING_FIRMWARE = key("gui.{mod}.computer.error.missing_firmware");
     public static final String COMPUTER_ERROR_MISSING_CPU = key("gui.{mod}.computer.error.missing_cpu");
     public static final String COMPUTER_ERROR_INSUFFICIENT_MEMORY = key("gui.{mod}.computer.error.insufficient_memory");

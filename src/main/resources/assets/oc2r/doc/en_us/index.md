@@ -2,6 +2,8 @@
 
 Hello, greetings, welcome! If you've come here, you either stumbled in by accident, are interested in [building your first computer](getting_started.md), or maybe you are looking for information on a particular [block](block/index.md) or [item](item/index.md)?
 
+There are two kinds of computer here. The [Computer](block/computer.md) boots Linux on a virtual RISC-V processor; start with the [getting started guide](getting_started.md). The [Lua Computer](block/lua_computer.md) runs the OpenComputers 1 Lua environment, for software such as OpenOS and MineOS; start with the [Lua getting started guide](lua_getting_started.md).
+
 ## Overview
 
 [Computers](block/computer.md) offer a variety of uses, from recreational to large-scale, highly customizable automation of other machines and devices.
@@ -28,6 +30,7 @@ If you're looking for information on a particular block or item, have a look at 
 If you're interested in a particular topic, there are some overview entries for the more common ones:
 
 - [Basics](basics.md)
+- [Lua computers](lua_getting_started.md)
 - [Scripting](scripting.md)
 - [Robotics](robotics.md)
 - [Networking](networking.md)
