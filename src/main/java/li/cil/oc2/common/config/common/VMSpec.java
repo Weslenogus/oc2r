@@ -19,8 +19,10 @@ public class VMSpec {
             "Medium Disk: 2 * SF",
             "Large Disk: 4 * SF",
             "Extra Large Disk: 16 * SF",
-            "With the default factor this is equivalent to (in the same order) 2MB, 4MB, 8MB, 32MB."
-        ).defineInRange("diskSizeFactor", 2 * Constants.MEGABYTE, 0, Integer.MAX_VALUE);
+            "With the default factor this is equivalent to (in the same order) 8MB, 16MB, 32MB, 128MB.",
+            "Drives are memory mapped files in the world save, so a larger factor costs disk space for",
+            "the drives that are actually made, and nothing at all for the ones that are not."
+        ).defineInRange("diskSizeFactor", 8 * Constants.MEGABYTE, 0, Integer.MAX_VALUE);
     }
 
     public void loadValues() {

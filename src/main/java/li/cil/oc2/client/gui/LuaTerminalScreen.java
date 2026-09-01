@@ -5,6 +5,7 @@ package li.cil.oc2.client.gui;
 import com.mojang.blaze3d.vertex.PoseStack;
 import li.cil.oc2.client.renderer.CanvasPainter;
 import li.cil.oc2.client.renderer.LuaScreenPainter;
+import li.cil.oc2.common.block.LuaComputerBlock;
 import li.cil.oc2.common.blockentity.LuaScreenBlockEntity;
 import li.cil.oc2.common.machine.input.KeyboardMap;
 import li.cil.oc2.common.machine.screen.CanvasBuffer;
@@ -19,7 +20,10 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
@@ -143,7 +147,51 @@ public final class LuaTerminalScreen extends Screen {
                 MARGIN, MARGIN / 2 + (BUTTON_HEIGHT - 8) / 2, 0xFFFFFF);
         }
 
+        renderIdleHint(graphics);
+
         super.render(graphics, mouseX, mouseY, partialTicks);
+    }
+
+    /**
+     * Says why the screen is empty, when it is.
+     * <p>
+     * A blank screen has three causes and they look identical: no computer next to it, a computer
+     * that is switched off, and a program that has not drawn anything. Only the last of those is
+     * the screen working as intended, and it is the least likely one to be looking at a player who
+     * has just placed the blocks.
+     * <p>
+     * Drawn only over a blank buffer, so a program's output is never covered.
+     */
+    private void renderIdleHint(final GuiGraphics graphics) {
+        final Level level = screen.getLevel();
+        if (level == null) {
+            return;
+        }
+
+        synchronized (screen.getScreen().getLock()) {
+            if (screen.getScreen().getMode() != ScreenMode.TEXT || !screen.getBuffer().isBlank()) {
+                return;
+            }
+        }
+
+        boolean hasComputer = false;
+        for (final Direction direction : Direction.values()) {
+            final BlockState state = level.getBlockState(screen.getBlockPos().relative(direction));
+            if (state.getBlock() instanceof LuaComputerBlock) {
+                hasComputer = true;
+                if (state.getValue(LuaComputerBlock.LIT)) {
+                    // Running, and simply has not drawn yet. Nothing to explain.
+                    return;
+                }
+            }
+        }
+
+        graphics.drawCenteredString(font,
+            Component.translatable(hasComputer
+                    ? "gui.oc2r.lua_terminal.hint.power"
+                    : "gui.oc2r.lua_terminal.hint.no_computer")
+                .withStyle(ChatFormatting.GRAY),
+            width / 2, height / 2 - 4, 0xFFFFFF);
     }
 
     ///////////////////////////////////////////////////////////////////

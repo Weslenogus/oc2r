@@ -20,6 +20,9 @@ The name change is simply an attempt to ensure it is well known that [Sangar (fn
 ## Gameplay Documentation
 For documentation on how the to get computers up and running, and how to use them, see the [documentation]. It is available as a manual item in the game.
 
+### Lua computers
+Alongside the RISC-V computer there is a second machine, the **Lua Computer**, which runs the OpenComputers 1 Lua environment on real Lua 5.3 - the environment software such as OpenOS and MineOS is written against. Place one, put a **Lua Screen** against it, give it power, and right click it to switch it on; right click the screen to open its terminal. A computer with an empty disk boots the small shell in its ROM, so there is a prompt to type at from the start. The walkthrough is [here][lua documentation], and in the in-game manual.
+
 ## Development Documentation
 The original section that was found here is preserved below, however it should be taken with a grain of salt as the current team has a ways to go in being 100% up to speed with where the device APIs are at the moment. So everything below is subject to change, though it is likely to remain mostly the same.
 
@@ -33,6 +36,7 @@ The original section that was found here is preserved below, however it should b
 [disk drive]: src/main/java/li/cil/oc2/common/blockentity/DiskDriveBlockEntity.java
 [network card]: src/main/java/li/cil/oc2/common/bus/device/vm/item/NetworkInterfaceCardDevice.java
 [documentation]: src/main/resources/assets/oc2r/doc/en_us/index.md
+[lua documentation]: src/main/resources/assets/oc2r/doc/en_us/lua_getting_started.md
 [GithubPackagesGradle]: https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-gradle-registry
 [Sangar (fnuecke)]: https://github.com/fnuecke
 [Sedna]: https://github.com/fnuecke/sedna

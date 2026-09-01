@@ -62,15 +62,16 @@ public class LuaMachineSpec {
             "Capacity of the disk built into a Lua computer, in bytes. Storage is allocated as it is",
             "used rather than up front, so this is a ceiling and not a cost.",
             "",
-            "There is a real ceiling above this one. A computer's disk travels in the dropped item's",
-            "NBT so that mining one keeps what was installed on it, and Minecraft refuses to read a",
-            "tag over 2MB off the network: a disk bigger than that, once actually full, cannot be",
-            "mined without disconnecting whoever picks it up. Contents are compressed, and measured",
-            "against the real MineOS sources that is about 4.7 to 1, so a full disk of this size",
-            "packs to a little under the limit. Raising it is safe for a disk that stays mostly",
-            "empty or holds text; a full one of random or already compressed data is not, and the",
-            "log says so when it happens."
-        ).defineInRange("maxDiskSize", 8 * Constants.MEGABYTE, 64 * 1024, Integer.MAX_VALUE);
+            "The disk travels in the dropped item's NBT, so that mining a computer keeps what was",
+            "installed on it, and it is written into the chunk on every save. Both are compressed;",
+            "measured against the real MineOS sources that is about 4.7 to 1. What this really costs,",
+            "then, is chunk size and save time for computers that are actually full, which is why it",
+            "is a limit at all rather than being left open.",
+            "",
+            "The contents are kept off the network deliberately - a client has no use for a disk it",
+            "cannot read - so the two megabyte cap Minecraft puts on a tag received over the wire",
+            "does not apply here."
+        ).defineInRange("maxDiskSize", 32 * Constants.MEGABYTE, 64 * 1024, Integer.MAX_VALUE);
 
         directCallsPerTickFactor = builder.comment(
             "Multiplier on how many direct component calls a method may serve per tick before further",

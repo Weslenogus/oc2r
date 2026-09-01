@@ -24,10 +24,15 @@ public final class FlashMemoryItem extends AbstractStorageItem {
     @Override
     public CompoundTag getShareTag(final ItemStack stack) {
         final CompoundTag tag = super.getShareTag(stack);
-        if (tag != null && tag.contains(API.MOD_ID, NBTTagIds.TAG_COMPOUND)) {
-            tag.getCompound(API.MOD_ID).remove(ByteBufferFlashStorageDevice.DATA_TAG_NAME);
+        if (tag == null || !tag.contains(API.MOD_ID, NBTTagIds.TAG_COMPOUND)) {
+            return tag;
         }
-        return tag;
+
+        // On a copy. What super returns is the stack's own tag, so removing the firmware here
+        // would not be trimming what goes on the wire, it would be erasing the chip.
+        final CompoundTag shared = tag.copy();
+        shared.getCompound(API.MOD_ID).remove(ByteBufferFlashStorageDevice.DATA_TAG_NAME);
+        return shared;
     }
 
     ///////////////////////////////////////////////////////////////////

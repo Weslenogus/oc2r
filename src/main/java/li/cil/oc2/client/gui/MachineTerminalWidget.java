@@ -10,6 +10,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.MultiBufferSource;
 import org.joml.Matrix4f;
 import li.cil.oc2.client.gui.terminal.TerminalInput;
+import li.cil.oc2.common.Constants;
 import li.cil.oc2.common.container.AbstractMachineTerminalContainer;
 import li.cil.oc2.common.vm.terminal.Terminal;
 import net.minecraft.client.Minecraft;
@@ -66,6 +67,7 @@ public final class MachineTerminalWidget {
 
     public void render(final GuiGraphics graphics, @Nullable final Component error) {
         if (container.getVirtualMachine().isRunning()) {
+            renderInputHint(graphics);
             final PoseStack terminalStack = new PoseStack();
             terminalStack.translate(leftPos + TERMINAL_X, topPos + TERMINAL_Y, 0);
             terminalStack.scale(TERMINAL_WIDTH / (float) terminal.getWidth(), TERMINAL_HEIGHT / (float) terminal.getHeight(), 1f);
@@ -78,20 +80,47 @@ public final class MachineTerminalWidget {
             final Matrix4f projectionMatrix = (new Matrix4f()).setOrtho(0, parent.width, parent.height, 0, -10f, 10f);
             rendererView.render(terminalStack, projectionMatrix);
         } else {
+            // A machine that is off and has nothing to complain about is a black rectangle, which
+            // is indistinguishable from a machine that is broken. Say which it is.
+            final Component message = error != null
+                ? error
+                : Component.translatable(Constants.COMPUTER_HINT_PRESS_POWER);
             final Font font = getClient().font;
-            if (error != null) {
-                final int textWidth = font.width(error);
-                final int textOffsetX = (TERMINAL_WIDTH - textWidth) / 2;
-                final int textOffsetY = (TERMINAL_HEIGHT - font.lineHeight) / 2;
-                drawShadow(
-                    font,
-                    graphics,
-                    error,
-                    leftPos + TERMINAL_X + textOffsetX,
-                    topPos + TERMINAL_Y + textOffsetY
-                );
-            }
+            final int textWidth = font.width(message);
+            final int textOffsetX = (TERMINAL_WIDTH - textWidth) / 2;
+            final int textOffsetY = (TERMINAL_HEIGHT - font.lineHeight) / 2;
+            drawShadow(
+                font,
+                graphics,
+                message,
+                leftPos + TERMINAL_X + textOffsetX,
+                topPos + TERMINAL_Y + textOffsetY
+            );
         }
+    }
+
+    /**
+     * Says how to type, while the pointer is over a running terminal that is not taking input.
+     * <p>
+     * Input capture is off by default and there is nothing on screen that says so, which leaves a
+     * player typing at a computer that is working perfectly and ignoring them. Shown only on hover,
+     * because that is the moment someone is trying, and because it draws over the program's output.
+     */
+    private void renderInputHint(final GuiGraphics graphics) {
+        if (!isMouseOverTerminal || container.getCaptureInputState()) {
+            return;
+        }
+
+        final Font font = getClient().font;
+        final Component hint = Component.translatable(Constants.COMPUTER_HINT_CAPTURE_INPUT);
+        final int textOffsetX = (TERMINAL_WIDTH - font.width(hint)) / 2;
+        drawShadow(
+            font,
+            graphics,
+            hint,
+            leftPos + TERMINAL_X + textOffsetX,
+            topPos + TERMINAL_Y + TERMINAL_HEIGHT - font.lineHeight - 2
+        );
     }
 
     private void drawShadow(Font font, GuiGraphics graphics, Component text, float x, float y) {

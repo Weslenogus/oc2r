@@ -10,6 +10,8 @@ To quickly access the manual entry for a block in the world, simply use this [ma
 - [Disk Drive](disk_drive.md)
 - [Flash Memory Flasher](flash_memory_flasher.md)
 - [Keyboard](keyboard.md)
+- [Lua Computer](lua_computer.md)
+- [Lua Screen](lua_screen.md)
 - [Monitor](monitor.md)
 - [Network Connector](network_connector.md)
 - [Network Hub](network_hub.md)

@@ -420,6 +420,25 @@ public final class TextBuffer {
         markAllDirty();
     }
 
+    /**
+     * Whether anything has been drawn: true when every cell in the viewport is blank.
+     * <p>
+     * Used to decide whether it is safe to put a hint on the screen. A buffer with a program's
+     * output on it must never be drawn over, so "nothing here" has to be a question that can be
+     * asked cheaply, every frame.
+     */
+    public boolean isBlank() {
+        for (int y = 0; y < getViewportHeight(); y++) {
+            for (int x = 0; x < getViewportWidth(); x++) {
+                final char value = chars[y * width + x];
+                if (value != ' ' && value != WIDE_CHAR_CONTINUATION) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     ///////////////////////////////////////////////////////////////////
 
     public char getChar(final int x, final int y) {

@@ -27,7 +27,7 @@ public final class KeyboardScreen extends Screen {
     private static final float ARM_SWING_RATE = 0.8f;
     private static final int BORDER_COLOR = 0xFFFFFFFF;
 
-    private static final MutableComponent CLOSE_INFO = Component.translatable("gui.oc2.keyboard.close_info");
+    private static final MutableComponent CLOSE_INFO = Component.translatable("gui.oc2r.keyboard.close_info");
 
     ///////////////////////////////////////////////////////////////////
 
