@@ -44,7 +44,7 @@ public final class ClientSetup {
         BlockEntityRenderers.register(BlockEntities.PROJECTOR.get(), ProjectorRenderer::new);
         BlockEntityRenderers.register(BlockEntities.INTERNET_GATEWAY.get(), InternetGateWayRenderer::new);
         BlockEntityRenderers.register(BlockEntities.LUA_SCREEN.get(),
-            context -> new LuaScreenRenderer<>(context, LuaScreenRenderer.Face.WHOLE_BLOCK));
+            context -> new LuaScreenRenderer<>(context, LuaScreenRenderer.Face.SCREEN_PANEL));
         // The computer draws its own screen on its front panel, which is what makes a machine with
         // nothing else attached to it visibly a machine that is doing something.
         BlockEntityRenderers.register(BlockEntities.LUA_COMPUTER.get(),

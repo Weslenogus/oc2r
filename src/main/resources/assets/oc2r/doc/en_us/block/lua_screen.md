@@ -1,7 +1,7 @@
 # Lua Screen
 ![160 by 50](block:oc2r:lua_screen)
 
-An external display for a [Lua Computer](lua_computer.md). A tier 3 screen: 160 by 50 characters, 256 colours, and a keyboard of its own.
+An external display for a [Lua Computer](lua_computer.md). A tier 3 screen: 160 by 50 characters, 256 colours, and a keyboard of its own. A whole block, with the display filling its front.
 
 A computer has a screen built in, so this is not required to use one. It is what you place when one display is not enough - a bigger view of the same machine, a wall of them, or a screen somewhere the computer is not.
 
