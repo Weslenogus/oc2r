@@ -359,7 +359,10 @@ public final class LuaMachine implements Machine {
         switch (state) {
             case STARTING -> {
                 if (!architecture.initialize()) {
-                    crashMessage.set("failed initializing machine");
+                    final String reason = architecture.getInitializationError();
+                    crashMessage.set(reason == null || reason.isBlank()
+                        ? "failed initializing machine"
+                        : "failed initializing machine: " + reason);
                     return;
                 }
                 state = State.RUNNING;

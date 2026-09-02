@@ -9,7 +9,7 @@ The computer case has no display of its own, so one of these is how you see what
 Place it directly against the computer, on any of the six sides; on top is the usual arrangement. There is no cable and no bus interface; touching is the connection. A computer sees every screen it is touching, and a screen delivers what is typed at it to every computer it is touching.
 
 ### Using it
-Right click to open the terminal window - the same one the computer opens, showing the same machine. The face of the block shows what is on the screen, but 160 columns is unreadable from where you would stand.
+Right click to open the terminal window. This is where a Lua machine is used: the computer block opens its own panel instead, because a case with no display has nothing to type at. The face of the block shows what is on the screen, but 160 columns is unreadable from where you would stand.
 
 The two buttons in the panel down the left of that window are the power button, which switches the attached computer on and off, and the input button, which decides who gets your keystrokes. Input goes to the machine while that button is on **and** the pointer is over the screen; move the pointer away and Escape closes the window.
 

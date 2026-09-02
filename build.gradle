@@ -121,11 +121,37 @@ repositories {
 }
 
 configurations {
+    // The four artifacts the native Lua backend is published as, merged into one jar before
+    // anything uses them. See luaRuntimeJar for why that merge is not optional.
+    luaRuntime
     // Merged into the mod jar rather than nested with jarJar. The loader that finds the Lua
     // shared library reads it with SharedLibraryLoader.class.getResourceAsStream, which only
     // ever looks inside that class's own module; a nested jar would put the library in a
     // different one and the lookup would come back empty.
     shade
+}
+
+// The native Lua backend, as a single jar.
+//
+// It has to be a single jar because of how the shared library is found. gdx's
+// SharedLibraryLoader and luajava's GlobalLibraryLoader both read it with getResourceAsStream on
+// themselves, and Forge answers that lookup only from the module the asking class lives in. Left
+// as the four artifacts Maven publishes, the loaders sit in one module and liblua5364.so in
+// another, the lookup comes back empty, and the mod quietly drops to the Java Lua that cannot
+// compile MineOS - "Native Lua is unavailable" in the log and nothing else to say why.
+//
+// The shipped jar already merged them, which is why this only ever bit the development runs.
+// Building the merge once and using it in both places keeps them honest with each other.
+// A Zip rather than a Jar: ForgeGradle adds its mixin processing to every Jar task in the
+// project, and this one is built before compilation, which would be a cycle.
+tasks.register("luaRuntimeJar", Zip) {
+    archiveFileName = "lua-runtime.jar"
+    destinationDirectory = layout.buildDirectory.dir("lua")
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from({ configurations.luaRuntime.collect { it.isDirectory() ? it : zipTree(it) } }) {
+        exclude "META-INF/MANIFEST.MF", "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA",
+            "META-INF/versions/**", "module-info.class"
+    }
 }
 
 dependencies {
@@ -149,14 +175,16 @@ dependencies {
     // Real Lua 5.3 through JNI, which is what the same runtime prefers when the natives load:
     // LuaJ's compiler counts local variables across the whole enclosing chain, so it rejects
     // several of MineOS's libraries that the standard compiler accepts.
-    minecraftLibrary "party.iroiro.luajava:luajava:${luajava_version}"
-    minecraftLibrary "party.iroiro.luajava:lua53:${luajava_version}"
-    minecraftLibrary "com.badlogicgames.gdx:gdx-jnigen-loader:${gdx_jnigen_version}"
-    minecraftLibrary "party.iroiro.luajava:lua53-platform:${luajava_version}:natives-desktop"
-    shade "party.iroiro.luajava:luajava:${luajava_version}"
-    shade "party.iroiro.luajava:lua53:${luajava_version}"
-    shade "com.badlogicgames.gdx:gdx-jnigen-loader:${gdx_jnigen_version}"
-    shade "party.iroiro.luajava:lua53-platform:${luajava_version}:natives-desktop"
+    // Non transitive on purpose: the merge is only these four, and pulling their dependencies in
+    // would put org.jetbrains.annotations into a second module that exports the same package,
+    // which the module system refuses to resolve.
+    luaRuntime("party.iroiro.luajava:luajava:${luajava_version}") { transitive = false }
+    luaRuntime("party.iroiro.luajava:lua53:${luajava_version}") { transitive = false }
+    luaRuntime("com.badlogicgames.gdx:gdx-jnigen-loader:${gdx_jnigen_version}") { transitive = false }
+    luaRuntime("party.iroiro.luajava:lua53-platform:${luajava_version}:natives-desktop") { transitive = false }
+    // One jar, for development runs and for the shipped mod alike, so both find the natives.
+    minecraftLibrary files(tasks.named("luaRuntimeJar"))
+    shade files(tasks.named("luaRuntimeJar"))
 
     implementation fg.deobf("curse.maven:architectury-api-${architectury_project_id}:${architectury_file_id}")
     implementation fg.deobf("curse.maven:markdownmanual-${markdownmanual_project_id}:${markdownmanual_file_id}")

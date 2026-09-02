@@ -37,6 +37,21 @@ public interface LuaArchitecture {
     boolean initialize();
 
     /**
+     * Why the last {@link #initialize()} failed, or {@code null} if it did not.
+     * <p>
+     * The machine puts this in the crash it reports, because "failed initializing machine" on its
+     * own is a dead end for whoever has to work out what went wrong: it is the same message for a
+     * missing native library, a script that would not compile and a Lua state that would not
+     * open, and the one place a player looks is the screen, not the server log.
+     *
+     * @return the reason, or {@code null}.
+     */
+    @Nullable
+    default String getInitializationError() {
+        return null;
+    }
+
+    /**
      * Whether {@link #initialize()} has completed successfully.
      */
     boolean isInitialized();
