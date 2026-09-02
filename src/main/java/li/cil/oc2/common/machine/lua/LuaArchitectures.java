@@ -50,6 +50,24 @@ public final class LuaArchitectures {
         return result;
     }
 
+    /**
+     * A one line description of why a backend would not start, for the crash a player sees.
+     * <p>
+     * The exception's own message is preferred where it has one, because the useful part of, say,
+     * a missing native library is the sentence naming the file rather than the class of the
+     * error. Where there is none - a {@link NoClassDefFoundError} carries only the class name -
+     * the type is all there is to report.
+     */
+    static String describe(final Throwable e) {
+        Throwable cause = e;
+        while (cause.getCause() != null && cause.getCause() != cause) {
+            cause = cause.getCause();
+        }
+        final String message = cause.getMessage();
+        final String name = cause.getClass().getSimpleName();
+        return message == null || message.isBlank() ? name : name + ": " + message;
+    }
+
     private static Function<LuaMachine, LuaArchitecture> select() {
         final String override = System.getProperty(OVERRIDE_PROPERTY, "").trim();
         if ("luaj".equalsIgnoreCase(override)) {

@@ -20,7 +20,9 @@ One computer can see every screen it is touching, and a screen delivers what is 
 
 ## Using it
 
-**Right click** the screen to open its terminal window. Right clicking the computer opens the same window, on whichever screen is against it; if it has none, it says so instead, because a case with no monitor has nothing to show.
+**Right click** the screen to open its terminal window. That is where the machine is used.
+
+**Right click** the computer to open the computer's own panel instead: the power button, whether it is running, and how many screens are touching it. The case has no display, so there is nothing to type at there - it is where you switch the machine on and find out why it is not doing anything.
 
 The face of the screen block shows what the machine is drawing too, but a tier 3 screen is 160 by 50 characters, which is unreadable from where you would be standing, so the window is where the machine is actually used.
 
@@ -100,7 +102,9 @@ The BIOS tries every writable filesystem before it falls back to the ROM, so an 
 
 ## When something is wrong
 
-**Nothing happens when I right click the computer.** It has no screen of its own to open, so it opens the terminal on the screen against it. `No screen. Place a Lua Screen against the computer.` above your hotbar means there is none touching it. If nothing at all appears, you are holding a [wrench](item/wrench.md), which configures the block instead.
+**Nothing happens when I right click the computer.** It opens its panel, not a terminal - the terminal is on the screen. If no window appears at all, you are holding a [wrench](item/wrench.md), which configures the block instead.
+
+**The panel says no screen attached.** Nothing is touching the computer. Put a Lua Screen against it, on any of the six sides.
 
 **The screen is black.** The computer is off, or there is no computer touching that screen. Press the power button in the terminal window, or sneak and right click the computer.
 

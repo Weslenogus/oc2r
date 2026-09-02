@@ -111,6 +111,13 @@ public final class NativeLuaArchitecture implements LuaArchitecture {
      */
     private final Object lifecycle = new Object();
 
+    /**
+     * Why the last {@link #initialize()} failed. Kept because the only thing a player sees is the
+     * screen, and a bare "failed initializing machine" there names none of the several very
+     * different things that can go wrong before the first instruction runs.
+     */
+    @Nullable private String initializationError;
+
     @Nullable private Lua lua;
     private int trampolineRef = -1;
     private boolean sliceRunning;
@@ -183,6 +190,7 @@ public final class NativeLuaArchitecture implements LuaArchitecture {
 
     @Override
     public boolean initialize() {
+        initializationError = null;
         Lua state = null;
         try {
             state = new Lua53();
@@ -198,6 +206,7 @@ public final class NativeLuaArchitecture implements LuaArchitecture {
 
             if (!state.isFunction(-1)) {
                 LOGGER.error("machine.lua did not return a function.");
+                initializationError = "machine.lua did not return a function";
                 state.close();
                 return false;
             }
@@ -213,6 +222,7 @@ public final class NativeLuaArchitecture implements LuaArchitecture {
             synchronized (lifecycle) {
                 if (closeRequested) {
                     state.close();
+                    initializationError = "the machine was stopped while it was starting";
                     return false;
                 }
                 lua = state;
@@ -224,6 +234,7 @@ public final class NativeLuaArchitecture implements LuaArchitecture {
             return true;
         } catch (final Throwable e) {
             LOGGER.error("Failed initializing Lua machine.", e);
+            initializationError = LuaArchitectures.describe(e);
             if (state != null) {
                 try {
                     state.close();
@@ -233,6 +244,12 @@ public final class NativeLuaArchitecture implements LuaArchitecture {
             }
             return false;
         }
+    }
+
+    @Nullable
+    @Override
+    public String getInitializationError() {
+        return initializationError;
     }
 
     @Override

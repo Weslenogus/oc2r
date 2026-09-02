@@ -87,6 +87,12 @@ public final class LuaJArchitecture implements LuaArchitecture {
     private final LuaMachine machine;
 
     /**
+     * Why the last {@link #initialize()} failed, so the machine can say so rather than reporting
+     * the same three words whatever went wrong.
+     */
+    @Nullable private String initializationError;
+
+    /**
      * Explicit budgets, or zero to take the host's. Tests pin them; a machine in the world asks the
      * host every slice, so changing the server config takes effect without a restart.
      */
@@ -171,6 +177,7 @@ public final class LuaJArchitecture implements LuaArchitecture {
 
     @Override
     public boolean initialize() {
+        initializationError = null;
         try {
             final Globals globals = createGlobals();
             this.globals = globals;
@@ -192,6 +199,7 @@ public final class LuaJArchitecture implements LuaArchitecture {
 
             if (!entryPoint.isfunction()) {
                 LOGGER.error("machine.lua did not return a function.");
+                initializationError = "machine.lua did not return a function";
                 return false;
             }
 
@@ -201,9 +209,16 @@ public final class LuaJArchitecture implements LuaArchitecture {
             return true;
         } catch (final Throwable e) {
             LOGGER.error("Failed initializing Lua machine.", e);
+            initializationError = LuaArchitectures.describe(e);
             close();
             return false;
         }
+    }
+
+    @Nullable
+    @Override
+    public String getInitializationError() {
+        return initializationError;
     }
 
     @Override

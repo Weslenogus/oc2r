@@ -2,10 +2,9 @@
 
 package li.cil.oc2.common.block;
 
-import li.cil.oc2.client.gui.LuaTerminalScreens;
+import li.cil.oc2.client.gui.LuaComputerScreens;
 import li.cil.oc2.common.blockentity.BlockEntities;
 import li.cil.oc2.common.blockentity.LuaComputerBlockEntity;
-import li.cil.oc2.common.blockentity.LuaScreenBlockEntity;
 import li.cil.oc2.common.blockentity.TickableBlockEntity;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.integration.Wrenches;
@@ -96,18 +95,13 @@ public final class LuaComputerBlock extends HorizontalDirectionalBlock implement
                 }
             }
         } else if (level.isClientSide()) {
-            // The computer has no display of its own, so the terminal is opened on whichever screen
-            // is against it. With none there is nothing to show, and saying so beats opening an
-            // empty window: a computer with no monitor is the one mistake this arrangement invites.
-            final LuaScreenBlockEntity screen = findAttachedScreen(level, pos);
-            if (screen != null) {
-                // Through DistExecutor so the client-only screen class is never resolved on a
-                // dedicated server, where loading it would fail at verification time.
-                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> LuaTerminalScreens.open(screen));
-            } else {
-                player.displayClientMessage(
-                    Component.translatable("gui.oc2r.lua_computer.no_screen"), true);
-            }
+            // The case's own panel, not the terminal. The terminal belongs to the screen: opening
+            // it here as well made two blocks do the same thing and left the case with nothing to
+            // say, including the one thing only it knows - whether it has a screen at all.
+            //
+            // Through DistExecutor so the client-only screen class is never resolved on a
+            // dedicated server, where loading it would fail at verification time.
+            DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> LuaComputerScreens.open(level, pos));
         }
 
         return InteractionResult.sidedSuccess(level.isClientSide());
@@ -116,20 +110,6 @@ public final class LuaComputerBlock extends HorizontalDirectionalBlock implement
     @Override
     public BlockState getStateForPlacement(final BlockPlaceContext context) {
         return super.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
-    }
-
-    /**
-     * The first screen block touching this computer, or {@code null} if it has none.
-     */
-    @Nullable
-    private static LuaScreenBlockEntity findAttachedScreen(final Level level, final BlockPos pos) {
-        for (final Direction direction : Direction.values()) {
-            if (level.getBlockEntity(pos.relative(direction))
-                instanceof final LuaScreenBlockEntity screen) {
-                return screen;
-            }
-        }
-        return null;
     }
 
     ///////////////////////////////////////////////////////////////////
