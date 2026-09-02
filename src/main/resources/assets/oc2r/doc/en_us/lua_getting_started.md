@@ -22,7 +22,7 @@ One computer can see every screen it is touching, and a screen delivers what is 
 
 **Right click** the screen to open its terminal window. That is where the machine is used.
 
-**Right click** the computer to open the computer's own panel instead: the power button, whether it is running, and how many screens are touching it. The case has no display, so there is nothing to type at there - it is where you switch the machine on and find out why it is not doing anything.
+**Right click** the computer to open the computer's own window instead, the same shape as the one the other computer has: the power button, whether it is running, and the parts it is made of. Its slots are locked, because a Lua machine is a fixed configuration; the screen and keyboard slots fill as screens are placed against the block. The button below the power button opens the terminal on one of those screens.
 
 The face of the screen block shows what the machine is drawing too, but a tier 3 screen is 160 by 50 characters, which is unreadable from where you would be standing, so the window is where the machine is actually used.
 

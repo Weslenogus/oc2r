@@ -2,15 +2,16 @@
 
 package li.cil.oc2.common.block;
 
-import li.cil.oc2.client.gui.LuaComputerScreens;
 import li.cil.oc2.common.blockentity.BlockEntities;
 import li.cil.oc2.common.blockentity.LuaComputerBlockEntity;
 import li.cil.oc2.common.blockentity.TickableBlockEntity;
 import li.cil.oc2.common.config.Config;
+import li.cil.oc2.common.container.LuaComputerContainer;
 import li.cil.oc2.common.integration.Wrenches;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -34,7 +35,6 @@ import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.fml.DistExecutor;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -94,14 +94,13 @@ public final class LuaComputerBlock extends HorizontalDirectionalBlock implement
                     }
                 }
             }
-        } else if (level.isClientSide()) {
-            // The case's own panel, not the terminal. The terminal belongs to the screen: opening
-            // it here as well made two blocks do the same thing and left the case with nothing to
-            // say, including the one thing only it knows - whether it has a screen at all.
-            //
-            // Through DistExecutor so the client-only screen class is never resolved on a
-            // dedicated server, where loading it would fail at verification time.
-            DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> LuaComputerScreens.open(level, pos));
+        } else if (!level.isClientSide() && player instanceof final ServerPlayer serverPlayer) {
+            // The computer's own window, not the terminal. The terminal belongs to the screen:
+            // opening it here as well made two blocks do the same thing and left the case with
+            // nothing to say, including the one thing only it knows - whether it has a screen.
+            if (level.getBlockEntity(pos) instanceof final LuaComputerBlockEntity computer) {
+                LuaComputerContainer.createServer(computer, serverPlayer);
+            }
         }
 
         return InteractionResult.sidedSuccess(level.isClientSide());

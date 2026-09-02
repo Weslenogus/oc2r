@@ -413,11 +413,7 @@ public final class LuaJArchitecture implements LuaArchitecture {
     }
 
     private static InputStream openMachineScript() throws IOException {
-        final InputStream stream = LuaJArchitecture.class.getResourceAsStream(MACHINE_SCRIPT);
-        if (stream == null) {
-            throw new IOException("Missing machine script [" + MACHINE_SCRIPT + "].");
-        }
-        return stream;
+        return LuaScriptSource.open(MACHINE_SCRIPT);
     }
 
     /**

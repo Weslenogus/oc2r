@@ -324,7 +324,10 @@ public final class LuaMachine implements Machine {
 
         final String crash = crashMessage.get();
         if (crash != null && state != State.STOPPED) {
-            LOGGER.debug("Machine [{}] crashed: {}", address, crash);
+            // At warn, not debug: this is the one line that says why a computer stopped, and a
+            // player reporting "it does nothing" is reading a normal client log, where debug is
+            // not printed.
+            LOGGER.warn("Machine [{}] crashed: {}", address, crash);
             stop();
             host.onMachineCrashed(crash);
             return;

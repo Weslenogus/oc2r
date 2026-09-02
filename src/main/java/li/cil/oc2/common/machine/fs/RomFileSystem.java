@@ -2,6 +2,7 @@
 
 package li.cil.oc2.common.machine.fs;
 
+import li.cil.oc2.common.machine.lua.LuaScriptSource;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -203,12 +204,9 @@ public final class RomFileSystem extends AbstractVirtualFileSystem {
     }
 
     private static byte[] readBytes(final String resource) throws IOException {
-        try (final InputStream stream = RomFileSystem.class.getResourceAsStream(resource)) {
-            if (stream == null) {
-                throw new IOException("missing resource [" + resource + "]");
-            }
-            return stream.readAllBytes();
-        }
+        // Through the script source rather than the class path directly, so a development run
+        // pointed at the working tree gets the file being edited.
+        return LuaScriptSource.readBytes(resource);
     }
 
     ///////////////////////////////////////////////////////////////////
