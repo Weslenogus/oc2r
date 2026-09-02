@@ -6,16 +6,18 @@ A computer running the OpenComputers 1 Lua environment, which is what software s
 Read the [Lua getting started guide](../lua_getting_started.md) for a walkthrough from placing the block to writing a program.
 
 ### Using it
-**Right click** to open the terminal. **Sneak and right click** to switch the machine on or off; it glows while it is running, and its front panel shows what is on the screen.
+**Right click** to open the terminal on the screen against it. **Sneak and right click** to switch the machine on or off; it glows while it is running.
 
 ### Configuration
-There is none, and that is the point: the processor, memory, graphics card, canvas card, disk and screen are all part of the block, so it works as soon as it is placed. Server owners can change what those parts are worth in `config/oc2r-common.toml`, under `[lua_machine]`.
+There is none, and that is the point: the processor, memory, graphics card, canvas card and disk are all part of the block, so it works as soon as it is placed and a screen is put against it. Server owners can change what those parts are worth in `config/oc2r-common.toml`, under `[lua_machine]`.
 
 ### Power
 None needed. A Lua computer has no energy bar to read, so charging it for its uptime would mean a block that stops a second after it starts with nothing to say why; the cost is off unless a server turns it on, and the block accepts energy from any side for when it does.
 
 ### Screens
-The computer has a display of its own, so nothing else is required. A [Lua Screen](lua_screen.md) placed directly against it is an external monitor: much larger, with a keyboard of its own, and showing the same machine.
+The case has no display, the way an OpenComputers computer case has none. Place a [Lua Screen](lua_screen.md) directly against it, on any of the six sides - on top is the usual arrangement - and that screen is the machine's display and its keyboard both. Touching is the whole connection: there is no cable and no bus interface, and a screen one block away is a screen the computer cannot see.
+
+Right clicking the case with no screen against it says so above your hotbar rather than opening an empty window.
 
 ### Storage
 The disk is built in and travels with the block: mine the computer and whatever was installed on it comes along in the item. It holds 32MB by default.

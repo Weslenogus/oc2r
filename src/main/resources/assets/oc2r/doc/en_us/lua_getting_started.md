@@ -4,9 +4,15 @@ This is a walkthrough for the [Lua Computer](block/lua_computer.md), from placin
 
 ## What you need
 
-One [Lua Computer](block/lua_computer.md). That is the whole list.
+Two blocks: a [Lua Computer](block/lua_computer.md) and a [Lua Screen](block/lua_screen.md).
 
-It has no card slots and no inventory: the processor, memory, graphics card, disk and screen are all part of the block. It needs no power either, unless the server has turned that cost on.
+The computer has no card slots and no inventory - the processor, memory, graphics card and disk are all part of the block - but it has no display, the way an OpenComputers computer case has none. The screen is the other half of the machine, and it brings the keyboard with it. It needs no power either, unless the server has turned that cost on.
+
+## Putting one together
+
+Place the computer, then place the screen against it: directly on top is the usual arrangement, but any of the six sides works. Adjacency is the whole connection - no cable, no bus interface - and a screen one block away is a screen the computer cannot see.
+
+One computer can see every screen it is touching, and a screen delivers what is typed at it to every computer it is touching, so a wall of screens or a shared terminal are both just a matter of where the blocks go.
 
 ## Switching it on
 
@@ -14,22 +20,18 @@ It has no card slots and no inventory: the processor, memory, graphics card, dis
 
 ## Using it
 
-**Right click** the computer to open its terminal. The front of the block shows what is on the screen too, but a tier 3 screen is 160 by 50 characters, which is unreadable from where you would be standing, so the window is where the machine is actually used.
+**Right click** the screen to open its terminal window. Right clicking the computer opens the same window, on whichever screen is against it; if it has none, it says so instead, because a case with no monitor has nothing to show.
 
-Down the left of that window are two buttons:
+The face of the screen block shows what the machine is drawing too, but a tier 3 screen is 160 by 50 characters, which is unreadable from where you would be standing, so the window is where the machine is actually used.
 
-- The **power** button, which does the same as sneaking and right clicking the block.
-- The **input** button, which decides who gets your keystrokes.
+Down the left of that window, in a panel against the edge of the screen, are two buttons:
+
+- The **power** button, the one with the arrow through the ring, which does the same as sneaking and right clicking the block.
+- The **input** button below it, which decides who gets your keystrokes.
 
 **The keyboard does nothing until input is captured.** Press the input button, then hold the pointer over the screen: while both are true, everything you type goes to the computer, Escape included, because programs use it. Move the pointer off the screen and Escape closes the window as usual. The window tells you which of the two is missing.
 
 The mouse works as well: clicking, dragging and scrolling on the screen reach the program as touch, drag and scroll events, which is what a desktop like MineOS listens for. Ctrl+V pastes.
-
-## A bigger screen
-
-A [Lua Screen](block/lua_screen.md) is an external display. Place one directly against the computer, on any of the six sides, and the machine can draw to it as well: it is a second, much larger view of the same computer, and it brings a keyboard of its own. Right click it to open the same terminal window.
-
-Adjacency is the whole connection - no cable, no bus interface - and a screen one block away is a screen the computer cannot see.
 
 ## The built in shell
 
@@ -98,9 +100,9 @@ The BIOS tries every writable filesystem before it falls back to the ROM, so an 
 
 ## When something is wrong
 
-**Nothing happens when I right click it.** Right clicking opens the terminal; if the window does not appear, you are holding a [wrench](item/wrench.md), which configures the block instead.
+**Nothing happens when I right click the computer.** It has no screen of its own to open, so it opens the terminal on the screen against it. `No screen. Place a Lua Screen against the computer.` above your hotbar means there is none touching it. If nothing at all appears, you are holding a [wrench](item/wrench.md), which configures the block instead.
 
-**The screen is black.** The computer is off. Press the power button in the terminal window, or sneak and right click the block.
+**The screen is black.** The computer is off, or there is no computer touching that screen. Press the power button in the terminal window, or sneak and right click the computer.
 
 **Typing does nothing.** Press the input button, and keep the pointer over the screen.
 
