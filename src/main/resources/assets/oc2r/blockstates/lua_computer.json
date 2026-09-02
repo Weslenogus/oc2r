@@ -1,18 +1,18 @@
 {
   "variants": {
     "facing=north": {
-      "model": "oc2r:block/computer"
+      "model": "oc2r:block/lua_computer"
     },
     "facing=south": {
-      "model": "oc2r:block/computer",
+      "model": "oc2r:block/lua_computer",
       "y": 180
     },
     "facing=west": {
-      "model": "oc2r:block/computer",
+      "model": "oc2r:block/lua_computer",
       "y": 270
     },
     "facing=east": {
-      "model": "oc2r:block/computer",
+      "model": "oc2r:block/lua_computer",
       "y": 90
     }
   }

@@ -12,21 +12,16 @@ import li.cil.oc2.common.machine.components.ComputerComponent;
 import li.cil.oc2.common.machine.components.EepromComponent;
 import li.cil.oc2.common.machine.components.FilesystemComponent;
 import li.cil.oc2.common.machine.components.GraphicsCardComponent;
-import li.cil.oc2.common.machine.components.KeyboardComponent;
-import li.cil.oc2.common.machine.components.ScreenComponent;
 import li.cil.oc2.common.machine.fs.RamFileSystem;
 import li.cil.oc2.common.machine.fs.RomFileSystem;
 import li.cil.oc2.common.machine.lua.LuaMachine;
 import li.cil.oc2.common.machine.screen.MachineErrorScreen;
-import li.cil.oc2.common.machine.screen.ScreenMode;
 import li.cil.oc2.common.machine.serialization.FileSystemSerialization;
 import li.cil.oc2.common.machine.serialization.MachineSerialization;
 import li.cil.oc2.common.util.NBTTagIds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.energy.IEnergyStorage;
@@ -50,15 +45,17 @@ import java.util.UUID;
  * Deliberately not a variant of {@link ComputerBlockEntity}: that one boots Linux on a RISC-V core
  * and has an inventory of cards to match. This one is a fixed configuration, which is what makes it
  * placeable and usable without a container: a Tier 3 graphics card, an EEPROM carrying the stock
- * BIOS, a megabyte of disk and a temporary filesystem. Screens and their keyboards come from the
- * blocks around it.
+ * BIOS, a megabyte of disk and a temporary filesystem.
+ * <p>
+ * It has no display of its own, the way an OpenComputers computer case does not: a screen is a
+ * separate block placed against it, and it brings the keyboard with it.
  * <p>
  * The disk lives in this block entity's tag rather than in the world save directory. That bounds it
  * to something a region file can reasonably hold, and it means breaking the block takes the disk
  * with it, which is the behaviour a player expects from a computer they just mined.
  */
 public final class LuaComputerBlockEntity extends ModBlockEntity
-    implements TickableBlockEntity, MachineHost, LuaScreenView {
+    implements TickableBlockEntity, MachineHost {
     private static final Logger LOGGER = LogManager.getLogger();
 
     private static final String BIOS_SCRIPT = "/assets/oc2r/lua/bios.lua";
@@ -84,8 +81,6 @@ public final class LuaComputerBlockEntity extends ModBlockEntity
     public static final String DISK_TAG_NAME = "disk";
 
     private static final String EEPROM_TAG_NAME = "eeprom";
-    private static final String SCREEN_TAG_NAME = "screen";
-    private static final String KEYBOARD_TAG_NAME = "keyboard";
     private static final String DISK_ADDRESS_TAG_NAME = "diskAddress";
     private static final String ENERGY_TAG_NAME = "energy";
 
@@ -115,17 +110,6 @@ public final class LuaComputerBlockEntity extends ModBlockEntity
      * to draw on, switched between by drawing.
      */
     private final CanvasCardComponent canvas = new CanvasCardComponent(UUID.randomUUID().toString());
-
-    /**
-     * The computer's own display, the way the RISC-V computer has one.
-     * <p>
-     * Without it a placed computer shows nothing until a second block is put against it, and
-     * nothing on the block says so - which reads as the machine being broken rather than as a
-     * computer with no monitor. A {@link LuaScreenBlockEntity} is still an external display for
-     * anyone who wants a bigger one, or one somewhere else.
-     */
-    private final ScreenComponent screen = new ScreenComponent(UUID.randomUUID().toString());
-    private final KeyboardComponent keyboard = new KeyboardComponent(UUID.randomUUID().toString());
 
     private final FilesystemComponent disk;
     private final FilesystemComponent tmpfs;
@@ -160,8 +144,6 @@ public final class LuaComputerBlockEntity extends ModBlockEntity
         tmpfs = new FilesystemComponent(UUID.randomUUID().toString(),
             new RamFileSystem(Math.max(MIN_TMPFS_CAPACITY, diskCapacity / TMPFS_FRACTION)), "tmpfs");
 
-        keyboard.setScreen(screen);
-
         machine = new LuaMachine(this);
         self = new ComputerComponent(machine.getAddress());
 
@@ -188,57 +170,6 @@ public final class LuaComputerBlockEntity extends ModBlockEntity
     }
 
     ///////////////////////////////////////////////////////////////////
-    // LuaScreenView
-
-    @Override
-    public ScreenComponent getScreen() {
-        return screen;
-    }
-
-    @Override
-    public String getKeyboardAddress() {
-        return keyboard.getComponentAddress();
-    }
-
-    @Override
-    public BlockEntity getBlockEntity() {
-        return this;
-    }
-
-    @Override
-    public void signalMachines(final String name, final Object... args) {
-        machine.signal(name, args);
-    }
-
-    @Override
-    public boolean isMachineRunning() {
-        // The client has no machine to ask, and reading the block state answers for both sides: it
-        // carries the lit flag and is synchronized already.
-        if (level != null && level.isClientSide()) {
-            final BlockState state = getBlockState();
-            return state.hasProperty(LuaComputerBlock.LIT) && state.getValue(LuaComputerBlock.LIT);
-        }
-        return machine.isRunning();
-    }
-
-    @Override
-    public void setMachineRunning(final boolean value) {
-        if (value) {
-            start();
-        } else {
-            stop();
-        }
-    }
-
-    public void sendFullSync(final ServerPlayer player) {
-        LuaScreenSync.sendFullSync(this, player);
-    }
-
-    public void applyDeltaClient(final ScreenMode mode, final byte[] payload) {
-        LuaScreenSync.applyDelta(this, mode, payload);
-    }
-
-    ///////////////////////////////////////////////////////////////////
     // MachineHost
 
     @Override
@@ -248,8 +179,6 @@ public final class LuaComputerBlockEntity extends ModBlockEntity
         components.add(eeprom);
         components.add(gpu);
         components.add(canvas);
-        components.add(screen);
-        components.add(keyboard);
         components.add(disk);
         components.add(tmpfs);
         components.add(rom);
@@ -371,11 +300,6 @@ public final class LuaComputerBlockEntity extends ModBlockEntity
         // nothing to boot.
         final String reason = message == null || message.isBlank() ? "unknown error" : message;
 
-        // Its own screen first: that is the one a player is looking at if they have not placed
-        // anything else.
-        MachineErrorScreen.render(screen, "Machine stopped", reason,
-            "Sneak and right click the computer to start it again.");
-
         for (final Direction direction : Direction.values()) {
             if (level.getBlockEntity(getBlockPos().relative(direction))
                 instanceof final LuaScreenBlockEntity external) {
@@ -394,10 +318,6 @@ public final class LuaComputerBlockEntity extends ModBlockEntity
             machine.start();
         }
         machine.tick();
-
-        // After the machine has had its turn, so anything it drew this tick goes out with it
-        // rather than waiting for the next one.
-        LuaScreenSync.tick(this);
     }
 
     @Override
@@ -426,16 +346,6 @@ public final class LuaComputerBlockEntity extends ModBlockEntity
         super.saveAdditional(tag);
         tag.put(MACHINE_TAG_NAME, MachineSerialization.serialize(machine));
         tag.put(EEPROM_TAG_NAME, MachineSerialization.serialize(eeprom));
-        // Only the addresses. They have to survive a reload, because an operating system
-        // remembers which screen and keyboard it bound to and would otherwise be talking to
-        // components that no longer exist.
-        //
-        // Not the contents: the machine does not persist its Lua state, so it reboots and redraws,
-        // and a whole screen buffer is tens of kilobytes written into the chunk on every save. It
-        // would also leave the buffer marked dirty, which is a full resend to every client watching
-        // the block each time the world saves.
-        tag.putString(SCREEN_TAG_NAME, screen.getComponentAddress());
-        tag.putString(KEYBOARD_TAG_NAME, keyboard.getComponentAddress());
         tag.put(DISK_TAG_NAME, FileSystemSerialization.serialize(disk.getFileSystem()));
         tag.putString(DISK_ADDRESS_TAG_NAME, disk.getComponentAddress());
         tag.put(ENERGY_TAG_NAME, energy.serializeNBT());
@@ -447,14 +357,6 @@ public final class LuaComputerBlockEntity extends ModBlockEntity
 
         if (tag.contains(EEPROM_TAG_NAME, NBTTagIds.TAG_COMPOUND)) {
             MachineSerialization.deserialize(tag.getCompound(EEPROM_TAG_NAME), eeprom);
-        }
-        final String screenAddress = tag.getString(SCREEN_TAG_NAME);
-        if (!screenAddress.isEmpty()) {
-            screen.setComponentAddress(screenAddress);
-        }
-        final String keyboardAddress = tag.getString(KEYBOARD_TAG_NAME);
-        if (!keyboardAddress.isEmpty()) {
-            keyboard.setComponentAddress(keyboardAddress);
         }
         if (tag.contains(DISK_TAG_NAME, NBTTagIds.TAG_COMPOUND)) {
             FileSystemSerialization.deserialize(tag.getCompound(DISK_TAG_NAME), disk.getFileSystem());

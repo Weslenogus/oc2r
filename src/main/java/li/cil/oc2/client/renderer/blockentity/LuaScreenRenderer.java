@@ -44,8 +44,17 @@ public final class LuaScreenRenderer<T extends BlockEntity & LuaScreenView> impl
      * own terminal.
      */
     public record Face(float left, float top, float width, float height, float depth) {
-        public static final Face WHOLE_BLOCK = new Face(0.05f, 0.05f, 0.9f, 0.9f, 0.005f);
-        public static final Face COMPUTER_PANEL = new Face(0.06f, 0.14f, 0.88f, 0.22f, 0.068f);
+        /**
+         * The screen block: everything inside the one pixel bezel of its front texture.
+         */
+        public static final Face SCREEN_PANEL = new Face(1 / 16f, 1 / 16f, 14 / 16f, 14 / 16f, 0.005f);
+
+        /**
+         * The computer: the display window in its front texture, twelve by six pixels starting two
+         * in from the top left. These numbers and that texture have to agree, or the picture sits
+         * on the casing next to the window it belongs in.
+         */
+        public static final Face COMPUTER_PANEL = new Face(2 / 16f, 2 / 16f, 12 / 16f, 6 / 16f, 0.005f);
     }
 
     /**
@@ -129,13 +138,26 @@ public final class LuaScreenRenderer<T extends BlockEntity & LuaScreenView> impl
                 return;
             }
 
-            // Fit to the part of the face that is display, so the picture does not run into the
-            // bezel. Uniform scale, so a 160 by 50 grid or a 320 by 200 canvas keeps its aspect
-            // ratio rather than being stretched square.
-            final float scale = Math.min(face.width() / width, face.height() / height);
-            stack.translate(face.left() + (face.width() - width * scale) / 2,
-                face.top() + (face.height() - height * scale) / 2, 0);
-            stack.scale(scale, scale, scale);
+            // Text fills the panel; a picture is fitted inside it.
+            //
+            // A 160 by 50 grid is nothing like the shape of a block face, so fitting it uniformly
+            // leaves a band of text across the middle of a mostly empty screen - which reads as a
+            // rectangle floating on the block rather than as a display. OpenComputers stretches its
+            // character grid to the screen for the same reason, and characters have no aspect ratio
+            // worth preserving at a size nobody reads from across a room. A canvas does: it is a
+            // picture, and stretching it square is wrong however small it is.
+            final float scaleX;
+            final float scaleY;
+            if (canvas != null) {
+                scaleX = scaleY = Math.min(face.width() / width, face.height() / height);
+            } else {
+                scaleX = face.width() / width;
+                scaleY = face.height() / height;
+            }
+
+            stack.translate(face.left() + (face.width() - width * scaleX) / 2,
+                face.top() + (face.height() - height * scaleY) / 2, 0);
+            stack.scale(scaleX, scaleY, Math.min(scaleX, scaleY));
 
             // Screens are self lit: a terminal in a dark room is still readable.
             if (canvas != null) {

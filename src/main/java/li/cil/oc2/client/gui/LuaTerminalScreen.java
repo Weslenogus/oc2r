@@ -46,6 +46,13 @@ public final class LuaTerminalScreen extends Screen {
     private static final int MARGIN = 8;
     private static final int BUTTON_SIZE = 12;
     private static final int SIDEBAR_WIDTH = Sprites.SIDEBAR_3.width;
+    private static final int SIDEBAR_GAP = 4;
+
+    /**
+     * The frame around the grid, in the steel the mod's other terminals are drawn in.
+     */
+    private static final int FRAME_COLOR = 0xFF3A4247;
+    private static final int FRAME_SHADOW = 0xFF14181B;
 
     private final LuaScreenView view;
 
@@ -66,6 +73,16 @@ public final class LuaTerminalScreen extends Screen {
 
     private int lastDragButton = -1;
 
+    /**
+     * The sidebar's position, worked out with the grid each frame so the controls stay attached to
+     * it however the window is resized.
+     */
+    private int sidebarX = MARGIN;
+    private int sidebarY = MARGIN;
+
+    private ToggleImageButton powerButton;
+    private ToggleImageButton inputButton;
+
     ///////////////////////////////////////////////////////////////////
 
     public LuaTerminalScreen(final LuaScreenView view) {
@@ -83,11 +100,8 @@ public final class LuaTerminalScreen extends Screen {
         // which case the client's buffer is still blank.
         LuaScreenSync.requestFullSync(view);
 
-        final int buttonX = MARGIN;
-        int buttonY = MARGIN;
-
-        addRenderableWidget(new ToggleImageButton(
-            buttonX, buttonY, BUTTON_SIZE, BUTTON_SIZE,
+        powerButton = addRenderableWidget(new ToggleImageButton(
+            sidebarX + 4, sidebarY + 4, BUTTON_SIZE, BUTTON_SIZE,
             Sprites.POWER_BUTTON_BASE, Sprites.POWER_BUTTON_PRESSED, Sprites.POWER_BUTTON_ACTIVE
         ) {
             @Override
@@ -105,15 +119,13 @@ public final class LuaTerminalScreen extends Screen {
             public boolean isToggled() {
                 return view.isMachineRunning();
             }
-        }).withTooltip(
+        });
+        powerButton.withTooltip(
             Component.translatable(Constants.COMPUTER_SCREEN_POWER_CAPTION),
-            Component.translatable(Constants.COMPUTER_SCREEN_POWER_DESCRIPTION)
-        );
+            Component.translatable(Constants.COMPUTER_SCREEN_POWER_DESCRIPTION));
 
-        buttonY += BUTTON_SIZE + 2;
-
-        addRenderableWidget(new ToggleImageButton(
-            buttonX, buttonY, BUTTON_SIZE, BUTTON_SIZE,
+        inputButton = addRenderableWidget(new ToggleImageButton(
+            sidebarX + 4, sidebarY + 4 + 14, BUTTON_SIZE, BUTTON_SIZE,
             Sprites.INPUT_BUTTON_BASE, Sprites.INPUT_BUTTON_PRESSED, Sprites.INPUT_BUTTON_ACTIVE
         ) {
             @Override
@@ -130,10 +142,10 @@ public final class LuaTerminalScreen extends Screen {
             public boolean isToggled() {
                 return captureInput;
             }
-        }).withTooltip(
+        });
+        inputButton.withTooltip(
             Component.translatable(Constants.TERMINAL_CAPTURE_INPUT_CAPTION),
-            Component.translatable(Constants.TERMINAL_CAPTURE_INPUT_DESCRIPTION)
-        );
+            Component.translatable(Constants.TERMINAL_CAPTURE_INPUT_DESCRIPTION));
     }
 
     @Override
@@ -166,21 +178,31 @@ public final class LuaTerminalScreen extends Screen {
                 return;
             }
 
-            final float availableWidth = width - SIDEBAR_WIDTH - MARGIN * 2;
+            final float availableWidth = width - SIDEBAR_WIDTH - SIDEBAR_GAP - MARGIN * 2;
             final float availableHeight = height - MARGIN * 2;
             gridScale = Math.min(availableWidth / unitsWide, availableHeight / unitsHigh);
             gridWidth = unitsWide * gridScale;
             gridHeight = unitsHigh * gridScale;
-            gridLeft = SIDEBAR_WIDTH + MARGIN + (availableWidth - gridWidth) / 2;
+            gridLeft = MARGIN + SIDEBAR_WIDTH + SIDEBAR_GAP + (availableWidth - gridWidth) / 2;
             gridTop = MARGIN + (availableHeight - gridHeight) / 2;
 
             isMouseOverGrid = mouseX >= gridLeft && mouseX < gridLeft + gridWidth
                 && mouseY >= gridTop && mouseY < gridTop + gridHeight;
 
-            // A black mat behind the grid, so a screen narrower than the window still reads as a
-            // display rather than as text floating over the world.
-            graphics.fill((int) gridLeft - 2, (int) gridTop - 2,
-                (int) (gridLeft + gridWidth) + 2, (int) (gridTop + gridHeight) + 2, 0xFF000000);
+            // The frame the rest of the mod's terminals have: a steel border, a dark inner edge,
+            // and the screen itself black, so the grid reads as a display rather than as text
+            // floating over the world.
+            drawFrame(graphics);
+
+            // And the controls, on the mod's own sidebar panel, hard against the left of the
+            // screen - the same place the RISC-V terminal keeps them.
+            sidebarX = (int) gridLeft - SIDEBAR_GAP - SIDEBAR_WIDTH - 3;
+            sidebarY = (int) gridTop - 3;
+            Sprites.SIDEBAR_3.draw(graphics, sidebarX, sidebarY);
+            powerButton.setX(sidebarX + 4);
+            powerButton.setY(sidebarY + 4);
+            inputButton.setX(sidebarX + 4);
+            inputButton.setY(sidebarY + 4 + 14);
 
             final PoseStack pose = graphics.pose();
             pose.pushPose();
@@ -200,6 +222,20 @@ public final class LuaTerminalScreen extends Screen {
         renderHint(graphics);
 
         super.render(graphics, mouseX, mouseY, partialTicks);
+    }
+
+    /**
+     * The border and the black screen behind the grid.
+     */
+    private void drawFrame(final GuiGraphics graphics) {
+        final int left = (int) gridLeft;
+        final int top = (int) gridTop;
+        final int right = (int) (gridLeft + gridWidth);
+        final int bottom = (int) (gridTop + gridHeight);
+
+        graphics.fill(left - 3, top - 3, right + 3, bottom + 3, FRAME_COLOR);
+        graphics.fill(left - 1, top - 1, right + 1, bottom + 1, FRAME_SHADOW);
+        graphics.fill(left, top, right, bottom, 0xFF000000);
     }
 
     /**

@@ -5,6 +5,7 @@ package li.cil.oc2.common.block;
 import li.cil.oc2.client.gui.LuaTerminalScreens;
 import li.cil.oc2.common.blockentity.BlockEntities;
 import li.cil.oc2.common.blockentity.LuaComputerBlockEntity;
+import li.cil.oc2.common.blockentity.LuaScreenBlockEntity;
 import li.cil.oc2.common.blockentity.TickableBlockEntity;
 import li.cil.oc2.common.config.Config;
 import li.cil.oc2.common.integration.Wrenches;
@@ -43,8 +44,9 @@ import java.util.List;
  * A computer running the OpenComputers 1 compatible Lua runtime, as opposed to
  * {@link ComputerBlock}, which boots Linux on a virtual RISC-V core.
  * <p>
- * Right clicking toggles the power, which is the whole interaction: unlike its RISC-V sibling this
- * has no cards to install, because a machine MineOS can run is a fixed configuration.
+ * Unlike its RISC-V sibling this has no cards to install, because a machine MineOS can run is a
+ * fixed configuration. It has no display either: like an OpenComputers computer case it needs a
+ * screen block placed against it, which is where both the picture and the keyboard come from.
  */
 public final class LuaComputerBlock extends HorizontalDirectionalBlock implements EnergyConsumingBlock, EntityBlock {
     public static final BooleanProperty LIT = BlockStateProperties.LIT;
@@ -94,11 +96,17 @@ public final class LuaComputerBlock extends HorizontalDirectionalBlock implement
                 }
             }
         } else if (level.isClientSide()) {
-            final BlockEntity blockEntity = level.getBlockEntity(pos);
-            if (blockEntity instanceof final LuaComputerBlockEntity computer) {
+            // The computer has no display of its own, so the terminal is opened on whichever screen
+            // is against it. With none there is nothing to show, and saying so beats opening an
+            // empty window: a computer with no monitor is the one mistake this arrangement invites.
+            final LuaScreenBlockEntity screen = findAttachedScreen(level, pos);
+            if (screen != null) {
                 // Through DistExecutor so the client-only screen class is never resolved on a
                 // dedicated server, where loading it would fail at verification time.
-                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> LuaTerminalScreens.open(computer));
+                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> LuaTerminalScreens.open(screen));
+            } else {
+                player.displayClientMessage(
+                    Component.translatable("gui.oc2r.lua_computer.no_screen"), true);
             }
         }
 
@@ -108,6 +116,20 @@ public final class LuaComputerBlock extends HorizontalDirectionalBlock implement
     @Override
     public BlockState getStateForPlacement(final BlockPlaceContext context) {
         return super.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
+    }
+
+    /**
+     * The first screen block touching this computer, or {@code null} if it has none.
+     */
+    @Nullable
+    private static LuaScreenBlockEntity findAttachedScreen(final Level level, final BlockPos pos) {
+        for (final Direction direction : Direction.values()) {
+            if (level.getBlockEntity(pos.relative(direction))
+                instanceof final LuaScreenBlockEntity screen) {
+                return screen;
+            }
+        }
+        return null;
     }
 
     ///////////////////////////////////////////////////////////////////

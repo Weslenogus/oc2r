@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "oc2r:block/lua_computer_front",
+    "down": "oc2r:block/lua_computer_side",
+    "up": "oc2r:block/lua_computer_side",
+    "north": "oc2r:block/lua_computer_front",
+    "east": "oc2r:block/lua_computer_side",
+    "south": "oc2r:block/lua_computer_side",
+    "west": "oc2r:block/lua_computer_side"
+  }
+}
