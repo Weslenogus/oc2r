@@ -6,7 +6,7 @@ A computer running the OpenComputers 1 Lua environment, which is what software s
 Read the [Lua getting started guide](../lua_getting_started.md) for a walkthrough from placing the block to writing a program.
 
 ### Using it
-**Right click** to open the computer's panel: the power button, whether the machine is running, and how many screens are touching it. **Sneak and right click** does the same as that power button; the block glows while it is running.
+**Right click** to open the computer's window: the power button, whether the machine is running, and the parts it is made of. The slots are locked - the processor, memory, cards and disk are part of the block - and the last two fill as screens are placed against it. **Sneak and right click** does the same as the power button; the block glows while it is running.
 
 The terminal is not here. It belongs to the [Lua Screen](lua_screen.md), which is what you right click to actually use the machine.
 

@@ -55,6 +55,7 @@ public final class ClientSetup {
             MenuScreens.register(Containers.MONITOR.get(), MonitorDisplayScreen::new);
             MenuScreens.register(Containers.ROBOT.get(), RobotContainerScreen::new);
             MenuScreens.register(Containers.ROBOT_TERMINAL.get(), RobotTerminalScreen::new);
+            MenuScreens.register(Containers.LUA_COMPUTER.get(), LuaComputerContainerScreen::new);
             MenuScreens.register(Containers.NETWORK_TUNNEL.get(), NetworkTunnelScreen::new);
 
             // We need to register this manually, because static init throws errors when running data generation.

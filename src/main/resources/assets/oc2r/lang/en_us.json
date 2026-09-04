@@ -162,15 +162,5 @@
   "gui.oc2r.lua_computer.stopped": "Stopped",
   "gui.oc2r.lua_computer.no_screen_attached": "No screen attached",
   "gui.oc2r.lua_computer.no_screen_hint": "Place a Lua Screen against this block.",
-  "gui.oc2r.lua_computer.components": "Components",
-  "gui.oc2r.lua_computer.component.cpu": "Central Processing Unit",
-  "gui.oc2r.lua_computer.component.memory": "Memory",
-  "gui.oc2r.lua_computer.component.gpu": "Graphics Card (Tier 3)",
-  "gui.oc2r.lua_computer.component.canvas": "Canvas Card (Tier 4)",
-  "gui.oc2r.lua_computer.component.disk": "Hard Disk Drive - /disk",
-  "gui.oc2r.lua_computer.component.tmpfs": "Temporary Filesystem - /tmpfs",
-  "gui.oc2r.lua_computer.component.rom": "Read Only Memory - /rom",
-  "gui.oc2r.lua_computer.component.eeprom": "EEPROM - the BIOS",
-  "gui.oc2r.lua_computer.component.screen": "Screen ×%s",
-  "gui.oc2r.lua_computer.component.keyboard": "Keyboard ×%s"
+  "gui.oc2r.lua_computer.open_terminal": "Open the terminal on an attached screen"
 }

@@ -40,3 +40,24 @@ The original section that was found here is preserved below, however it should b
 [GithubPackagesGradle]: https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-gradle-registry
 [Sangar (fnuecke)]: https://github.com/fnuecke
 [Sedna]: https://github.com/fnuecke/sedna
+
+## Working on the Lua runtime
+
+Two things make the loop shorter than "rebuild, restart, place a block".
+
+**The machine's Lua is read from the working tree.** `runClient` and `runServer` point
+`oc2r.lua.scriptRoot` at `src/main/resources/assets/oc2r/lua`, so the BIOS, the kernel and the
+shell in ROM are read from there each time a machine starts. Edit `rom/init.lua`, restart the
+machine in game, and the change is running - no rebuild, no restart, no world reload. A file the
+directory does not have is read from the mod's resources as usual, so the override can hold just
+the one file being worked on. Set the property yourself to use it outside a development run.
+
+**A debugger attaches on request.** `./gradlew runClient -Poc2r.debug` opens port 5005; attach
+IntelliJ to it and its *Recompile* reloads changed method bodies into the running game. Adding
+methods or fields needs a JVM with enhanced class redefinition (the JetBrains Runtime, or DCEVM);
+without one, those edits still need a restart.
+
+Everything else that is data rather than code already reloads in game: **F3+T** re-reads resource
+packs, which is textures, models and language files, and `/reload` re-reads data packs. A machine
+that stops says why at `WARN` in the log and on its screen, so a report rarely needs a debugger at
+all.

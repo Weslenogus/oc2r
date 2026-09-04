@@ -266,6 +266,19 @@ minecraft {
             property "forge.logging.markers", "REGISTRIES"
             property "forge.logging.console.level", "debug"
 
+            // Read the machine's Lua from the working tree rather than from the built resources,
+            // so editing the BIOS or the shell in ROM and restarting the machine in game is the
+            // whole loop - no rebuild, no restart.
+            property "oc2r.lua.scriptRoot", file("src/main/resources/assets/oc2r/lua").absolutePath
+
+            // ./gradlew runClient -Poc2r.debug opens a debugger port. Attach IntelliJ to 5005 and
+            // its "Recompile" reloads changed method bodies into the running game; on a JVM with
+            // enhanced class redefinition (JetBrains Runtime, DCEVM) added methods and fields
+            // reload too.
+            if (project.hasProperty("oc2r.debug")) {
+                jvmArgs "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+            }
+
             mods {
                 oc2 {
                     source sourceSets.main

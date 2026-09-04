@@ -15,6 +15,7 @@ import li.cil.oc2.common.machine.components.GraphicsCardComponent;
 import li.cil.oc2.common.machine.fs.RamFileSystem;
 import li.cil.oc2.common.machine.fs.RomFileSystem;
 import li.cil.oc2.common.machine.lua.LuaMachine;
+import li.cil.oc2.common.machine.lua.LuaScriptSource;
 import li.cil.oc2.common.machine.screen.MachineErrorScreen;
 import li.cil.oc2.common.machine.serialization.FileSystemSerialization;
 import li.cil.oc2.common.machine.serialization.MachineSerialization;
@@ -74,6 +75,15 @@ public final class LuaComputerBlockEntity extends ModBlockEntity
     private static final RomFileSystem.Image ROM_IMAGE = loadRom();
 
     /**
+     * The ROM as it should be right now. Normally the image read at startup; when the machine's
+     * Lua is being read from disk, a fresh read, so that breaking and replacing a computer picks
+     * up an edited shell without restarting the game.
+     */
+    private static RomFileSystem.Image romImage() {
+        return LuaScriptSource.isOverridden() ? loadRom() : ROM_IMAGE;
+    }
+
+    /**
      * Public because the item form has to know which parts of a saved computer are the bulky ones,
      * so it can keep them off the network.
      */
@@ -120,7 +130,7 @@ public final class LuaComputerBlockEntity extends ModBlockEntity
      * anything.
      */
     private final FilesystemComponent rom = new FilesystemComponent(UUID.randomUUID().toString(),
-        new RomFileSystem(ROM_IMAGE), "rom");
+        new RomFileSystem(romImage()), "rom");
     private final ComputerComponent self;
     private final LuaMachine machine;
 
@@ -394,12 +404,8 @@ public final class LuaComputerBlockEntity extends ModBlockEntity
     }
 
     private static String loadDefaultBios() {
-        try (final InputStream stream = LuaComputerBlockEntity.class.getResourceAsStream(BIOS_SCRIPT)) {
-            if (stream == null) {
-                LOGGER.error("Missing default BIOS at [{}].", BIOS_SCRIPT);
-                return "";
-            }
-            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        try {
+            return new String(LuaScriptSource.readBytes(BIOS_SCRIPT), StandardCharsets.UTF_8);
         } catch (final IOException e) {
             LOGGER.error("Could not read the default BIOS.", e);
             return "";

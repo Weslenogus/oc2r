@@ -20,6 +20,7 @@ public final class Containers {
     public static final RegistryObject<MenuType<MonitorDisplayContainer>> MONITOR = CONTAINERS.register("monitor", () -> IForgeMenuType.create(MonitorDisplayContainer::createClient));
     public static final RegistryObject<MenuType<RobotInventoryContainer>> ROBOT = CONTAINERS.register("robot", () -> IForgeMenuType.create(RobotInventoryContainer::createClient));
     public static final RegistryObject<MenuType<RobotTerminalContainer>> ROBOT_TERMINAL = CONTAINERS.register("robot_terminal", () -> IForgeMenuType.create(RobotTerminalContainer::createClient));
+    public static final RegistryObject<MenuType<LuaComputerContainer>> LUA_COMPUTER = CONTAINERS.register("lua_computer", () -> IForgeMenuType.create(LuaComputerContainer::createClient));
     public static final RegistryObject<MenuType<NetworkTunnelContainer>> NETWORK_TUNNEL = CONTAINERS.register("network_tunnel", () -> IForgeMenuType.create(NetworkTunnelContainer::createClient));
 
     ///////////////////////////////////////////////////////////////////

@@ -452,13 +452,7 @@ public final class NativeLuaArchitecture implements LuaArchitecture {
 
     private static void run(final Lua state, final String resource, final String name, final int results)
         throws IOException {
-        final byte[] source;
-        try (final InputStream stream = NativeLuaArchitecture.class.getResourceAsStream(resource)) {
-            if (stream == null) {
-                throw new IOException("Missing script [" + resource + "].");
-            }
-            source = stream.readAllBytes();
-        }
+        final byte[] source = LuaScriptSource.readBytes(resource);
 
         final ByteBuffer buffer = ByteBuffer.allocateDirect(source.length).order(ByteOrder.nativeOrder());
         buffer.put(source).flip();
